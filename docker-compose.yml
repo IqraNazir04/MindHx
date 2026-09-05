@@ -7,6 +7,9 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-small}
       WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
       WEB_ORIGIN: http://localhost:3000
+      VOICE_BIOMARKER_PROVIDER: ${VOICE_BIOMARKER_PROVIDER:-local}
+      VOICE_BIOMARKER_API_URL: ${VOICE_BIOMARKER_API_URL:-}
+      VOICE_BIOMARKER_API_KEY: ${VOICE_BIOMARKER_API_KEY:-}
     volumes:
       - whisper-cache:/root/.cache
 
