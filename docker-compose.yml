@@ -1,0 +1,24 @@
+services:
+  mindhx-api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WEB_ORIGIN: http://localhost:3000
+    volumes:
+      - whisper-cache:/root/.cache
+
+  mindhx-web:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mindhx-api
+
+volumes:
+  whisper-cache:
