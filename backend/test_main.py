@@ -1,8 +1,11 @@
+import asyncio
+
+import httpx
 import numpy as np
 from fastapi.testclient import TestClient
 
 from database import init_db
-from main import _prosodic_features, _prosodic_risk_signal, app, summarize_trajectory
+from main import RAG_DOCUMENTS, _prosodic_features, _prosodic_risk_signal, app, compose_chat_reply, is_urdu_script, summarize_trajectory
 from models import CheckIn
 
 init_db()
@@ -210,6 +213,58 @@ def test_ai_chat_still_escalates_with_history_and_context_supplied() -> None:
     })
     assert response.status_code == 200
     assert response.json()["status"] == "escalate"
+
+
+def test_is_urdu_script_detects_urdu_and_rejects_english() -> None:
+    assert is_urdu_script("یہ ایک اردو جملہ ہے جو مکمل طور پر اردو میں لکھا گیا ہے۔") is True
+    assert is_urdu_script("This is a plain English sentence with no Urdu at all.") is False
+    assert is_urdu_script("MindHx AI آپ کی مدد کے لیے یہاں ہے اور آپ کی بات غور سے سنتا ہے۔") is True
+
+
+def test_compose_chat_reply_rejects_english_output_when_urdu_requested(monkeypatch) -> None:
+    """Defense in depth: an LLM that ignores the "reply in Urdu" system-prompt
+    instruction must never surface an English reply to an Urdu-selected user -
+    compose_chat_reply should discard it so the caller falls back to the
+    guaranteed-correct Urdu template instead."""
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": (
+                '{"action": "respond", "message": "This is an English reply even though Urdu was requested.", '
+                '"offer_exercise": null, "suggested_cta": null}'
+            )}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    result = asyncio.run(compose_chat_reply(
+        message="مجھے بہت بےچینی محسوس ہو رہی ہے",
+        language="ur",
+        history=[],
+        documents=[RAG_DOCUMENTS[0]],
+        screening_context=None,
+        trajectory_summary=None,
+        mood_checkins=[],
+        helpful_practices=[],
+    ))
+
+    assert result is None
 
 
 def test_mood_checkins_and_helpful_practices_require_auth_and_round_trip() -> None:

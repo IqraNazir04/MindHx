@@ -5,6 +5,7 @@ import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleLeaf } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 
 const entries = [
   {
@@ -50,6 +51,7 @@ export default function MedicationPage() {
   const isUrdu = language === "اردو";
 
   return (
+    <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleHeart className="doodle doodle-orange doodle-float" style={{ top: "100px", right: "5%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%", width: "28px", height: "auto" }} />
@@ -77,5 +79,7 @@ export default function MedicationPage() {
         })}
       </section>
     </main>
+    <SiteFooter language={language} />
+    </>
   );
 }

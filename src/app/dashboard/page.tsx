@@ -7,6 +7,7 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 import { fetchCheckIns, logout, type CheckInRecord } from "../lib/auth";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
@@ -32,6 +33,7 @@ function DashboardContent({ email }: { email: string }) {
   }
 
   return (
+    <>
     <main className="resource-page">
       <SiteHeader
         backLabel="New check-in"
@@ -71,5 +73,7 @@ function DashboardContent({ email }: { email: string }) {
         </div>
       )}
     </main>
+    <SiteFooter />
+    </>
   );
 }

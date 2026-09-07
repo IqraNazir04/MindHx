@@ -251,6 +251,20 @@ def has_crisis_language(text: str) -> bool:
     return any(term in normalized for term in CRISIS_TERMS)
 
 
+def is_urdu_script(text: str) -> bool:
+    """True if a meaningful share of the letters in text are Urdu/Arabic script.
+    Used to reject an LLM-composed reply that ignored the "reply in Urdu"
+    instruction - short brand names, numbers, and scale names (MindHx, PHQ-9)
+    are expected inline even in a correct Urdu reply, so this only checks the
+    letters, not the whole string."""
+    urdu_letters = sum(1 for ch in text if "؀" <= ch <= "ۿ")
+    latin_letters = sum(1 for ch in text if ch.isalpha() and ch.isascii())
+    total_letters = urdu_letters + latin_letters
+    if total_letters == 0:
+        return True
+    return (urdu_letters / total_letters) >= 0.4
+
+
 def retrieve_rag_documents(message: str) -> list[dict]:
     lowered = message.lower()
     terms = {
@@ -952,6 +966,11 @@ async def compose_chat_reply(
     if has_crisis_language(result["message"]):
         # Defense in depth: never surface a generated reply that reads as crisis-adjacent,
         # even though the input was already gated - fall back to the deterministic template.
+        return None
+    if language == "ur" and not is_urdu_script(result["message"]):
+        # The system prompt asks the model to reply in the requested language, but LLMs
+        # don't always comply - never show an Urdu-selected user an English generated
+        # reply; fall back to the deterministic, verified-Urdu template instead.
         return None
     if result.get("offer_exercise") not in INTERACTIVE_EXERCISES:
         result["offer_exercise"] = None

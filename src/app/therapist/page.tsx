@@ -6,6 +6,7 @@ import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleSun } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 import { CITIES, getDirectoryLinks, getProvidersForCity, type City } from "./providers";
 
 const TYPE_LABELS: Record<string, { en: string; ur: string }> = {
@@ -78,6 +79,7 @@ export default function TherapistPage() {
   const directories = getDirectoryLinks(city);
 
   return (
+    <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "100px", right: "5%" }} />
       <DoodleHeart className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%" }} />
@@ -154,5 +156,7 @@ export default function TherapistPage() {
         <p>{text.safetyBody}</p>
       </Link>
     </main>
+    <SiteFooter language={language} />
+    </>
   );
 }

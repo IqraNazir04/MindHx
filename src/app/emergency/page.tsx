@@ -6,6 +6,7 @@ import SiteHeader from "../components/SiteHeader";
 import { DoodleCloud } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 
 type CrisisContext = {
   source: "phq9_item9" | "text_crisis_language" | "manual";
@@ -62,6 +63,7 @@ export default function EmergencyPage() {
   const text = copy[language];
 
   return (
+    <>
     <main className="resource-page emergency-page" dir={language === "ur" ? "rtl" : "ltr"}>
       <DoodleCloud className="doodle doodle-blue doodle-float-slow" style={{ top: "95px", right: "6%", opacity: 0.3 }} />
       <SiteHeader
@@ -91,5 +93,7 @@ export default function EmergencyPage() {
         <Link className="resource-back" href="/">{text.backHome} ↗</Link>
       </div>
     </main>
+    <SiteFooter language={language === "ur" ? "اردو" : "English"} />
+    </>
   );
 }

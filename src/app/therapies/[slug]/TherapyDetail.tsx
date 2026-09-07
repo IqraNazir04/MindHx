@@ -6,6 +6,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
+import SiteFooter from "../../components/SiteFooter";
 import type { Therapy } from "../data";
 
 const copy = {
@@ -20,6 +21,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
   const content = therapy[isUrdu ? "ur" : "en"];
 
   return (
+    <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "95px", right: "5%" }} />
       <DoodleHeart className="doodle doodle-orange doodle-sway" style={{ top: "50%", left: "2%" }} />
@@ -51,5 +53,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
         <Link className="result-primary result-primary-orange" href="/therapist">{text.discuss} <span>→</span></Link>
       </div>
     </main>
+    <SiteFooter language={language} />
+    </>
   );
 }

@@ -2,6 +2,7 @@ import SiteHeader from "../components/SiteHeader";
 import { DoodleSun, DoodleWave } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 
 type Swatch = { name: string; textColor: string; background: string; usage: string };
 
@@ -48,6 +49,7 @@ function SwatchGroup({ eyebrow, description, swatches }: { eyebrow: string; desc
 
 export default function BrandPage() {
   return (
+    <>
     <main className="resource-page brand-page">
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "95px", right: "5%" }} />
       <DoodleWave className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%" }} />
@@ -62,5 +64,7 @@ export default function BrandPage() {
       <SwatchGroup eyebrow="SECONDARY" description="Creative contexts only - marketing collateral, banners" swatches={SECONDARY} />
       <SwatchGroup eyebrow="TECHNICAL" description="Documentation sites and technical contexts only" swatches={TECHNICAL} />
     </main>
+    <SiteFooter />
+    </>
   );
 }

@@ -6,6 +6,7 @@ import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import SiteFooter from "../components/SiteFooter";
 import { login } from "../lib/auth";
 
 export default function LoginPage() {
@@ -30,6 +31,7 @@ export default function LoginPage() {
   }
 
   return (
+    <>
     <main className="resource-page">
       <SiteHeader backLabel="Back to check-in" />
       <section className="resource-hero auth-hero">
@@ -52,5 +54,7 @@ export default function LoginPage() {
         <p className="auth-switch">Don&apos;t have an account? <Link href="/register">Create one</Link></p>
       </form>
     </main>
+    <SiteFooter />
+    </>
   );
 }

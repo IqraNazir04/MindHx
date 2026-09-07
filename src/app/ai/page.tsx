@@ -9,6 +9,7 @@ import { naturePhotos } from "../components/naturePhotos";
 import ExerciseStepper from "../components/ExerciseStepper";
 import MoodCheckIn from "../components/MoodCheckIn";
 import { getLocalHelpfulPractices, getLocalMoods, recordHelpfulPractice, recordMood } from "../lib/wellbeing";
+import SiteFooter from "../components/SiteFooter";
 
 type Source = { id: string; title: string; content: string; link: string };
 type Exercise = { id: string; name: string; steps: { instruction: string; seconds: number }[] };
@@ -101,6 +102,7 @@ export default function AiPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [showMoodCheckIn, setShowMoodCheckIn] = useState(true);
+  const [helpedMessages, setHelpedMessages] = useState<Set<number>>(new Set());
   const screeningContext = useRef<ScreeningContext | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -174,6 +176,7 @@ export default function AiPage() {
   }
 
   return (
+    <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "100px", right: "5%" }} />
       <DoodleWave className="doodle doodle-teal doodle-sway" style={{ top: "58%", left: "2%" }} />
@@ -205,9 +208,13 @@ export default function AiPage() {
                   startLabel={text.exerciseStart}
                   restartLabel={text.exerciseRestart}
                   progressLabel={text.exerciseProgress}
-                  onComplete={() => recordHelpfulPractice(entry.exercise!.name)}
+                  onComplete={() => {
+                    recordHelpfulPractice(entry.exercise!.name);
+                    setHelpedMessages((current) => new Set(current).add(index));
+                  }}
                 />
               )}
+              {entry.exercise && helpedMessages.has(index) && <p className="chat-helped-note">{text.helpedThanks}</p>}
               {entry.suggestedCta && (
                 <Link href={entry.suggestedCta.href} className="chat-suggested-cta">{entry.suggestedCta.label} →</Link>
               )}
@@ -248,5 +255,7 @@ export default function AiPage() {
         </div>
       </div>
     </main>
+    <SiteFooter language={language} />
+    </>
   );
 }

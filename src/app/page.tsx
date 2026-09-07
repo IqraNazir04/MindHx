@@ -6,6 +6,7 @@ import Link from "next/link";
 import { DoodleCloud, DoodleHeart, DoodleSun, DoodleWave } from "./components/Doodles";
 import NatureBanner from "./components/NatureBanner";
 import { naturePhotos } from "./components/naturePhotos";
+import SiteFooter from "./components/SiteFooter";
 import { isLoggedIn, saveCheckIn } from "./lib/auth";
 
 const questionsEn = ["Little interest or pleasure in doing things", "Feeling down, depressed, or hopeless", "Trouble falling or staying asleep, or sleeping too much", "Feeling tired or having little energy", "Poor appetite or overeating", "Feeling bad about yourself, or that you are a failure", "Trouble concentrating on things", "Moving or speaking slowly, or being unusually restless", "Thoughts that you would be better off dead or hurting yourself"];
@@ -281,6 +282,7 @@ export default function Home() {
         {componentEvaluation}
         <p className="disclaimer"><span>ⓘ</span> {text.disclaimer} <Link href="/brand" className="brand-link">Brand ↗</Link></p>
       </main>
+      <SiteFooter language={language === "اردو" ? "اردو" : "English"} />
       {showProfile && <div className="modal-backdrop" onClick={() => setShowProfile(false)}><div className="modal profile-modal" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setShowProfile(false)}>×</button><p className="eyebrow">PRIVATE SESSION CONTEXT</p><h2>Share only what helps.</h2><p>These fields are optional except age range. They stay in memory for this session and are not used to create an account.</p><div className="profile-fields"><select value={profile.ageRange} onChange={(event) => setProfile({ ...profile, ageRange: event.target.value })} aria-label="Age range"><option value="">Age range</option><option>18-24</option><option>25-34</option><option>35-44</option><option>45+</option></select><select value={profile.gender} onChange={(event) => setProfile({ ...profile, gender: event.target.value })} aria-label="Gender"><option value="">Gender (optional)</option><option>Woman</option><option>Man</option><option>Non-binary</option><option>Prefer not to say</option></select><select value={profile.maritalStatus} onChange={(event) => setProfile({ ...profile, maritalStatus: event.target.value })} aria-label="Relationship status"><option value="">Relationship status</option><option>Single</option><option>Partnered</option><option>Married</option><option>Prefer not to say</option></select><select value={profile.lifeContext} onChange={(event) => setProfile({ ...profile, lifeContext: event.target.value })} aria-label="Life context"><option value="">Life context (optional)</option><option>Student</option><option>Working</option><option>Retired</option><option>Between roles</option><option>Caregiving</option></select></div><button className="check-in-button" onClick={createPrivateSession}>{sessionToken ? "Update session context" : "Continue privately"} <span>→</span></button><p className="profile-modal-auth">Want to save your check-in history? <Link href="/login">Sign in</Link> or <Link href="/register">create an account</Link> - both stay entirely optional.</p></div></div>}
     </div>
   );

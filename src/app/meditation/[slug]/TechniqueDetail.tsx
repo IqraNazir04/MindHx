@@ -6,6 +6,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { DoodleLeaf, DoodleSun } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
+import SiteFooter from "../../components/SiteFooter";
 import type { Technique } from "../data";
 
 const copy = {
@@ -20,6 +21,7 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
   const content = technique[isUrdu ? "ur" : "en"];
 
   return (
+    <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "95px", right: "5%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "50%", left: "2%", width: "26px", height: "auto" }} />
@@ -48,5 +50,7 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
       )}
       <Link className="result-primary" href="/meditation">{text.back} <span>→</span></Link>
     </main>
+    <SiteFooter language={language} />
+    </>
   );
 }

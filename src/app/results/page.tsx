@@ -6,6 +6,7 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import { DoodleLeaf, DoodleSpeechBubble, DoodleSun } from "../components/Doodles";
+import SiteFooter from "../components/SiteFooter";
 
 type Result = {
   risk_score: number;
@@ -49,7 +50,7 @@ export default function ResultsPage() {
   }, []);
 
   if (!result) {
-    return <main className="results-page empty-results"><p className="eyebrow">MINDHX / RESULTS</p><h1>Your check-in is not ready yet.</h1><p>Complete the private assessment first, then return here to review your signals.</p><button className="result-primary" onClick={() => router.push("/")}>Back to check-in <span>→</span></button></main>;
+    return <><main className="results-page empty-results"><p className="eyebrow">MINDHX / RESULTS</p><h1>Your check-in is not ready yet.</h1><p>Complete the private assessment first, then return here to review your signals.</p><button className="result-primary" onClick={() => router.push("/")}>Back to check-in <span>→</span></button></main><SiteFooter /></>;
   }
 
   const score = Math.round(result.risk_score * 100);
@@ -57,6 +58,7 @@ export default function ResultsPage() {
   const contact = result.support_plan?.professional_contact;
 
   return (
+    <>
     <main className="results-page">
       <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "90px", left: "3%" }} />
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "60px", right: "3%" }} />
@@ -78,6 +80,8 @@ export default function ResultsPage() {
       {contact && <section className={`contact-banner ${contact.recommended ? "recommended" : ""}`}><div><p className="eyebrow">03 / PROFESSIONAL SUPPORT</p><h2>{contact.recommended ? "Consider speaking with a professional." : "You can reach out when you need to."}</h2><p>{contact.action}</p></div><div className="contact-quote"><b>What to say</b><span>{contact.what_to_say}</span></div></section>}
       <footer className="results-footer"><span>MindHx / private session</span><button onClick={() => router.push("/")}>Return to check-in <span>↗</span></button></footer>
     </main>
+    <SiteFooter />
+    </>
   );
 }
 
