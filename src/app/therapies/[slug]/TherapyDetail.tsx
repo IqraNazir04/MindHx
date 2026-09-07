@@ -7,6 +7,7 @@ import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
 import SiteFooter from "../../components/SiteFooter";
+import { StepIcon } from "../../components/StepIcons";
 import type { Therapy } from "../data";
 
 const copy = {
@@ -35,7 +36,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.whatToExpect}</p>
-          <ol>{content.whatToExpect.map((item) => <li key={item}>{item}</li>)}</ol>
+          <ol>{content.whatToExpect.map((item, index) => <li key={item}><StepIcon icon={therapy.stepIcons[index]} /><span>{item}</span></li>)}</ol>
         </div>
         <div className="resource-note">
           <b>{text.sessionInfo}</b>

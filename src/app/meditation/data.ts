@@ -1,8 +1,10 @@
 import type { naturePhotos } from "../components/naturePhotos";
+import type { StepIconKey } from "../components/StepIcons";
 
 export type Technique = {
   slug: string;
   image: keyof typeof naturePhotos;
+  stepIcons: StepIconKey[];
   en: { name: string; summary: string; notes: string; steps: string[] };
   ur: { name: string; summary: string; notes: string; steps: string[] };
   relatedThemes: string[];
@@ -12,6 +14,7 @@ export const techniques: Technique[] = [
   {
     slug: "box-breathing",
     image: "grassBreeze",
+    stepIcons: ["seated", "breatheIn", "holdPause", "breatheOut", "repeatCycle"],
     en: {
       name: "Box breathing",
       summary: "Inhale, hold, exhale, and hold for four counts each.",
@@ -41,6 +44,7 @@ export const techniques: Technique[] = [
   {
     slug: "grounding-5-4-3-2-1",
     image: "bareFeetOnGrass",
+    stepIcons: ["holdPause", "senseEye", "senseHand", "senseEar", "senseNose", "senseMouth"],
     en: {
       name: "5-4-3-2-1 grounding",
       summary: "Name five things you see, four you feel, three you hear, two you smell, and one you taste.",
@@ -72,6 +76,7 @@ export const techniques: Technique[] = [
   {
     slug: "body-scan",
     image: "calmLakeReflection",
+    stepIcons: ["seated", "headFocus", "bodyScan", "muscleFace", "calmFinish"],
     en: {
       name: "Body scan",
       summary: "Notice sensations from head to feet without trying to change them.",
@@ -101,6 +106,7 @@ export const techniques: Technique[] = [
   {
     slug: "one-small-action",
     image: "sprout",
+    stepIcons: ["target", "glassWater", "checkDone", "reflect"],
     en: {
       name: "One small action",
       summary: "Choose one achievable action for the next hour: water, food, daylight, or a message to someone safe.",
@@ -128,6 +134,7 @@ export const techniques: Technique[] = [
   {
     slug: "progressive-muscle-relaxation",
     image: "oceanSunrise",
+    stepIcons: ["seated", "muscleToes", "muscleLegs", "muscleHands", "muscleShoulders", "muscleFace", "calmFinish"],
     en: {
       name: "Progressive muscle relaxation",
       summary: "Tense each muscle group for a few seconds, then release, working through the body from feet to head.",
@@ -161,6 +168,7 @@ export const techniques: Technique[] = [
   {
     slug: "mindful-walking",
     image: "forestBridge",
+    stepIcons: ["pathChoose", "walking", "footStep", "thoughtCloud", "senseEar", "standStill"],
     en: {
       name: "Mindful walking",
       summary: "A short, slow walk where attention rests on physical sensation rather than thoughts.",

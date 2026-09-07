@@ -1,8 +1,10 @@
 import type { naturePhotos } from "../components/naturePhotos";
+import type { StepIconKey } from "../components/StepIcons";
 
 export type Therapy = {
   slug: string;
   image: keyof typeof naturePhotos;
+  stepIcons: StepIconKey[];
   en: { name: string; summary: string; sessionInfo: string; whatToExpect: string[] };
   ur: { name: string; summary: string; sessionInfo: string; whatToExpect: string[] };
   relatedThemes: string[];
@@ -12,6 +14,7 @@ export const therapies: Therapy[] = [
   {
     slug: "cbt",
     image: "balancedStones",
+    stepIcons: ["clipboard", "thoughtCloud", "repeatCycle", "chartUp"],
     en: {
       name: "CBT",
       summary: "Cognitive behavioral therapy explores patterns between thoughts, feelings, and behavior.",
@@ -39,6 +42,7 @@ export const therapies: Therapy[] = [
   {
     slug: "dbt",
     image: "mountainRange",
+    stepIcons: ["twoPeople", "peopleGroup", "notebook", "headsetCoach"],
     en: {
       name: "DBT",
       summary: "Dialectical behavior therapy teaches emotion regulation, distress tolerance, and interpersonal skills.",
@@ -66,6 +70,7 @@ export const therapies: Therapy[] = [
   {
     slug: "exposure-therapy",
     image: "steppingStones",
+    stepIcons: ["clipboard", "staircase", "gauge"],
     en: {
       name: "Exposure therapy",
       summary: "A clinician-guided approach for some anxiety and fear responses.",
@@ -91,6 +96,7 @@ export const therapies: Therapy[] = [
   {
     slug: "trauma-informed-therapy",
     image: "forestCabin",
+    stepIcons: ["shield", "sliderPacing", "branchPaths"],
     en: {
       name: "Trauma-informed therapy",
       summary: "A safety-led approach that respects pacing, choice, and control.",
@@ -116,6 +122,7 @@ export const therapies: Therapy[] = [
   {
     slug: "medical-review",
     image: "softDawn",
+    stepIcons: ["stethoscope", "testTube", "speechArrow"],
     en: {
       name: "Medical review",
       summary: "Primary-care or psychiatric review can consider physical contributors, sleep, medicines, and safety.",
@@ -141,6 +148,7 @@ export const therapies: Therapy[] = [
   {
     slug: "peer-support-groups",
     image: "pebbleCircle",
+    stepIcons: ["groupRules", "peopleGroup", "guideFacilitator", "openHand"],
     en: {
       name: "Peer support groups",
       summary: "Structured groups where people with similar experiences share support under trained facilitation.",

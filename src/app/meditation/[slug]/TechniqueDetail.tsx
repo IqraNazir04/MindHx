@@ -7,6 +7,7 @@ import { DoodleLeaf, DoodleSun } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
 import SiteFooter from "../../components/SiteFooter";
+import { StepIcon } from "../../components/StepIcons";
 import type { Technique } from "../data";
 
 const copy = {
@@ -35,7 +36,7 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.how}</p>
-          <ol>{content.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+          <ol>{content.steps.map((step, index) => <li key={step}><StepIcon icon={technique.stepIcons[index]} /><span>{step}</span></li>)}</ol>
         </div>
         <div className="resource-note">
           <b>{text.considerations}</b>

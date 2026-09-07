@@ -2,6 +2,19 @@
 
 MindHx is an early-detection mental-health **triage aid**, not a diagnostic tool. It combines three independent signals — acoustic (how someone sounds), linguistic (what they say), and validated clinical questionnaires (PHQ-9, GAD-7, K10) — into one explainable, weighted risk score, and routes elevated risk to a professional rather than attempting to diagnose or treat.
 
+## Screenshots
+
+| | |
+|---|---|
+| **Check-in** — voice, text, and PHQ-9/GAD-7/K10 in one flow | **MindHx AI** — grounded, safety-gated chat |
+| ![Home / check-in](docs/screenshots/home.jpg) | ![MindHx AI chat](docs/screenshots/ai-chat.jpg) |
+| **Meditation technique** — step-by-step 3D icons | **Therapy reference** — step-by-step 3D icons |
+| ![Meditation technique detail](docs/screenshots/meditation-technique.jpg) | ![Therapy detail](docs/screenshots/therapy-detail.jpg) |
+| **Therapist directory** — verified Pakistan providers | **Emergency support** |
+| ![Therapist directory](docs/screenshots/therapist-directory.jpg) | ![Emergency support](docs/screenshots/emergency-support.jpg) |
+| **Brand / color system** | |
+| ![Brand color system](docs/screenshots/brand-colors.jpg) | |
+
 ## Objective
 
 Depression, anxiety, and related conditions are frequently under-screened, especially where access to mental-health professionals is limited and stigma discourages self-report. MindHx's objective is to lower the barrier to a *first* screening step — a private, low-friction check-in that surfaces a risk signal a person can act on — while being explicit about what it is not: not a diagnosis, not a replacement for a clinician, and not a clinically calibrated instrument (yet — see Roadmap).
