@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
+import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
 import type { Therapy } from "../data";
 
 const copy = {
@@ -18,6 +19,8 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
 
   return (
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
+      <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "95px", right: "5%" }} />
+      <DoodleHeart className="doodle doodle-orange doodle-sway" style={{ top: "50%", left: "2%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backHref="/therapies" backLabel={text.back} />
       <section className="resource-hero">
         <p className="eyebrow">{text.eyebrow}</p>

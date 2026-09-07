@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import { DoodleHeart, DoodleLeaf } from "../components/Doodles";
 
 const entries = [
   {
@@ -48,6 +49,8 @@ export default function MedicationPage() {
 
   return (
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
+      <DoodleHeart className="doodle doodle-orange doodle-float" style={{ top: "100px", right: "5%" }} />
+      <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%", width: "28px", height: "auto" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
       <section className="resource-hero">
         <p className="eyebrow">{text.eyebrow}</p>

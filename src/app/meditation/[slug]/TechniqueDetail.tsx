@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
+import { DoodleLeaf, DoodleSun } from "../../components/Doodles";
 import type { Technique } from "../data";
 
 const copy = {
@@ -18,6 +19,8 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
 
   return (
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
+      <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "95px", right: "5%" }} />
+      <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "50%", left: "2%", width: "26px", height: "auto" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backHref="/meditation" backLabel={text.back} />
       <section className="resource-hero">
         <p className="eyebrow">{text.eyebrow}</p>

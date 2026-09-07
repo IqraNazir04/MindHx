@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import { DoodleCloud } from "../components/Doodles";
 
 type CrisisContext = {
   source: "phq9_item9" | "text_crisis_language" | "manual";
@@ -60,6 +61,7 @@ export default function EmergencyPage() {
 
   return (
     <main className="resource-page emergency-page" dir={language === "ur" ? "rtl" : "ltr"}>
+      <DoodleCloud className="doodle doodle-blue doodle-float-slow" style={{ top: "95px", right: "6%", opacity: 0.3 }} />
       <SiteHeader
         language={language === "ur" ? "اردو" : "English"}
         onToggleLanguage={() => setManualLanguage(language === "ur" ? "en" : "ur")}
