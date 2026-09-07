@@ -4,16 +4,43 @@ MindHx is an early-detection mental-health **triage aid**, not a diagnostic tool
 
 ## Screenshots
 
+Every page supports a full English ⇄ Urdu (RTL) toggle, sourced from the same bilingual copy object per page — not a separate translated build.
+
+### English
+
 | | |
 |---|---|
-| **Check-in** — voice, text, and PHQ-9/GAD-7/K10 in one flow | **MindHx AI** — grounded, safety-gated chat |
-| ![Home / check-in](docs/screenshots/home.jpg) | ![MindHx AI chat](docs/screenshots/ai-chat.jpg) |
-| **Meditation technique** — step-by-step 3D icons | **Therapy reference** — step-by-step 3D icons |
-| ![Meditation technique detail](docs/screenshots/meditation-technique.jpg) | ![Therapy detail](docs/screenshots/therapy-detail.jpg) |
-| **Therapist directory** — verified Pakistan providers | **Emergency support** |
-| ![Therapist directory](docs/screenshots/therapist-directory.jpg) | ![Emergency support](docs/screenshots/emergency-support.jpg) |
-| **Brand / color system** | |
-| ![Brand color system](docs/screenshots/brand-colors.jpg) | |
+| **Check-in** — voice, text, and PHQ-9/GAD-7/K10 in one flow | **Results** — explainable per-signal attribution |
+| ![Home / check-in](docs/screenshots/home.jpg) | ![Results](docs/screenshots/results.jpg) |
+| **Medication reference** | **MindHx AI** — grounded, safety-gated chat |
+| ![Medication reference](docs/screenshots/medication.jpg) | ![MindHx AI chat](docs/screenshots/ai.jpg) |
+| **Meditation techniques** — library | **5-4-3-2-1 grounding** — step-by-step 3D icons |
+| ![Meditation techniques](docs/screenshots/meditation-list.jpg) | ![Grounding technique detail](docs/screenshots/meditation-grounding.jpg) |
+| **Box breathing** — step-by-step 3D icons | **Therapies** — library |
+| ![Box breathing detail](docs/screenshots/meditation-box.jpg) | ![Therapies list](docs/screenshots/therapies-list.jpg) |
+| **CBT** — step-by-step 3D icons | **Therapist directory** — verified Pakistan providers |
+| ![CBT therapy detail](docs/screenshots/therapy-cbt.jpg) | ![Therapist directory](docs/screenshots/therapist.jpg) |
+| **Emergency support** | **Brand / color system** |
+| ![Emergency support](docs/screenshots/emergency.jpg) | ![Brand color system](docs/screenshots/brand.jpg) |
+| **Sign in** | **Create account** |
+| ![Sign in](docs/screenshots/login.jpg) | ![Create account](docs/screenshots/register.jpg) |
+| **Dashboard** — saved check-in history (score/band/themes only, never a transcript) | |
+| ![Dashboard](docs/screenshots/dashboard.jpg) | |
+
+### اردو (Urdu, RTL)
+
+| | |
+|---|---|
+| **چیک ان** | **ادویات کی معلومات** |
+| ![Home in Urdu](docs/screenshots/ur/home.jpg) | ![Medication in Urdu](docs/screenshots/ur/medication.jpg) |
+| **MindHx AI** | **مراقبے کی تکنیکیں** |
+| ![AI chat in Urdu](docs/screenshots/ur/ai.jpg) | ![Meditation list in Urdu](docs/screenshots/ur/meditation-list.jpg) |
+| **5-4-3-2-1 گراؤنڈنگ** | **تھراپیز** |
+| ![Grounding technique in Urdu](docs/screenshots/ur/meditation-grounding.jpg) | ![Therapies list in Urdu](docs/screenshots/ur/therapies-list.jpg) |
+| **سی بی ٹی** | **معالج تلاش کریں** |
+| ![CBT in Urdu](docs/screenshots/ur/therapy-cbt.jpg) | ![Therapist directory in Urdu](docs/screenshots/ur/therapist.jpg) |
+| **فوری مدد** | |
+| ![Emergency support in Urdu](docs/screenshots/ur/emergency.jpg) | |
 
 ## Objective
 

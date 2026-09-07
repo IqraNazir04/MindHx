@@ -41,6 +41,7 @@ const copy = {
     psychologists: "Psychologists",
     visit: "Visit",
     findDisclaimer: "MindHx does not verify real-time availability, fees, or credentials for any listing above. Confirm details directly with the provider before booking.",
+    bannerCaption: "Take the next step.",
   },
   اردو: {
     eyebrow: "05 / پیشہ ورانہ ریفرل",
@@ -67,6 +68,7 @@ const copy = {
     psychologists: "ماہرینِ نفسیات",
     visit: "دیکھیں",
     findDisclaimer: "MindHx مذکورہ بالا کسی بھی فہرست کی حقیقی وقت کی دستیابی، فیس، یا اسناد کی تصدیق نہیں کرتا۔ بکنگ سے پہلے تفصیلات براہ راست فراہم کنندہ سے تصدیق کریں۔",
+    bannerCaption: "اگلا قدم اٹھائیں۔",
   },
 };
 
@@ -89,7 +91,7 @@ export default function TherapistPage() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.forestBridge} caption="Take the next step." />
+      <NatureBanner {...naturePhotos.forestBridge} caption={text.bannerCaption} />
       <section className="therapist-contact">
         <div>
           <p className="card-kicker">{text.whatToSay}</p>
