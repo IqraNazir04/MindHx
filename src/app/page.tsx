@@ -13,7 +13,7 @@ const questionsEn = ["Little interest or pleasure in doing things", "Feeling dow
 const gadQuestionsEn = ["Feeling nervous, anxious, or on edge", "Not being able to stop or control worrying", "Worrying too much about different things", "Trouble relaxing", "Being so restless that it is hard to sit still", "Becoming easily annoyed or irritable", "Feeling afraid as if something awful might happen"];
 const k10QuestionsEn = ["Tired out for no good reason", "Nervous", "So nervous that nothing could calm you down", "Hopeless", "Restless or fidgety", "So restless you could not sit still", "Depressed", "Everything was an effort", "So sad that nothing could cheer you up", "Worthless"];
 const answerOptionsEn = ["Not at all", "Several days", "More than half the days", "Nearly every day"];
-const k10OptionsEn = ["A little of the time", "Some of the time", "Most of the time", "All of the time"];
+const k10OptionsEn = ["None of the time", "A little of the time", "Some of the time", "Most of the time", "All of the time"];
 
 // Draft machine-assisted Urdu translations for demo purposes only. These are NOT a
 // clinically validated instrument (no published psychometric validation for this
@@ -22,7 +22,7 @@ const questionsUr = ["کاموں میں دلچسپی یا خوشی کم ہونا
 const gadQuestionsUr = ["گھبراہٹ، پریشانی، یا بےچینی محسوس کرنا", "فکر کو روکنے یا قابو میں رکھنے کے قابل نہ ہونا", "مختلف باتوں کے بارے میں ضرورت سے زیادہ فکر کرنا", "پرسکون ہونے میں دشواری", "اتنی بےچینی کہ ایک جگہ بیٹھنا مشکل ہو", "آسانی سے چڑچڑاپن یا غصہ آنا", "یہ خوف محسوس کرنا کہ کوئی بری بات ہونے والی ہے"];
 const k10QuestionsUr = ["بغیر کسی وجہ کے تھکاوٹ محسوس کرنا", "گھبراہٹ", "اتنی گھبراہٹ کہ کوئی چیز سکون نہ دے سکے", "مایوسی", "بےچینی یا بےقراری", "اتنی بےچینی کہ ایک جگہ بیٹھنا مشکل ہو", "دل شکستگی", "ہر کام مشکل معلوم ہونا", "اتنی اداسی کہ کوئی چیز خوش نہ کر سکے", "بےوقعت محسوس کرنا"];
 const answerOptionsUr = ["بالکل نہیں", "کئی دن", "آدھے سے زیادہ دن", "تقریباً روزانہ"];
-const k10OptionsUr = ["تھوڑے وقت کے لیے", "کچھ وقت کے لیے", "زیادہ تر وقت", "ہر وقت"];
+const k10OptionsUr = ["کبھی نہیں", "تھوڑے وقت کے لیے", "کچھ وقت کے لیے", "زیادہ تر وقت", "ہر وقت"];
 const questions = { English: questionsEn, اردو: questionsUr };
 const gadQuestions = { English: gadQuestionsEn, اردو: gadQuestionsUr };
 const k10Questions = { English: k10QuestionsEn, اردو: k10QuestionsUr };
@@ -45,16 +45,16 @@ const copy = {
 // once the assessment completes.
 function combinedLiveEstimate(answers: number[], gadAnswers: number[], k10Answers: number[]) {
   const scales = [
-    { values: answers, weight: 0.3 },
-    { values: gadAnswers, weight: 0.22 },
-    { values: k10Answers, weight: 0.22 },
+    { values: answers, weight: 0.3, maxIndex: 3 },
+    { values: gadAnswers, weight: 0.22, maxIndex: 3 },
+    { values: k10Answers, weight: 0.22, maxIndex: 4 },
   ];
   let weightedSum = 0;
   let weightTotal = 0;
-  for (const { values, weight } of scales) {
+  for (const { values, weight, maxIndex } of scales) {
     const answered = values.filter((value) => value > -1);
     if (!answered.length) continue;
-    const signal = answered.reduce((sum, value) => sum + value, 0) / (answered.length * 3);
+    const signal = answered.reduce((sum, value) => sum + value, 0) / (answered.length * maxIndex);
     weightedSum += signal * weight;
     weightTotal += weight;
   }

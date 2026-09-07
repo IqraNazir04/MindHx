@@ -156,7 +156,7 @@ textarea::placeholder { color:#9aa6b4; }
 .question-progress { height:4px; border-radius:4px; background:var(--line); margin:23px 0 25px; }
 .question-progress span { display:block; height:100%; background:linear-gradient(90deg,var(--blue),var(--teal)); border-radius:inherit; transition:width .3s; }
 .phq-card h3 { font-size:16px; font-weight:500; margin:0 0 17px; color:var(--navy); }
-.answer-list { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.answer-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:8px; }
 .answer-list button { display:flex; align-items:center; gap:8px; min-height:42px; text-align:left; border:1px solid var(--line); border-radius:6px; background:var(--surface); color:var(--muted); padding:9px 11px; font-size:11px; }
 .answer-list button:hover,.answer-list button.selected { border-color:var(--blue); background:var(--blue-soft); color:var(--blue-deep); }
 .radio { width:12px; height:12px; flex:0 0 12px; border:1px solid #9fb2c8; border-radius:50%; }
