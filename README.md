@@ -108,7 +108,7 @@ MindHx is designed to compress a screening step that otherwise requires scheduli
 
 **Frontend** (`src/app/`): 12 page routes — home (`/`), results, medication, AI chat, meditation (+ 4 technique detail sub-pages), therapies (+ 5 approach detail sub-pages), therapist, emergency, brand, login, register, and dashboard. Shared components: `SiteHeader` (sticky nav + language toggle, used on every page), `Doodles` (original hand-drawn-style SVG illustrations), and `ProtectedRoute` (client-side auth gate wrapping the dashboard — verifies the session token against `/auth/me` before rendering any content, redirecting to `/login` otherwise). Styling is a single `globals.css` light theme (no CSS framework component library beyond Tailwind's base).
 
-**Backend** (`backend/main.py`, FastAPI): 17 endpoints —
+**Backend** (`backend/main.py`, FastAPI): 20 endpoints —
 
 | Endpoint | Purpose |
 |---|---|
@@ -125,12 +125,14 @@ MindHx is designed to compress a screening step that otherwise requires scheduli
 | `POST /auth/register`, `/auth/login` | Optional account creation/sign-in; returns a JWT access token |
 | `GET /auth/me` | Returns the signed-in user (requires a valid Bearer token) |
 | `POST /checkins`, `GET /checkins` | Save/list a signed-in user's check-in history (aggregate results only) |
+| `POST /mood-checkins`, `GET /mood-checkins` | Save/list a signed-in user's lightweight daily mood log |
+| `POST /helpful-practices` | Record which coping practice a signed-in user found helpful, feeding future AI chat context |
 
 **Risk fusion:** a weighted sum over PHQ-9 (0.30), GAD-7 (0.22), K10 (0.22), text sentiment (0.16), and voice (0.10, when available) signals, each normalized to 0–1. The per-signal attribution shown on the results page is the exact weighted contribution of each term — for this additive model, that is mathematically identical to each signal's Shapley value, not an approximation.
 
 **Accounts** (`backend/auth.py`, `database.py`, `models.py`): passwords hashed with bcrypt (never stored in plaintext); sessions are HS256 JWTs with a configurable expiry (`JWT_EXPIRE_MINUTES`, default 60). `JWT_SECRET_KEY` must be set explicitly for any real deployment — if it's missing, the backend generates a random per-process secret and logs a warning, so an unset secret fails safe (invalidating tokens on restart) rather than silently shipping a guessable default. `DATABASE_URL` defaults to a local SQLite file so no database setup is needed for local dev or tests; set it to a `postgresql://...` URL (via `psycopg2-binary`, already a dependency) for production, and `docker-compose.yml` provisions a Postgres 16 container automatically.
 
-**Testing:** 14 backend tests (`backend/test_main.py`) covering crisis short-circuiting, theme detection (including a regression test for a fixed keyword-matching bug), the prosodic-signal math independent of PyAV availability, bilingual AI chat responses, the risk-assessment fusion shape, and the register/login/me/checkins account flow. Run with `cd backend && source .venv/bin/activate && pytest test_main.py -v`.
+**Testing:** 23 backend tests (`backend/test_main.py`) covering crisis short-circuiting, theme detection (including a regression test for a fixed keyword-matching bug), the prosodic-signal math independent of PyAV availability, bilingual AI chat responses (including trend-aware replies for signed-in users with saved history), the risk-assessment fusion shape, and the register/login/me/checkins/mood-checkins/helpful-practices account flow. `backend/conftest.py` points each test run at a throwaway SQLite file so the suite is idempotent - it never touches `backend/mindhx.db`. Run with `cd backend && source .venv/bin/activate && pytest test_main.py -v`.
 
 **Stack:** Next.js 16 / React 19 / TypeScript / Tailwind on the frontend; FastAPI / Pydantic / SQLAlchemy / faster-whisper / PyAV / numpy / httpx on the backend; PostgreSQL (SQLite in local dev) for the optional accounts feature; bcrypt + PyJWT for authentication; Qwen via Alibaba Cloud DashScope (preferred) or OpenRouter (fallback) for text classification; Uplift AI for Urdu speech synthesis.
 
