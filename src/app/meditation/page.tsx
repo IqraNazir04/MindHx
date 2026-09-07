@@ -1,6 +1,57 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import SiteHeader from "../components/SiteHeader";
+import { techniques } from "./data";
 
-const techniques = [["Box breathing", "Inhale, hold, exhale, and hold for four counts each.", "A brief settling practice. Stop if you feel dizzy or more distressed."], ["5-4-3-2-1 grounding", "Name five things you see, four you feel, three you hear, two you smell, and one you taste.", "Useful when attention feels pulled into worry or overwhelm."], ["Body scan", "Notice sensations from head to feet without trying to change them.", "Some people find body awareness difficult during acute distress; switch to external grounding if needed."], ["One small action", "Choose one achievable action for the next hour: water, food, daylight, or a message to someone safe.", "A behavioral activation prompt, not a replacement for treatment."]];
+const copy = {
+  English: {
+    eyebrow: "03 / MEDITATION TECHNIQUES",
+    titleLine1: "Simple practices",
+    titleLine2: "you can explore safely.",
+    intro: "These techniques are general information, not individualized treatment. Choose one gently and stop if it increases distress.",
+    practice: "PRACTICE",
+    learnMore: "Learn more",
+  },
+  اردو: {
+    eyebrow: "03 / مراقبے کی تکنیکیں",
+    titleLine1: "سادہ مشقیں",
+    titleLine2: "جنہیں آپ محفوظ طریقے سے آزما سکتے ہیں۔",
+    intro: "یہ تکنیکیں عمومی معلومات ہیں، انفرادی علاج نہیں۔ ایک کو نرمی سے آزمائیں اور اگر تکلیف بڑھے تو رک جائیں۔",
+    practice: "مشق",
+    learnMore: "مزید جانیں",
+  },
+};
 
-export default function MeditationPage() { return <main className="resource-page"><ResourceHeader /><section className="resource-hero"><p className="eyebrow">03 / MEDITATION TECHNIQUES</p><h1>Simple practices<br /><em>you can explore safely.</em></h1><p>These techniques are general information, not individualized treatment. Choose one gently and stop if it increases distress.</p></section><section className="reference-grid">{techniques.map(([name, how, notes]) => <article key={name}><p className="card-kicker">PRACTICE</p><h2>{name}</h2><b>How to do it</b><p>{how}</p><b>General considerations</b><p>{notes}</p></article>)}</section></main>; }
-function ResourceHeader() { return <header className="resource-header"><Link href="/" className="results-brand"><span className="brand-mark">M</span> Mind<span>Hx</span></Link><Link href="/" className="resource-back">Back to check-in ↗</Link></header>; }
+export default function MeditationPage() {
+  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const text = copy[language];
+  const isUrdu = language === "اردو";
+
+  return (
+    <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
+      <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
+      <section className="resource-hero">
+        <p className="eyebrow">{text.eyebrow}</p>
+        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+        <p>{text.intro}</p>
+      </section>
+      <section className="reference-grid">
+        {techniques.map((technique) => {
+          const content = technique[isUrdu ? "ur" : "en"];
+          return (
+            <Link key={technique.slug} href={`/meditation/${technique.slug}`} className="reference-card-link">
+              <article>
+                <p className="card-kicker">{text.practice}</p>
+                <h2>{content.name}</h2>
+                <p className="reference-card-summary">{content.summary}</p>
+                <footer>{text.learnMore} →</footer>
+              </article>
+            </Link>
+          );
+        })}
+      </section>
+    </main>
+  );
+}

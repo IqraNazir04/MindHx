@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal, Optional
 
 import httpx
+import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -46,10 +47,50 @@ class AiSupportRequest(BaseModel):
 
 
 RAG_DOCUMENTS = [
-    {"id": "grounding", "intent": "anxiety", "title": "Grounding and anxious thoughts", "content": "Try naming five things you see, four you feel, three you hear, two you smell, and one you taste. If anxiety continues to interfere with daily life, consider speaking with a qualified professional.", "link": "/meditation"},
-    {"id": "small-action", "intent": "depression", "title": "One small achievable action", "content": "Choose one manageable action for the next hour, such as drinking water, opening a window, taking a short walk, or messaging someone you trust. Small actions do not replace treatment, but they can create a starting point.", "link": "/meditation"},
-    {"id": "therapy", "intent": "therapy", "title": "Therapy approaches", "content": "CBT, DBT, exposure therapy, trauma-informed care, and medical review are different approaches. A licensed clinician determines what is appropriate for your circumstances.", "link": "/therapies"},
-    {"id": "medication", "intent": "medication", "title": "Medication information", "content": "Medication decisions require a licensed prescriber who can review symptoms, medical history, current medicines, and side effects. Do not start, stop, or change medication based on this chat.", "link": "/medication"},
+    {
+        "id": "grounding", "intent": "anxiety", "link": "/meditation",
+        "en": {
+            "title": "Grounding and anxious thoughts",
+            "content": "The 5-4-3-2-1 technique works by shifting attention away from anxious or racing thoughts and onto your immediate senses, which can help interrupt a spiral of worry. Slowly name five things you can see, four things you can feel (like your feet on the floor or the texture of your clothing), three things you can hear, two things you can smell, and one thing you can taste. There's no need to rush - if a particular sense is hard to notice right now, just move to the next one. This is a general grounding technique, not a treatment for an anxiety disorder. If anxiety continues to interfere with daily life, sleep, or relationships, consider speaking with a qualified professional who can properly assess what's happening and discuss options such as therapy.",
+        },
+        "ur": {
+            "title": "گراؤنڈنگ اور بےچین خیالات",
+            "content": "5-4-3-2-1 تکنیک توجہ کو بےچین یا تیزی سے دوڑتے خیالات سے ہٹا کر آپ کے فوری حواس کی طرف لے جاتی ہے، جو فکر کے چکر کو روکنے میں مدد دے سکتی ہے۔ آہستہ آہستہ پانچ چیزیں جو آپ دیکھ سکتے ہیں، چار چیزیں جو محسوس کر سکتے ہیں (جیسے پاؤں کا فرش پر ہونا یا کپڑے کی ساخت)، تین چیزیں جو سن سکتے ہیں، دو چیزیں جن کی خوشبو محسوس ہو، اور ایک چیز جس کا ذائقہ محسوس ہو، نام لیں۔ جلدی کرنے کی ضرورت نہیں - اگر کوئی خاص حس ابھی محسوس کرنا مشکل ہو تو اگلی طرف بڑھ جائیں۔ یہ ایک عمومی گراؤنڈنگ تکنیک ہے، اضطرابی مرض کا علاج نہیں۔ اگر بےچینی روزمرہ زندگی، نیند، یا تعلقات میں مسلسل مداخلت کرے تو ایک مستند ماہر سے بات کرنے پر غور کریں جو صورتحال کا صحیح جائزہ لے کر تھراپی جیسے اختیارات پر گفتگو کر سکے۔",
+        },
+    },
+    {
+        "id": "small-action", "intent": "depression", "link": "/meditation",
+        "en": {
+            "title": "One small achievable action",
+            "content": "When motivation and energy are low, waiting to \"feel ready\" can keep things stuck. Behavioral activation works the other way around: doing one small, concrete thing first, and letting the feeling follow. Choose one manageable action for the next hour, such as drinking a glass of water, opening a window for fresh air, stepping outside for a short walk, or sending one message to someone you trust. Keep the goal deliberately small so it's achievable even on a hard day. Small actions do not replace treatment, but they can create a starting point and interrupt withdrawal. If low mood, low energy, or loss of interest continue for most of the day, most days, over two weeks or more, that's worth discussing with a professional.",
+        },
+        "ur": {
+            "title": "ایک چھوٹا سا قابلِ حصول قدم",
+            "content": "جب حوصلہ اور توانائی کم ہو تو 'تیار محسوس کرنے' کا انتظار چیزوں کو رکا ہوا رکھ سکتا ہے۔ رویے پر مبنی محرک اس کے برعکس کام کرتا ہے: پہلے ایک چھوٹا، ٹھوس کام کرنا، اور احساس کو بعد میں آنے دینا۔ اگلے ایک گھنٹے کے لیے ایک قابلِ انتظام کام منتخب کریں، جیسے ایک گلاس پانی پینا، تازہ ہوا کے لیے کھڑکی کھولنا، مختصر سیر کے لیے باہر جانا، یا کسی قابلِ اعتماد شخص کو ایک پیغام بھیجنا۔ ہدف کو جان بوجھ کر اتنا چھوٹا رکھیں کہ مشکل دن میں بھی قابلِ حصول ہو۔ چھوٹے اقدامات علاج کا متبادل نہیں، لیکن یہ ایک نقطہ آغاز بنا سکتے ہیں اور پیچھے ہٹنے کے عمل کو روک سکتے ہیں۔ اگر کم موڈ، کم توانائی، یا دلچسپی کی کمی دو ہفتوں یا اس سے زیادہ عرصے تک، زیادہ تر دن، زیادہ تر وقت جاری رہے، تو یہ ایک ماہر سے گفتگو کے قابل ہے۔",
+        },
+    },
+    {
+        "id": "therapy", "intent": "therapy", "link": "/therapies",
+        "en": {
+            "title": "Therapy approaches",
+            "content": "There isn't a single \"right\" therapy - different approaches suit different needs. Cognitive behavioral therapy (CBT) examines the links between thoughts, feelings, and behavior through structured sessions and between-session exercises. Dialectical behavior therapy (DBT) builds skills in emotion regulation, distress tolerance, and interpersonal effectiveness. Exposure therapy gradually and safely addresses specific fears or anxiety triggers under a clinician's guidance. Trauma-informed care prioritizes safety, pacing, and choice when trauma may be a factor. A medical review can also rule out physical contributors like sleep, thyroid, or medication effects. A licensed clinician can help match the approach to your specific circumstances - you don't need to figure this out alone.",
+        },
+        "ur": {
+            "title": "تھراپی کے طریقے",
+            "content": "کوئی ایک 'درست' تھراپی نہیں ہوتی - مختلف طریقے مختلف ضروریات کے لیے موزوں ہوتے ہیں۔ کوگنیٹو بیہیویورل تھراپی (CBT) منظم سیشنز اور سیشنز کے درمیان مشقوں کے ذریعے خیالات، جذبات، اور رویے کے تعلق کو دیکھتی ہے۔ ڈائلیکٹیکل بیہیویورل تھراپی (DBT) جذباتی توازن، تکلیف برداشت کرنے، اور باہمی تعلقات کی مہارتیں پیدا کرتی ہے۔ ایکسپوژر تھراپی ایک معالج کی رہنمائی میں مخصوص خوف یا اضطراب کے محرکات کو آہستہ آہستہ اور محفوظ طریقے سے حل کرتی ہے۔ صدمے سے آگاہ نگہداشت حفاظت، رفتار، اور انتخاب کو ترجیح دیتی ہے جب صدمہ ایک عنصر ہو سکتا ہے۔ ایک طبی جائزہ نیند، تھائیرائیڈ، یا ادویات کے اثرات جیسے جسمانی اسباب کو بھی خارج کر سکتا ہے۔ ایک مستند معالج آپ کے مخصوص حالات کے مطابق طریقہ منتخب کرنے میں مدد کر سکتا ہے - آپ کو یہ اکیلے سمجھنے کی ضرورت نہیں۔",
+        },
+    },
+    {
+        "id": "medication", "intent": "medication", "link": "/medication",
+        "en": {
+            "title": "Medication information",
+            "content": "Medication can be part of treatment for some mental-health conditions, but the right choice - if any - depends on individual factors like diagnosis, medical history, other medications, and personal response, which only a licensed prescriber can properly evaluate. Common examples referenced in general education include SSRIs for depression and some anxiety disorders, and short-term options for acute anxiety symptoms under close supervision; each carries different considerations around side effects, dependence, and interactions. Do not start, stop, or change any medication based on this chat. If you're currently prescribed something and have concerns, or are considering medication for the first time, that conversation belongs with your prescriber, who can review your full picture safely.",
+        },
+        "ur": {
+            "title": "ادویات کی معلومات",
+            "content": "کچھ ذہنی صحت کی کیفیات کے علاج میں ادویات شامل ہو سکتی ہیں، لیکن صحیح انتخاب - اگر کوئی ہو - تشخیص، طبی تاریخ، دیگر ادویات، اور ذاتی ردعمل جیسے انفرادی عوامل پر منحصر ہوتا ہے، جن کا صحیح جائزہ صرف ایک مستند تجویز کنندہ لے سکتا ہے۔ عمومی تعلیم میں حوالہ دی جانے والی عام مثالوں میں ڈپریشن اور کچھ اضطرابی امراض کے لیے ایس ایس آر آئیز، اور قریبی نگرانی میں شدید اضطراب کی علامات کے لیے قلیل مدتی اختیارات شامل ہیں؛ ہر ایک کے ساتھ ضمنی اثرات، انحصار، اور تعامل کے مختلف پہلو جڑے ہیں۔ اس گفتگو کی بنیاد پر کوئی دوا شروع، بند، یا تبدیل نہ کریں۔ اگر آپ فی الوقت کوئی دوا لے رہے ہیں اور خدشات رکھتے ہیں، یا پہلی بار ادویات پر غور کر رہے ہیں، تو یہ گفتگو آپ کے تجویز کنندہ کے ساتھ ہونی چاہیے، جو آپ کی مکمل صورتحال کا محفوظ طریقے سے جائزہ لے سکے۔",
+        },
+    },
 ]
 
 
@@ -109,6 +150,11 @@ def retrieve_rag_documents(message: str) -> list[dict]:
     return [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
 
 
+def localize_rag_document(document: dict, language: str) -> dict:
+    locale = document["ur"] if language == "ur" else document["en"]
+    return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"]}
+
+
 def severity_for(score: int) -> str:
     if score <= 4:
         return "minimal"
@@ -161,12 +207,18 @@ def support_resources(themes: list[str], language: str = "en") -> dict:
         {"name": "Gentle routine", "themes": ["depression", "hardship"], "steps": "Pick one anchor for today: wake time, a meal, daylight, or a 5-minute walk. Keep the goal deliberately small."},
         {"name": "Worry notes", "themes": ["anxiety"], "steps": "Write the worry down, separate what you can control from what you cannot, and choose one next action."},
         {"name": "Grief pacing", "themes": ["grief", "patience"], "steps": "Allow the feeling without forcing a timeline. Alternate emotional space with basic care, rest, and contact with someone safe."},
+        {"name": "Cool-down pause", "themes": ["frustration"], "steps": "Step away for 2 minutes, unclench your jaw and shoulders, and name what specifically triggered the frustration before responding."},
+        {"name": "Loss processing", "themes": ["loss"], "steps": "Acknowledge what changed, allow yourself an adjustment period, and identify one practical next step for the coming week."},
+        {"name": "Grounding after distress", "themes": ["trauma"], "steps": "Orient to the present: name the room, the date, and one safe fact. Trauma-focused work is best done with a qualified trauma-informed clinician."},
     ]
     meditation = [
         {"name": "Paced breathing", "themes": ["anxiety", "hardship"], "steps": "Inhale gently for 4 counts and exhale for 6 counts for 2 minutes. Stop if dizzy or more distressed."},
         {"name": "Five-senses grounding", "themes": ["anxiety", "hardship"], "steps": "Notice 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste."},
         {"name": "Compassionate body scan", "themes": ["patience", "grief", "hardship"], "steps": "For 3 minutes, notice tension from head to feet without judging it. Relax only where comfortable."},
         {"name": "Name and allow", "themes": ["grief", "patience"], "steps": "Name the feeling in a few words, acknowledge it, and give it 90 seconds without forcing it away."},
+        {"name": "Cooling breath", "themes": ["frustration"], "steps": "Inhale through the nose for 4 counts, exhale slowly through pursed lips for 6 counts, and repeat for 2 minutes."},
+        {"name": "Anchoring statement", "themes": ["loss"], "steps": "Repeat a brief steadying phrase (e.g. \"this is hard, and I am getting through it\") while breathing slowly for 1-2 minutes."},
+        {"name": "Safe-place visualization", "themes": ["trauma"], "steps": "Picture a place where you have felt calm and safe and notice its details for 2-3 minutes. Stop if this increases distress and seek trauma-informed professional support."},
     ]
     groups = [
         {"name": "Peer support groups", "description": "Look for a moderated, confidential group through a licensed clinic, hospital, university, or established mental-health organization."},
@@ -194,21 +246,55 @@ def professional_contact(urgency: str) -> dict:
     return {"recommended": False, "urgency": "monitor", "action": "Consider speaking with a qualified professional if symptoms persist, worsen, or interfere with daily life.", "what_to_say": "You can bring these screening results to the conversation."}
 
 
-def classify_themes(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict) -> list[str]:
+THEME_KEYWORDS = {
+    "trauma": ("trauma", "ptsd", "flashback", "abuse", "assault", "molest", "صدمہ", "زیادتی", "تشدد"),
+    "grief": ("bereav", "passed away", "died", "death of", "funeral", "غم", "وفات", "انتقال"),
+    "loss": ("lost my job", "lost my", "breakup", "broke up", "divorce", "miscarriage", "طلاق", "نوکری چلی گئی", "کھو دیا"),
+    "frustration": ("frustrat", "irritat", "fed up", "annoyed", "so angry", "غصہ", "چڑچڑا", "تنگ آ"),
+    "anxiety": ("anx", "worry", "worried", "panic", "نروس", "فکر", "گھبرا"),
+    "medical_state": ("in pain", "medical condition", "illness", "chronic pain", "درد", "بیماری", "علاج"),
+}
+
+
+def classify_themes(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, raw_text: str = "") -> list[str]:
+    """Themes are derived from the raw check-in text (not text_result['keyword_flags'], which
+    only ever holds a small fixed sentiment vocabulary and would never match these terms)."""
     themes: list[str] = []
     phq_score = int(phq_result.get("total_score", 0))
     gad_score = int(gad_result.get("total_score", 0))
     k10_score = int(k10_result.get("total_score", 0))
-    text = " ".join(text_result.get("keyword_flags", [])).lower()
-    if gad_score >= 10 and phq_score < 10:
-        themes.append("anxiety")
-    if phq_score >= 10:
-        themes.append("grief" if any(term in text for term in ("loss", "bereav", "غم", "وفات")) else "hardship")
+    lowered = raw_text.lower()
+
+    def mentions(theme: str) -> bool:
+        return any(term in lowered for term in THEME_KEYWORDS[theme])
+
+    if mentions("trauma"):
+        themes.append("trauma")
+    if mentions("grief"):
+        themes.append("grief")
+    if mentions("loss") and "grief" not in themes:
+        themes.append("loss")
+    if mentions("frustration"):
+        themes.append("frustration")
+    if (gad_score >= 10 and phq_score < 10) or mentions("anxiety"):
+        if "anxiety" not in themes:
+            themes.append("anxiety")
+    if phq_score >= 10 and not {"grief", "loss", "trauma"} & set(themes):
+        themes.append("hardship")
     if k10_score >= 25 and "hardship" not in themes:
         themes.append("hardship")
-    if any(term in text for term in ("pain", "medical", "illness", "درد", "بیماری", "علاج")):
+    if mentions("medical_state"):
         themes.append("medical_state")
     return themes or ["patience"]
+
+
+MODALITY_LABELS = {
+    "phq9": ("PHQ-9", "clinical"),
+    "gad7": ("GAD-7", "clinical"),
+    "k10": ("K10", "clinical"),
+    "text": ("Linguistic (what they say)", "linguistic"),
+    "voice": ("Acoustic (how they sound)", "acoustic"),
+}
 
 
 def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, voice_features: dict[str, float]) -> dict:
@@ -217,16 +303,43 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
     k10_signal = round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
     text_signal = 1.0 if text_result.get("crisis_language") else 0.65 if text_result.get("sentiment") == "negative" else 0.25 if text_result.get("sentiment") == "neutral" else 0.0
     voice_signal = round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2) if voice_features else None
-    available = [phq_signal, gad_signal, k10_signal, text_signal] + ([voice_signal] if voice_signal is not None else [])
+
+    names = ["phq9", "gad7", "k10", "text"] + (["voice"] if voice_signal is not None else [])
+    signals = [phq_signal, gad_signal, k10_signal, text_signal] + ([voice_signal] if voice_signal is not None else [])
     weights = [0.30, 0.22, 0.22, 0.16] + ([0.10] if voice_signal is not None else [])
-    combined = round(sum(signal * weight for signal, weight in zip(available, weights)) * 100) / 100
+    combined = round(sum(signal * weight for signal, weight in zip(signals, weights)) * 100) / 100
+
+    # combined is a weighted sum with these exact weights (unnormalized, matching the
+    # calculation above), so each term's raw weighted value is its exact contribution to
+    # combined - the Shapley value for an additive payoff with no interaction effects to
+    # split. Contributions below sum to `combined` by construction, not approximately.
+    contributions = []
+    for name, signal, weight in zip(names, signals, weights):
+        label, modality = MODALITY_LABELS[name]
+        value = round(signal * weight, 4)
+        contributions.append({
+            "name": name,
+            "label": label,
+            "modality": modality,
+            "signal": signal,
+            "weight": weight,
+            "contribution": value,
+            "share_pct": round((value / combined) * 100, 1) if combined else 0.0,
+        })
+
     return {
         "phq9": {"signal": phq_signal, "score": phq_result.get("total_score", 0), "band": phq_result.get("severity_band")},
         "gad7": {"signal": gad_signal, "score": gad_result.get("total_score", 0), "band": gad_result.get("severity_band")},
         "k10": {"signal": k10_signal, "score": k10_result.get("total_score", 0), "band": k10_result.get("severity_band")},
         "text": {"signal": text_signal, "sentiment": text_result.get("sentiment", "neutral"), "crisis_language": bool(text_result.get("crisis_language"))},
-        "voice": {"signal": voice_signal, "available": voice_signal is not None, "note": "Acoustic voice risk features are not available yet." if voice_signal is None else "Calibrated voice features included."},
+        "voice": {"signal": voice_signal, "available": voice_signal is not None, "note": "Acoustic voice risk features are not available for this check-in." if voice_signal is None else "Heuristic acoustic features included (pause ratio, loudness variability, speaking rate) - not a validated clinical biomarker."},
         "combined_signal": combined,
+        "attribution": {
+            "method": "additive_signal_attribution",
+            "note": "MindHx's combined signal is a weighted sum of clinical, linguistic, and acoustic inputs, so these contributions are the exact per-signal attribution (equivalent to Shapley values for an additive model), not an approximation.",
+            "total": combined,
+            "contributions": sorted(contributions, key=lambda item: item["contribution"], reverse=True),
+        },
     }
 
 
@@ -287,6 +400,46 @@ def support_plan(phq_result: dict, gad_result: dict, k10_result: dict, crisis: b
     }
 
 
+TRIAGE_CLASSIFIER_SYSTEM_PROMPT = "Classify mental-health check-in text for triage support, not diagnosis. Return only JSON with sentiment (negative, neutral, or positive), keyword_flags (array of strings), and crisis_language (boolean). Treat explicit self-harm or suicide intent as crisis_language true."
+
+
+def _parse_triage_classification(content: str) -> Optional[dict]:
+    try:
+        result = json.loads(content)
+    except (TypeError, ValueError):
+        return None
+    if result.get("sentiment") not in {"negative", "neutral", "positive"}:
+        return None
+    return result
+
+
+async def analyze_with_qwen(text: str, language: str) -> Optional[dict]:
+    """Classify check-in text with Qwen via Alibaba Cloud DashScope's OpenAI-compatible API."""
+    api_key = os.getenv("DASHSCOPE_API_KEY")
+    if not api_key:
+        return None
+
+    base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+    payload = {
+        "model": os.getenv("DASHSCOPE_MODEL", "qwen-plus"),
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "messages": [
+            {"role": "system", "content": TRIAGE_CLASSIFIER_SYSTEM_PROMPT},
+            {"role": "user", "content": f"Language: {language}\nText: {text}"},
+        ],
+    }
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+    except (httpx.HTTPError, KeyError, TypeError, IndexError):
+        return None
+    return _parse_triage_classification(content)
+
+
 async def analyze_with_openrouter(text: str, language: str) -> Optional[dict]:
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
@@ -297,10 +450,7 @@ async def analyze_with_openrouter(text: str, language: str) -> Optional[dict]:
         "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [
-            {
-                "role": "system",
-                "content": "Classify mental-health check-in text for triage support, not diagnosis. Return only JSON with sentiment (negative, neutral, or positive), keyword_flags (array of strings), and crisis_language (boolean). Treat explicit self-harm or suicide intent as crisis_language true.",
-            },
+            {"role": "system", "content": TRIAGE_CLASSIFIER_SYSTEM_PROMPT},
             {"role": "user", "content": f"Language: {language}\nText: {text}"},
         ],
     }
@@ -315,12 +465,9 @@ async def analyze_with_openrouter(text: str, language: str) -> Optional[dict]:
             response = await client.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
-            result = json.loads(content)
-            if result.get("sentiment") not in {"negative", "neutral", "positive"}:
-                return None
-            return result
-    except (httpx.HTTPError, KeyError, TypeError, ValueError):
+    except (httpx.HTTPError, KeyError, TypeError, IndexError):
         return None
+    return _parse_triage_classification(content)
 
 
 @app.get("/health")
@@ -367,6 +514,105 @@ async def transcribe(file: UploadFile = File(...), language: str = Form("auto"))
         Path(temp_path).unlink(missing_ok=True)
 
 
+def _decode_audio_mono(av_module, path: str, target_rate: int = 16000) -> tuple[np.ndarray, int]:
+    """Decode any container PyAV can read into mono float32 PCM at target_rate."""
+    container = av_module.open(path)
+    try:
+        stream = container.streams.audio[0]
+        resampler = av_module.audio.resampler.AudioResampler(format="flt", layout="mono", rate=target_rate)
+        chunks = []
+        for frame in container.decode(stream):
+            for resampled in resampler.resample(frame):
+                chunks.append(resampled.to_ndarray())
+        for resampled in resampler.resample(None):
+            chunks.append(resampled.to_ndarray())
+    finally:
+        container.close()
+    if not chunks:
+        return np.array([], dtype=np.float32), target_rate
+    return np.concatenate(chunks, axis=1).flatten().astype(np.float32), target_rate
+
+
+def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
+    """Frame-level loudness/pause/rate features computed directly from PCM samples."""
+    frame_length = max(1, int(0.025 * sample_rate))
+    hop_length = max(1, int(0.010 * sample_rate))
+    frames = [audio[start:start + frame_length] for start in range(0, max(1, len(audio) - frame_length), hop_length)]
+    if not frames:
+        frames = [audio]
+    rms = np.array([float(np.sqrt(np.mean(frame.astype(np.float64) ** 2) + 1e-12)) for frame in frames])
+    threshold = max(float(rms.mean()) * 0.35, 1e-4)
+    voiced_mask = rms > threshold
+    pause_ratio = float(1.0 - voiced_mask.mean())
+    voiced_rms = rms[voiced_mask]
+    energy_variability = float(voiced_rms.std() / (voiced_rms.mean() + 1e-9)) if voiced_rms.size >= 2 else 0.0
+    transitions = np.diff(voiced_mask.astype(int))
+    segment_count = int(np.sum(transitions == 1)) + (1 if voiced_mask.size and voiced_mask[0] else 0)
+    duration_sec = len(audio) / sample_rate
+    speaking_rate = segment_count / duration_sec if duration_sec > 0 else 0.0
+    return {
+        "duration_sec": round(duration_sec, 2),
+        "pause_ratio": round(pause_ratio, 3),
+        "energy_variability": round(energy_variability, 3),
+        "speaking_rate": round(speaking_rate, 3),
+    }
+
+
+def _prosodic_risk_signal(features: dict) -> float:
+    """Maps prosodic features to 0..1: more pausing, flatter loudness, and slower speech
+    (all associated with psychomotor slowing / low affect in the literature) push it up.
+    The thresholds below are reasonable heuristic assumptions, not fitted to labeled data -
+    treat this as a proxy signal, not a validated biomarker score."""
+    pause_component = min(1.0, max(0.0, (features["pause_ratio"] - 0.3) / 0.4))
+    variability_component = min(1.0, max(0.0, (0.5 - features["energy_variability"]) / 0.5))
+    rate_component = min(1.0, max(0.0, (2.0 - features["speaking_rate"]) / 2.0))
+    signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
+    return round(min(1.0, max(0.0, signal)), 2)
+
+
+@app.post("/analyze-voice")
+async def analyze_voice(file: UploadFile = File(...)) -> dict:
+    """Extract a heuristic prosodic risk signal directly from audio (pause ratio, loudness
+    variability, speaking rate). VOICE_BIOMARKER_PROVIDER selects the provider; only 'local'
+    is implemented - no clinical voice-biomarker vendor is integrated."""
+    provider = os.getenv("VOICE_BIOMARKER_PROVIDER", "local")
+    if provider != "local":
+        raise HTTPException(status_code=503, detail=f"Voice biomarker provider '{provider}' is not implemented")
+
+    try:
+        import av
+    except ImportError as error:
+        raise HTTPException(status_code=503, detail="Audio decoding (PyAV) is not installed") from error
+
+    audio_bytes = await file.read()
+    if not audio_bytes or len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio must be between 1 byte and 25 MB")
+
+    suffix = Path(file.filename or "recording.webm").suffix or ".webm"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
+        temp_file.write(audio_bytes)
+        temp_path = temp_file.name
+
+    try:
+        audio, sample_rate = _decode_audio_mono(av, temp_path)
+        if audio.size < sample_rate * 0.5:
+            raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
+        features = _prosodic_features(audio, sample_rate)
+        risk_signal = _prosodic_risk_signal(features)
+        return {
+            "provider": "local-heuristic",
+            "risk_signal": risk_signal,
+            **features,
+            "note": "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker.",
+        }
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=422, detail="Could not analyze this audio file") from error
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
 @app.post("/analyze-text")
 async def analyze_text(payload: TextAnalysisRequest) -> dict:
     text = payload.text.strip()
@@ -384,8 +630,12 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
         "crisis_language": crisis,
         "language": payload.language,
     }
-    llm_result = await analyze_with_openrouter(text, payload.language)
-    return {**heuristic_result, **(llm_result or {}), "language": payload.language, "provider": "openrouter" if llm_result else "heuristic"}
+    llm_result = await analyze_with_qwen(text, payload.language)
+    provider = "dashscope-qwen" if llm_result else None
+    if not llm_result:
+        llm_result = await analyze_with_openrouter(text, payload.language)
+        provider = "openrouter" if llm_result else None
+    return {**heuristic_result, **(llm_result or {}), "language": payload.language, "provider": provider or "heuristic"}
 
 
 @app.post("/support-resources")
@@ -393,21 +643,37 @@ def get_support_resources(payload: SupportResourcesRequest) -> dict:
     return support_resources(payload.themes, payload.language)
 
 
+AI_CHAT_COPY = {
+    "en": {
+        "escalate": "A safety concern requires immediate professional or emergency support. This chat cannot provide crisis counseling.",
+        "escalate_resource": "Immediate professional support",
+        "grounded": "Here is grounded information related to what you shared. It is general education, not a diagnosis or treatment plan.",
+    },
+    "ur": {
+        "escalate": "ایک حفاظتی خدشے کے لیے فوری پیشہ ورانہ یا ہنگامی مدد درکار ہے۔ یہ چیٹ بحرانی مشاورت فراہم نہیں کر سکتی۔",
+        "escalate_resource": "فوری پیشہ ورانہ مدد",
+        "grounded": "آپ نے جو بتایا اس سے متعلق مصدقہ معلومات یہ ہیں۔ یہ عمومی تعلیم ہے، تشخیص یا علاج کا منصوبہ نہیں۔",
+    },
+}
+
+
 @app.post("/ai/chat")
 def ai_chat(payload: AiSupportRequest) -> dict:
     """Return grounded support content only after the caller's risk gate is clear."""
+    lang = "ur" if payload.language == "ur" else "en"
+    text = AI_CHAT_COPY[lang]
     if not payload.risk_clear or has_crisis_language(payload.message):
         return {
             "status": "escalate",
-            "message": "A safety concern requires immediate professional or emergency support. This chat cannot provide crisis counseling.",
-            "resources": [{"title": "Immediate professional support", "link": "/therapist"}],
+            "message": text["escalate"],
+            "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
     documents = retrieve_rag_documents(payload.message)
     return {
         "status": "grounded_support",
         "intent": documents[0]["intent"],
-        "message": "Here is grounded information related to what you shared. It is general education, not a diagnosis or treatment plan.",
-        "sources": [{"id": document["id"], "title": document["title"], "content": document["content"], "link": document["link"]} for document in documents],
+        "message": text["grounded"],
+        "sources": [localize_rag_document(document, lang) for document in documents],
         "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
     }
 
@@ -481,7 +747,7 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
     text_result = payload.text_analysis or await analyze_text(TextAnalysisRequest(text=f"{payload.transcript}\n{payload.typed_text}", language=payload.language))
     crisis = bool(phq_result.get("item_9_crisis") or text_result.get("crisis_language"))
     profile_data = payload.profile.model_dump() if payload.profile else {}
-    themes = classify_themes(phq_result, gad_result, k10_result, text_result)
+    themes = classify_themes(phq_result, gad_result, k10_result, text_result, f"{payload.transcript}\n{payload.typed_text}")
     components = evaluate_components(phq_result, gad_result, k10_result, text_result, payload.voice_features)
     plan = support_plan(phq_result, gad_result, k10_result, crisis, profile_data, themes)
     if crisis:

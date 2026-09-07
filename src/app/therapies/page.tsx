@@ -1,6 +1,60 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
+import SiteHeader from "../components/SiteHeader";
+import { therapies } from "./data";
 
-const therapies = [["CBT", "Cognitive behavioral therapy explores patterns between thoughts, feelings, and behavior.", "Sessions often include structured discussion and small between-session exercises."], ["DBT", "Dialectical behavior therapy teaches emotion regulation, distress tolerance, and interpersonal skills.", "It may include skills practice, individual therapy, and structured support."], ["Exposure therapy", "A clinician-guided approach for some anxiety and fear responses.", "Exposure is planned gradually with a qualified therapist; it should not be attempted as a self-prescription."], ["Trauma-informed therapy", "A safety-led approach that respects pacing, choice, and control.", "A clinician determines whether and when trauma-focused work is appropriate."], ["Medical review", "Primary-care or psychiatric review can consider physical contributors, sleep, medicines, and safety.", "A licensed clinician decides what assessment or treatment is appropriate."]];
+const copy = {
+  English: {
+    eyebrow: "04 / THERAPIES & TREATMENT",
+    titleLine1: "There is more than",
+    titleLine2: "one path to support.",
+    intro: "These evidence-based approaches are general reference information. A licensed clinician determines what is appropriate for a person's needs.",
+    approach: "APPROACH",
+    learnMore: "Learn more",
+    discuss: "Discuss treatment with a professional",
+  },
+  اردو: {
+    eyebrow: "04 / تھراپیز اور علاج",
+    titleLine1: "مدد کا راستہ",
+    titleLine2: "ایک سے زیادہ ہو سکتا ہے۔",
+    intro: "یہ شواہد پر مبنی طریقے عمومی حوالہ جاتی معلومات ہیں۔ ایک مستند معالج طے کرتا ہے کہ کسی شخص کی ضروریات کے لیے کیا مناسب ہے۔",
+    approach: "طریقہ کار",
+    learnMore: "مزید جانیں",
+    discuss: "کسی ماہر سے علاج پر گفتگو کریں",
+  },
+};
 
-export default function TherapiesPage() { return <main className="resource-page"><ResourceHeader /><section className="resource-hero"><p className="eyebrow">04 / THERAPIES & TREATMENT</p><h1>There is more than<br /><em>one path to support.</em></h1><p>These evidence-based approaches are general reference information. A licensed clinician determines what is appropriate for a person&apos;s needs.</p></section><section className="reference-grid therapy-reference">{therapies.map(([name, use, session]) => <article key={name}><p className="card-kicker">APPROACH</p><h2>{name}</h2><b>Generally used for</b><p>{use}</p><b>What sessions may include</b><p>{session}</p></article>)}</section><Link className="result-primary" href="/therapist">Discuss treatment with a professional <span>→</span></Link></main>; }
-function ResourceHeader() { return <header className="resource-header"><Link href="/" className="results-brand"><span className="brand-mark">M</span> Mind<span>Hx</span></Link><Link href="/" className="resource-back">Back to check-in ↗</Link></header>; }
+export default function TherapiesPage() {
+  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const text = copy[language];
+  const isUrdu = language === "اردو";
+
+  return (
+    <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
+      <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
+      <section className="resource-hero">
+        <p className="eyebrow">{text.eyebrow}</p>
+        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+        <p>{text.intro}</p>
+      </section>
+      <section className="reference-grid therapy-reference">
+        {therapies.map((therapy) => {
+          const content = therapy[isUrdu ? "ur" : "en"];
+          return (
+            <Link key={therapy.slug} href={`/therapies/${therapy.slug}`} className="reference-card-link">
+              <article>
+                <p className="card-kicker">{text.approach}</p>
+                <h2>{content.name}</h2>
+                <p className="reference-card-summary">{content.summary}</p>
+                <footer>{text.learnMore} →</footer>
+              </article>
+            </Link>
+          );
+        })}
+      </section>
+      <Link className="result-primary" href="/therapist">{text.discuss} <span>→</span></Link>
+    </main>
+  );
+}

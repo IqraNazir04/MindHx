@@ -2,6 +2,7 @@
 
 import { startTransition, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import SiteHeader from "../components/SiteHeader";
 
 type Result = {
   risk_score: number;
@@ -15,6 +16,12 @@ type Result = {
     k10: { score: number; band: string };
     text: { sentiment: string; signal: number };
     voice: { available: boolean; signal: number | null; note: string };
+    attribution?: {
+      method: string;
+      note: string;
+      total: number;
+      contributions: { name: string; label: string; modality: string; signal: number; weight: number; contribution: number; share_pct: number }[];
+    };
   };
   support_plan?: {
     title: string;
@@ -48,7 +55,7 @@ export default function ResultsPage() {
 
   return (
     <main className="results-page">
-      <header className="results-header"><button className="results-brand" onClick={() => router.push("/")}><span className="brand-mark">M</span> Mind<span>Hx</span></button><span className="results-private"><i /> Private session result</span></header>
+      <SiteHeader right={<span className="results-private"><i /> Private session result</span>} backLabel="Back to check-in" />
       <section className="results-hero"><div><p className="eyebrow">YOUR MINDHX CHECK-IN</p><h1>A clearer picture<br /><em>to take forward.</em></h1><p className="results-lede">These signals are a starting point for a conversation, not a diagnosis. You remain in control of what happens next.</p></div><div className="result-score-card"><p className="card-kicker">COMBINED SIGNAL</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{result.band.replaceAll("_", " ")}</b><small>{result.routing_decision.replaceAll("_", " ")}</small></div></section>
 
       <section className="result-section"><div className="result-section-heading"><p className="eyebrow">01 / THE SIGNALS</p><h2>What contributed to this picture</h2><p>Each measure is shown separately so the combined estimate stays explainable.</p></div><div className="result-signal-grid">
@@ -57,7 +64,7 @@ export default function ResultsPage() {
         <Signal name="K10" score={components?.k10.score ?? 0} max={50} band={components?.k10.band ?? "not available"} color="green" />
         <div className="result-signal-card text-result"><span className="result-signal-icon">Aa</span><div><b>WORDS</b><h3>{components?.text.sentiment ?? "not available"}</h3><p>{components?.text.signal ? `${Math.round(components.text.signal * 100)}% text signal` : "No text signal"}</p></div></div>
         <div className="result-signal-card voice-result"><span className="result-signal-icon">◉</span><div><b>VOICE</b><h3>{components?.voice.available ? `${Math.round((components.voice.signal ?? 0) * 100)}% signal` : "Not available"}</h3><p>{components?.voice.note ?? "No acoustic features returned."}</p></div></div>
-      </div></section>
+      </div>{components?.attribution && <><div className="attribution-list">{components.attribution.contributions.map((item) => <div className="attribution-row" key={item.name}><span className="attribution-label">{item.label}<small>{item.modality}</small></span><span className="attribution-track"><i className="attribution-fill" style={{ width: `${Math.max(4, item.share_pct)}%` }} /></span><span className="attribution-share">{item.share_pct}%</span></div>)}</div><p className="attribution-note">{components.attribution.note}</p></>}</section>
 
       <section className="result-section support-section"><div className="result-section-heading"><p className="eyebrow">02 / WHAT NEXT</p><h2>{result.support_plan?.title ?? "A gentle next step"}</h2><p>{result.support_plan?.next_action ?? "Choose one small action that supports you today."}</p></div>{result.themes && <div className="result-themes">{result.themes.map((theme) => <span key={theme}>{theme.replaceAll("_", " ")}</span>)}</div>}<div className="result-columns">{result.support_plan?.strategies && result.support_plan.strategies.length > 0 && <SupportList title="Suggested strategies" items={result.support_plan.strategies.map((item) => `${item.name}: ${item.steps}`)} />}{result.support_plan?.meditation && result.support_plan.meditation.length > 0 && <SupportList title="Support practices" items={result.support_plan.meditation.map((item) => `${item.name}: ${item.steps}`)} />}{result.support_plan?.support_groups && <SupportList title="Connection" items={result.support_plan.support_groups.map((item) => `${item.name}: ${item.description}`)} />}</div></section>
 
