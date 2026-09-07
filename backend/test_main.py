@@ -1,10 +1,56 @@
 import numpy as np
 from fastapi.testclient import TestClient
 
+from database import init_db
 from main import _prosodic_features, _prosodic_risk_signal, app
 
-
+init_db()
 client = TestClient(app)
+
+
+def test_register_login_and_read_me() -> None:
+    register_response = client.post("/auth/register", json={"email": "patient@example.com", "password": "correct-horse-battery"})
+    assert register_response.status_code == 201
+    assert "access_token" in register_response.json()
+
+    duplicate_response = client.post("/auth/register", json={"email": "patient@example.com", "password": "another-password"})
+    assert duplicate_response.status_code == 409
+
+    login_response = client.post("/auth/login", json={"email": "patient@example.com", "password": "correct-horse-battery"})
+    assert login_response.status_code == 200
+    token = login_response.json()["access_token"]
+
+    wrong_password_response = client.post("/auth/login", json={"email": "patient@example.com", "password": "wrong"})
+    assert wrong_password_response.status_code == 401
+
+    me_response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_response.status_code == 200
+    assert me_response.json()["email"] == "patient@example.com"
+
+    unauthenticated_response = client.get("/auth/me")
+    assert unauthenticated_response.status_code == 401
+
+
+def test_checkins_require_auth_and_round_trip() -> None:
+    unauthenticated_response = client.post("/checkins", json={"risk_score": 0.5, "band": "watch", "routing_decision": "no_referral_needed"})
+    assert unauthenticated_response.status_code == 401
+
+    register_response = client.post("/auth/register", json={"email": "history-user@example.com", "password": "correct-horse-battery"})
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post(
+        "/checkins",
+        json={"risk_score": 0.42, "band": "watch", "routing_decision": "no_referral_needed", "themes": ["anxiety", "hardship"]},
+        headers=headers,
+    )
+    assert create_response.status_code == 201
+    assert create_response.json()["themes"] == ["anxiety", "hardship"]
+
+    list_response = client.get("/checkins", headers=headers)
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+    assert list_response.json()[0]["band"] == "watch"
 
 
 def test_health() -> None:

@@ -10,7 +10,7 @@ Three design commitments follow directly from that objective:
 
 - **Multimodal, not single-signal.** A single questionnaire misses tone and word choice; a single acoustic score misses clinical history. MindHx fuses all three, and shows *why* the combined score landed where it did (a per-signal contribution breakdown on the results page) rather than returning an opaque number.
 - **Route, don't diagnose.** Every page — the AI chat, the therapist referral, the support plan — is worded in risk-tier language ("your responses suggest elevated risk") and never in diagnostic language ("you have depression"). Crisis signals (PHQ-9 item 9, self-harm language) short-circuit everything else and go straight to immediate-support routing.
-- **Minimal data, no accounts.** No login, no email collection, no persisted identity profile. Session context (age range, optional gender/relationship status/life context) lives in the browser only for the active session; audio is processed and discarded, never stored.
+- **Minimal data, accounts entirely optional.** The core check-in never requires signing in. Session context (age range, optional gender/relationship status/life context) lives in the browser only for the active session; audio is processed and discarded, never stored. An account (email + password) is available purely for people who want to save their check-in history, and even then only aggregate results (score, band, themes) are stored — never a transcript, typed answers, or individual questionnaire responses.
 
 ## Roadmap
 
@@ -27,11 +27,13 @@ Three design commitments follow directly from that objective:
 - Full English/Urdu bilingual support across every page, with a header-level language toggle
 - Qwen (via Alibaba Cloud DashScope) as the preferred text-analysis provider, falling back to OpenRouter, then a local heuristic classifier
 - A `/brand` page documenting the color system
+- Optional accounts (`/register`, `/login`, `/dashboard`) for people who want to save check-in history across visits — bcrypt-hashed passwords, JWT sessions, a PostgreSQL-backed (SQLite in local dev) `users`/`check_ins` schema, and a client-side protected-route wrapper on the dashboard. The core screening flow is entirely unaffected: this is additive, not a gate.
 
 **Not yet built, deliberately:**
 - **Score calibration.** The combined risk score is an uncalibrated weighted heuristic — it has not been fit against labeled outcome data, so it should be read as a relative risk-tier indicator, not a calibrated probability. Building this requires real labeled data, which the project does not yet have; faking a calibration step would make the "explainable, calibrated" claim false rather than true.
 - **A clinically validated Urdu translation of PHQ-9/GAD-7/K10.** The current Urdu text is a draft, unlicensed translation appropriate for demo purposes only. Item 9 (self-harm ideation) is a safety-critical item in a validated instrument; shipping an unlicensed translation as clinical-grade would be irresponsible.
 - **A real acoustic voice-biomarker vendor integration.** The current `/analyze-voice` local heuristic is intentionally provider-pluggable (`VOICE_BIOMARKER_PROVIDER`) so a vendor with a public API contract (e.g. a clinical speech-biomarker provider) can be dropped in later.
+- **Auth hardening.** The current account system covers the basics (bcrypt hashing, JWT expiry) but is missing login rate-limiting/brute-force protection, and stores the access token in `localStorage` rather than an httpOnly cookie (simpler to implement, but readable by any script on the page — a real concern given the sensitivity of what an account can be linked to). Both are worth doing before this handles real users at scale.
 
 ## Future implications
 
@@ -57,15 +59,16 @@ MindHx is designed to compress a screening step that otherwise requires scheduli
 - **Resource library:** medication reference, meditation techniques (each with step-by-step instructions), and therapy approaches (each with what sessions may involve) — all framed as general education, never as personalized treatment.
 - **Bounded AI chat** (`/ai`): answers general mental-health questions from a fixed, reviewed reference library; explicitly escalates rather than engages if it detects a safety concern.
 - **Bilingual throughout:** every page above is available in English and Urdu via a header-level toggle.
-- **Privacy by default:** no login, no persisted identity, audio discarded after processing.
+- **Privacy by default:** no login required, no persisted identity for anonymous use, audio discarded after processing.
+- **Optional dashboard** (`/dashboard`): for people who create an account, a history of past check-in scores/bands/themes to track change over time — never a diagnosis, and never the raw content of a check-in.
 
 ## Technical details
 
-**Architecture:** two stateless services — a Next.js 16 (App Router) frontend, and a FastAPI backend. No database; every request is self-contained.
+**Architecture:** two services — a Next.js 16 (App Router) frontend, and a FastAPI backend. The screening/risk-assessment endpoints are fully stateless (every request self-contained, nothing persisted). A separate, optional layer adds PostgreSQL-backed accounts purely for people who choose to save their check-in history; using MindHx without an account touches no database at all.
 
-**Frontend** (`src/app/`): 9 page routes — home (`/`), results, medication, AI chat, meditation (+ 4 technique detail sub-pages), therapies (+ 5 approach detail sub-pages), therapist, emergency, and brand. Shared components: `SiteHeader` (sticky nav + language toggle, used on every page) and `Doodles` (original hand-drawn-style SVG illustrations). Styling is a single `globals.css` light theme (no CSS framework component library beyond Tailwind's base).
+**Frontend** (`src/app/`): 12 page routes — home (`/`), results, medication, AI chat, meditation (+ 4 technique detail sub-pages), therapies (+ 5 approach detail sub-pages), therapist, emergency, brand, login, register, and dashboard. Shared components: `SiteHeader` (sticky nav + language toggle, used on every page), `Doodles` (original hand-drawn-style SVG illustrations), and `ProtectedRoute` (client-side auth gate wrapping the dashboard — verifies the session token against `/auth/me` before rendering any content, redirecting to `/login` otherwise). Styling is a single `globals.css` light theme (no CSS framework component library beyond Tailwind's base).
 
-**Backend** (`backend/main.py`, FastAPI): 12 endpoints —
+**Backend** (`backend/main.py`, FastAPI): 17 endpoints —
 
 | Endpoint | Purpose |
 |---|---|
@@ -79,12 +82,17 @@ MindHx is designed to compress a screening step that otherwise requires scheduli
 | `POST /synthesize` | Urdu text-to-speech via Uplift AI |
 | `POST /score-phq9`, `/score-gad7`, `/score-k10` | Individual questionnaire scoring |
 | `POST /risk-assess` | Fuses all signals into the combined score, band, explanation, and routing decision |
+| `POST /auth/register`, `/auth/login` | Optional account creation/sign-in; returns a JWT access token |
+| `GET /auth/me` | Returns the signed-in user (requires a valid Bearer token) |
+| `POST /checkins`, `GET /checkins` | Save/list a signed-in user's check-in history (aggregate results only) |
 
 **Risk fusion:** a weighted sum over PHQ-9 (0.30), GAD-7 (0.22), K10 (0.22), text sentiment (0.16), and voice (0.10, when available) signals, each normalized to 0–1. The per-signal attribution shown on the results page is the exact weighted contribution of each term — for this additive model, that is mathematically identical to each signal's Shapley value, not an approximation.
 
-**Testing:** 12 backend tests (`backend/test_main.py`) covering crisis short-circuiting, theme detection (including a regression test for a fixed keyword-matching bug), the prosodic-signal math independent of PyAV availability, bilingual AI chat responses, and the risk-assessment fusion shape. Run with `cd backend && source .venv/bin/activate && pytest test_main.py -v`.
+**Accounts** (`backend/auth.py`, `database.py`, `models.py`): passwords hashed with bcrypt (never stored in plaintext); sessions are HS256 JWTs with a configurable expiry (`JWT_EXPIRE_MINUTES`, default 60). `JWT_SECRET_KEY` must be set explicitly for any real deployment — if it's missing, the backend generates a random per-process secret and logs a warning, so an unset secret fails safe (invalidating tokens on restart) rather than silently shipping a guessable default. `DATABASE_URL` defaults to a local SQLite file so no database setup is needed for local dev or tests; set it to a `postgresql://...` URL (via `psycopg2-binary`, already a dependency) for production, and `docker-compose.yml` provisions a Postgres 16 container automatically.
 
-**Stack:** Next.js 16 / React 19 / TypeScript / Tailwind on the frontend; FastAPI / Pydantic / faster-whisper / PyAV / numpy / httpx on the backend; Qwen via Alibaba Cloud DashScope (preferred) or OpenRouter (fallback) for text classification; Uplift AI for Urdu speech synthesis.
+**Testing:** 14 backend tests (`backend/test_main.py`) covering crisis short-circuiting, theme detection (including a regression test for a fixed keyword-matching bug), the prosodic-signal math independent of PyAV availability, bilingual AI chat responses, the risk-assessment fusion shape, and the register/login/me/checkins account flow. Run with `cd backend && source .venv/bin/activate && pytest test_main.py -v`.
+
+**Stack:** Next.js 16 / React 19 / TypeScript / Tailwind on the frontend; FastAPI / Pydantic / SQLAlchemy / faster-whisper / PyAV / numpy / httpx on the backend; PostgreSQL (SQLite in local dev) for the optional accounts feature; bcrypt + PyJWT for authentication; Qwen via Alibaba Cloud DashScope (preferred) or OpenRouter (fallback) for text classification; Uplift AI for Urdu speech synthesis.
 
 ## Run the web app
 
@@ -105,16 +113,18 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
+No further setup is needed to use MindHx anonymously. To try the optional accounts feature locally, it just works out of the box too — `DATABASE_URL` defaults to a local SQLite file (`backend/mindhx.db`, gitignored) and `JWT_SECRET_KEY` defaults to a random per-process value if unset. For a real deployment, set both explicitly (see `.env.example`).
+
 ## Run both services with Docker
 
 ```bash
 docker compose up --build
 ```
 
-The web app runs at `http://localhost:3000`; the API runs at `http://localhost:8000`. The first transcription downloads the configured Whisper model into the named Docker volume. Set `WHISPER_MODEL` and `WHISPER_DEVICE` in the environment when needed.
+The web app runs at `http://localhost:3000`; the API runs at `http://localhost:8000`. A Postgres 16 container is provisioned automatically for the accounts feature (`mindhx-db`, credentials via `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`, default `mindhx`/`mindhx`/`mindhx` — override these for anything beyond local use). Set `JWT_SECRET_KEY` in the environment for anything beyond local use. The first transcription downloads the configured Whisper model into the named Docker volume. Set `WHISPER_MODEL` and `WHISPER_DEVICE` in the environment when needed.
 
 ## Important caveats
 
 The current text and risk logic are transparent development implementations; validate/calibrate the models and routing with qualified clinical oversight before production or Alibaba Cloud deployment. The combined risk score is an uncalibrated weighted heuristic — it has not been fit or checked against labeled outcome data, so its output should be read as a relative risk-tier indicator, not a calibrated probability, until that validation work is done. The in-app Urdu PHQ-9/GAD-7/K10 text is a draft translation for demo purposes and is not a clinically validated instrument; a validated translation should replace it before clinical use. `POST /analyze-voice`'s acoustic signal is a heuristic proxy (pause ratio, loudness variability, speaking rate), not a validated clinical voice biomarker.
 
-The session-start profile is deliberately minimal: age range is required; gender, relationship status, life context, and preferred language are optional. There is no login, email collection, identity profile, or long-term demographic storage. The frontend holds the opaque session token and profile only while the browser session is active. No database is used anywhere in the system.
+The session-start profile is deliberately minimal: age range is required; gender, relationship status, life context, and preferred language are optional. None of this requires login, email collection, or long-term demographic storage. The frontend holds the opaque session token and profile only while the browser session is active. No database is touched by the anonymous check-in flow at all. The optional accounts feature is the one part of MindHx that does persist data (email, hashed password, and aggregate check-in results only — never a transcript or written answers) and, being an early implementation, has known gaps: no login rate-limiting and a `localStorage`-held session token rather than an httpOnly cookie — see Roadmap.

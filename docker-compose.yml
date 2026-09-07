@@ -1,4 +1,18 @@
 services:
+  mindhx-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mindhx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mindhx}
+      POSTGRES_DB: ${POSTGRES_DB:-mindhx}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mindhx}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   mindhx-api:
     build: ./backend
     ports:
@@ -17,8 +31,14 @@ services:
       UPLIFT_API_KEY: ${UPLIFT_API_KEY:-}
       UPLIFT_VOICE_ID: ${UPLIFT_VOICE_ID:-v_8eelc901}
       UPLIFT_OUTPUT_FORMAT: ${UPLIFT_OUTPUT_FORMAT:-MP3_22050_128}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-mindhx}:${POSTGRES_PASSWORD:-mindhx}@mindhx-db:5432/${POSTGRES_DB:-mindhx}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-60}
     volumes:
       - whisper-cache:/root/.cache
+    depends_on:
+      mindhx-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -38,3 +58,4 @@ services:
 
 volumes:
   whisper-cache:
+  postgres-data:

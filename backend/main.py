@@ -1,20 +1,36 @@
-"""Stateless MindHx assessment API."""
+"""MindHx assessment API. The screening/risk-assessment endpoints are fully
+stateless and require no account. Accounts (backend/auth.py, database.py,
+models.py) are an optional, separate feature purely for people who choose
+to save their check-in history across visits."""
 
 import json
 import os
 import secrets
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal, Optional
 
 import httpx
 import numpy as np
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy.orm import Session
 
-app = FastAPI(title="MindHx API", version="1.0.0")
+from auth import create_access_token, get_current_user, hash_password, verify_password
+from database import get_db, init_db
+from models import CheckIn, User
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="MindHx API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[os.getenv("WEB_ORIGIN", "http://localhost:3000")],
@@ -104,6 +120,24 @@ class Profile(BaseModel):
 
 class SessionStartRequest(BaseModel):
     profile: Profile
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=72)
+    age_range: Optional[str] = Field(default=None, max_length=20)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=72)
+
+
+class CheckInCreateRequest(BaseModel):
+    risk_score: float = Field(ge=0, le=1)
+    band: str = Field(max_length=20)
+    routing_decision: str = Field(max_length=30)
+    themes: list[str] = Field(default_factory=list, max_length=10)
 
 
 class SpeechRequest(BaseModel):
@@ -473,6 +507,69 @@ async def analyze_with_openrouter(text: str, language: str) -> Optional[dict]:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "mindhx"}
+
+
+def _serialize_user(user: User) -> dict:
+    return {"id": user.id, "email": user.email, "age_range": user.age_range, "created_at": user.created_at.isoformat()}
+
+
+def _serialize_checkin(check_in: CheckIn) -> dict:
+    return {
+        "id": check_in.id,
+        "risk_score": check_in.risk_score,
+        "band": check_in.band,
+        "routing_decision": check_in.routing_decision,
+        "themes": check_in.themes.split(",") if check_in.themes else [],
+        "created_at": check_in.created_at.isoformat(),
+    }
+
+
+@app.post("/auth/register", status_code=201)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
+    """Create an optional account. The core check-in flow never requires one."""
+    email = payload.email.lower()
+    if db.query(User).filter(User.email == email).first():
+        raise HTTPException(status_code=409, detail="An account with this email already exists")
+    user = User(email=email, hashed_password=hash_password(payload.password), age_range=payload.age_range)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+
+
+@app.post("/auth/login")
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+
+
+@app.get("/auth/me")
+def read_current_user(current_user: User = Depends(get_current_user)) -> dict:
+    return _serialize_user(current_user)
+
+
+@app.post("/checkins", status_code=201)
+def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """Save an aggregate check-in result (never the raw transcript/typed text) for a signed-in user."""
+    check_in = CheckIn(
+        user_id=current_user.id,
+        risk_score=payload.risk_score,
+        band=payload.band,
+        routing_decision=payload.routing_decision,
+        themes=",".join(payload.themes),
+    )
+    db.add(check_in)
+    db.commit()
+    db.refresh(check_in)
+    return _serialize_checkin(check_in)
+
+
+@app.get("/checkins")
+def list_checkins(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+    check_ins = db.query(CheckIn).filter(CheckIn.user_id == current_user.id).order_by(CheckIn.created_at.desc()).all()
+    return [_serialize_checkin(check_in) for check_in in check_ins]
 
 
 @app.post("/session/start")

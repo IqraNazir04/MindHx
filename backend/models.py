@@ -1,0 +1,51 @@
+"""SQLAlchemy models for the optional account/dashboard feature.
+
+The core check-in flow remains fully anonymous and requires no account -
+these tables only back the opt-in "save my history" feature for signed-in
+users. CheckIn deliberately stores only aggregate results (scores, band,
+themes), never the raw transcript or typed text, so a saved history can't
+leak someone's actual free-text disclosures even if the database were
+compromised.
+"""
+
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy import DateTime, Float, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base
+
+
+def _uuid() -> str:
+    return str(uuid.uuid4())
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    age_range: Mapped[str] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    check_ins: Mapped[list["CheckIn"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class CheckIn(Base):
+    __tablename__ = "check_ins"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    risk_score: Mapped[float] = mapped_column(Float, nullable=False)
+    band: Mapped[str] = mapped_column(String(20), nullable=False)
+    routing_decision: Mapped[str] = mapped_column(String(30), nullable=False)
+    themes: Mapped[str] = mapped_column(String(200), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped[User] = relationship(back_populates="check_ins")
