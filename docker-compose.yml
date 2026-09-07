@@ -7,11 +7,19 @@ services:
       WHISPER_MODEL: ${WHISPER_MODEL:-small}
       WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
       WEB_ORIGIN: http://localhost:3000
-      VOICE_BIOMARKER_PROVIDER: ${VOICE_BIOMARKER_PROVIDER:-local}
-      VOICE_BIOMARKER_API_URL: ${VOICE_BIOMARKER_API_URL:-}
-      VOICE_BIOMARKER_API_KEY: ${VOICE_BIOMARKER_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL:-http://localhost:3000}
+      UPLIFT_API_KEY: ${UPLIFT_API_KEY:-}
+      UPLIFT_VOICE_ID: ${UPLIFT_VOICE_ID:-v_8eelc901}
+      UPLIFT_OUTPUT_FORMAT: ${UPLIFT_OUTPUT_FORMAT:-MP3_22050_128}
     volumes:
       - whisper-cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mindhx-web:
     build:
@@ -21,7 +29,8 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - mindhx-api
+      mindhx-api:
+        condition: service_healthy
 
 volumes:
   whisper-cache:

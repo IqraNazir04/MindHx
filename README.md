@@ -26,22 +26,13 @@ MindHx is split into two stateless services. The frontend owns the UI and conver
 ## MindHx API
 
 - `POST /transcribe`: local `faster-whisper` transcription with `compute_type="int8"`; returns text and detected language.
-- `POST /analyze-voice`: decodes the voice note and extracts prosodic features (pitch, pitch variability, pauses, speaking rate) independent of the words spoken; returns flags and a vocal pattern summary.
 - `POST /analyze-text`: returns sentiment, keyword flags, and crisis-language detection.
 - `POST /score-phq9`: returns total score, severity band, and the item 9 crisis flag. Item 9 routes immediately and must be checked before risk assessment.
-- `POST /risk-assess`: combines the independent results (PHQ-9, text, and vocal pattern) and returns score, band, explanation, and routing decision.
+- `POST /risk-assess`: combines the independent results and returns score, band, explanation, and routing decision.
 
 No database is used. Requests are self-contained. A future session token may be passed for in-memory frontend continuity, but MindHx does not persist it.
 
-### Voice biomarker provider
-
-`/analyze-voice` runs a built-in prosodic-feature heuristic by default. To swap in a clinically-validated vendor (e.g. Kintsugi, Ellipsis Health, Canary Speech), set:
-
-- `VOICE_BIOMARKER_PROVIDER=clinical_api`
-- `VOICE_BIOMARKER_API_URL` — the vendor's endpoint
-- `VOICE_BIOMARKER_API_KEY` — your vendor API key
-
-`analyze_voice_clinical_api()` in `backend/main.py` handles the request/auth plumbing, but `normalize_clinical_response()` is a stub — no vendor has a public self-serve API contract to build against, so it raises `NotImplementedError` until you map that vendor's actual response fields onto MindHx's schema (see `analyze_voice_signal`'s return shape). Sending audio to a third-party vendor also breaks MindHx's stateless/no-persistence model, so review a BAA/compliance path before enabling it in production.
+The session-start profile is deliberately minimal: age range is required; gender, relationship status, life context, and preferred language are optional. There is no login, email collection, identity profile, or long-term demographic storage. The frontend holds the opaque session token and profile only while the browser session is active.
 
 ## Run both services with Docker
 
