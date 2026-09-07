@@ -40,7 +40,7 @@ export const techniques: Technique[] = [
   },
   {
     slug: "grounding-5-4-3-2-1",
-    image: "mistyForestLake",
+    image: "bareFeetOnGrass",
     en: {
       name: "5-4-3-2-1 grounding",
       summary: "Name five things you see, four you feel, three you hear, two you smell, and one you taste.",

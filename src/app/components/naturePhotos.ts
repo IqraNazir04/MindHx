@@ -92,4 +92,10 @@ export const naturePhotos = {
     photographerName: "Corina Ardeleanu",
     photographerUrl: "https://unsplash.com/@corina",
   },
+  bareFeetOnGrass: {
+    src: "https://images.unsplash.com/photo-1758712508733-fb9847aa280d",
+    alt: "Bare feet walking across lush green grass, grounded in the present moment",
+    photographerName: "Klara Kulikova",
+    photographerUrl: "https://unsplash.com/@kkalerry",
+  },
 } as const;
