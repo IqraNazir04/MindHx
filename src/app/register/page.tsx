@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { register } from "../lib/auth";
 
 export default function RegisterPage() {
@@ -40,6 +42,7 @@ export default function RegisterPage() {
         <h1>Create an account<br /><em>entirely optional.</em></h1>
         <p>An account lets you save check-in results (score, band, and themes only - never your transcript or written answers) and revisit them later. You can keep using MindHx anonymously without one.</p>
       </section>
+      <NatureBanner {...naturePhotos.forestPath} />
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
           <span>Email</span>

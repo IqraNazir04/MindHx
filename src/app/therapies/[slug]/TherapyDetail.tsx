@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
+import NatureBanner from "../../components/NatureBanner";
+import { naturePhotos } from "../../components/naturePhotos";
 import type { Therapy } from "../data";
 
 const copy = {
@@ -27,6 +29,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
         <h1>{content.name}</h1>
         <p>{content.summary}</p>
       </section>
+      <NatureBanner {...naturePhotos.forestPath} />
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.whatToExpect}</p>
@@ -45,7 +48,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
       )}
       <div className="technique-actions">
         <Link className="result-primary" href="/therapies">{text.back} <span>→</span></Link>
-        <Link className="result-primary" href="/therapist">{text.discuss} <span>→</span></Link>
+        <Link className="result-primary result-primary-orange" href="/therapist">{text.discuss} <span>→</span></Link>
       </div>
     </main>
   );

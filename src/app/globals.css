@@ -275,6 +275,8 @@ textarea::placeholder { color:#9aa6b4; }
 .result-primary { display:inline-flex; align-items:center; border:0; border-radius:7px; background:var(--blue); color:#fff; padding:13px 17px; font-size:13px; width:max-content; text-decoration:none; }
 .result-primary:hover { background:var(--blue-deep); }
 .result-primary span { margin-left:15px; }
+.result-primary-orange { background:var(--orange); }
+.result-primary-orange:hover { background:#d3701f; }
 @media (max-width:800px) { .results-page { padding:0 20px 30px; }.results-hero { display:block; padding:52px 0 42px; }.result-score-card { width:100%; margin-top:35px; }.result-signal-grid { grid-template-columns:repeat(2,1fr); }.result-columns { grid-template-columns:1fr; }.contact-banner { display:block; }.contact-quote { max-width:none; margin-top:20px; padding:15px 0 0; border-left:0; border-top:1px solid var(--line); }.results-private { display:none; } }
 
 /* ---------- Signal attribution (results) ---------- */
@@ -312,7 +314,7 @@ textarea::placeholder { color:#9aa6b4; }
 .resource-note b { color:var(--teal); font:10px 'DM Mono',monospace; text-transform:uppercase; }
 .resource-note p { color:var(--navy); font-size:12px; line-height:1.6; }
 .resource-links { display:flex; flex-wrap:wrap; gap:15px; }
-.resource-links a,.result-primary { color:var(--blue); font-size:12px; }
+.resource-links a { color:var(--blue); font-size:12px; }
 .ai-steps b { color:var(--orange); font:10px 'DM Mono',monospace; }
 .ai-steps p { color:var(--muted); font-size:12px; line-height:1.55; }
 .therapist-contact { position:relative; z-index:1; max-width:900px; margin:0 auto; display:grid; grid-template-columns:1.3fr 1fr; gap:15px; }
@@ -330,15 +332,41 @@ textarea::placeholder { color:#9aa6b4; }
 
 .ai-chat { position:relative; z-index:1; max-width:900px; margin:0 auto 28px; padding:22px; border:1px solid var(--line); border-radius:11px; background:var(--surface); }
 .chat-label { color:var(--blue); font:9px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:12px; }
-.ai-chat textarea { min-height:115px; margin-bottom:12px; }
-.ai-response { margin-top:22px; padding:17px; border-top:1px solid var(--line); color:var(--navy); }
-.ai-response > b { color:var(--teal); font:10px 'DM Mono',monospace; text-transform:uppercase; }
-.ai-response article { padding:12px 0; border-top:1px solid var(--line); }
-.ai-response h3 { color:var(--navy); font-size:15px; margin:12px 0 5px; }
-.ai-response p { color:var(--muted); font-size:12px; line-height:1.6; }
-.ai-response a { color:var(--blue); font-size:11px; }
-.ai-escalation { border:1px solid rgba(200,79,79,.3); border-radius:7px; background:var(--red-soft); }
-.ai-escalation > b { color:var(--red); }
+
+/* Mood check-in widget */
+.mood-checkin { position:relative; z-index:1; max-width:900px; margin:0 auto 20px; padding:16px 20px; border:1px solid var(--line); border-radius:11px; background:var(--teal-soft); text-align:center; }
+.mood-checkin p { margin:0 0 10px; color:var(--navy); font-size:13px; }
+.mood-checkin-faces { display:flex; justify-content:center; gap:10px; }
+.mood-checkin-face { border:1px solid var(--line-cool); border-radius:50%; width:40px; height:40px; font-size:18px; background:var(--surface); }
+.mood-checkin-face:hover { border-color:var(--blue); transform:translateY(-1px); }
+.mood-checkin-face.selected { border-color:var(--teal); background:var(--surface); box-shadow:0 0 0 2px rgba(47,143,110,.25); }
+
+/* Conversation thread */
+.chat-thread { display:flex; flex-direction:column; gap:14px; max-height:520px; overflow-y:auto; padding:4px 2px; margin-bottom:14px; }
+.chat-bubble { max-width:85%; padding:13px 16px; border-radius:13px; font-size:13px; line-height:1.55; }
+.chat-bubble p { margin:0; }
+.chat-bubble.user { align-self:flex-end; background:var(--blue-soft); color:var(--navy); border-bottom-right-radius:3px; }
+.chat-bubble.assistant { align-self:flex-start; background:var(--surface-soft); border:1px solid var(--line); color:var(--navy); border-bottom-left-radius:3px; }
+.chat-bubble.escalation { background:var(--red-soft); border:1px solid rgba(200,79,79,.3); color:#8b3535; }
+.chat-loading { color:var(--muted); font-style:italic; }
+.chat-source { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+.chat-source h3 { margin:0 0 5px; color:var(--navy); font-size:13px; }
+.chat-source p { color:var(--muted); font-size:12px; line-height:1.55; }
+.chat-source a { color:var(--blue); font-size:11px; }
+.chat-suggested-cta { display:inline-flex; align-items:center; gap:6px; margin-top:12px; color:var(--blue); font-size:12px; font-weight:600; text-decoration:none; }
+.chat-suggested-cta:hover { text-decoration:underline; }
+.chat-composer { display:flex; gap:10px; align-items:flex-end; }
+.chat-composer textarea { min-height:52px; max-height:140px; flex:1; }
+.chat-composer .result-primary { flex:0 0 auto; }
+@media (max-width:720px) { .chat-composer { flex-direction:column; align-items:stretch; } .chat-bubble { max-width:100%; } }
+
+/* Interactive exercise stepper */
+.exercise-stepper { margin-top:14px; padding:16px; border:1px solid rgba(47,143,110,.3); border-radius:10px; background:var(--teal-soft); text-align:center; }
+.exercise-stepper-name { margin:0 0 10px; color:var(--teal); font:10px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.5px; }
+.exercise-stepper-instruction { color:var(--navy); font-size:15px; margin:0 0 10px; }
+.exercise-stepper-timer { font-size:32px; font-weight:700; color:var(--teal); margin-bottom:6px; }
+.exercise-stepper-progress { color:var(--muted); font-size:11px; }
+.exercise-stepper-button { padding:9px 18px; font-size:12px; }
 
 .emergency-hero { padding-bottom:20px; }
 .emergency-hero p:last-child { color:#8b3535; }
@@ -421,3 +449,11 @@ textarea::placeholder { color:#9aa6b4; }
 .dashboard-entry-details { display:flex; flex-direction:column; gap:6px; }
 .dashboard-entry-date { color:var(--muted); font:10px 'DM Mono',monospace; }
 @media (max-width:720px) { .dashboard-entry { flex-direction:column; align-items:flex-start; } }
+
+/* ---------- Nature photography banners (Unsplash) ---------- */
+.nature-banner { position:relative; z-index:1; max-width:1120px; margin:0 auto 40px; border-radius:16px; overflow:hidden; box-shadow:0 18px 45px var(--shadow); }
+.nature-banner img { display:block; width:100%; height:280px; object-fit:cover; }
+.nature-banner-caption { position:absolute; left:24px; bottom:38px; max-width:70%; color:#fff; font:600 20px 'Playfair Display',serif; text-shadow:0 2px 10px rgba(0,0,0,.45); }
+.nature-banner-credit { position:absolute; right:10px; bottom:8px; color:rgba(255,255,255,.85); font-size:10px; background:rgba(0,0,0,.32); padding:3px 8px; border-radius:20px; }
+.nature-banner-credit a { color:#fff; text-decoration:underline; }
+@media (max-width:720px) { .nature-banner img { height:190px; } .nature-banner-caption { font-size:16px; bottom:26px; left:16px; } }

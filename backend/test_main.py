@@ -2,7 +2,8 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from database import init_db
-from main import _prosodic_features, _prosodic_risk_signal, app
+from main import _prosodic_features, _prosodic_risk_signal, app, summarize_trajectory
+from models import CheckIn
 
 init_db()
 client = TestClient(app)
@@ -180,3 +181,87 @@ def test_ai_chat_escalates_crisis_before_retrieval() -> None:
     response = client.post("/ai/chat", json={"message": "I want to kill myself", "risk_clear": True})
     assert response.status_code == 200
     assert response.json()["status"] == "escalate"
+
+
+def test_ai_chat_retrieves_family_stigma_content() -> None:
+    response = client.post("/ai/chat", json={"message": "my family will be so ashamed if they find out", "risk_clear": True})
+    body = response.json()
+    assert response.status_code == 200
+    assert body["intent"] == "family_stigma"
+    assert body["sources"][0]["id"] == "family-stigma"
+
+
+def test_ai_chat_retrieves_exam_pressure_content() -> None:
+    response = client.post("/ai/chat", json={"message": "I have a big exam and cannot sleep from the pressure", "risk_clear": True})
+    body = response.json()
+    assert response.status_code == 200
+    assert body["intent"] == "exam_pressure"
+    assert body["sources"][0]["id"] == "exam-work-pressure"
+
+
+def test_ai_chat_still_escalates_with_history_and_context_supplied() -> None:
+    """The safety gate must run before any of the new personalization fields matter."""
+    response = client.post("/ai/chat", json={
+        "message": "I want to end my life",
+        "risk_clear": True,
+        "history": [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}],
+        "screening_context": {"band": "low", "themes": []},
+        "mood_checkins": [4, 4, 5],
+    })
+    assert response.status_code == 200
+    assert response.json()["status"] == "escalate"
+
+
+def test_mood_checkins_and_helpful_practices_require_auth_and_round_trip() -> None:
+    unauthenticated = client.post("/mood-checkins", json={"mood": 3})
+    assert unauthenticated.status_code == 401
+
+    register_response = client.post("/auth/register", json={"email": "mood-user@example.com", "password": "correct-horse-battery"})
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    create_response = client.post("/mood-checkins", json={"mood": 2}, headers=headers)
+    assert create_response.status_code == 201
+    assert create_response.json()["mood"] == 2
+
+    list_response = client.get("/mood-checkins", headers=headers)
+    assert list_response.status_code == 200
+    assert len(list_response.json()) == 1
+
+    practice_response = client.post("/helpful-practices", json={"practice_name": "box breathing"}, headers=headers)
+    assert practice_response.status_code == 201
+    assert practice_response.json()["practice_name"] == "box breathing"
+
+
+def test_ai_chat_uses_signed_in_users_trajectory_and_practices() -> None:
+    """End-to-end: a signed-in user's saved check-ins/moods/practices feed the chat
+    context without erroring, even though no LLM key is configured in tests (so it
+    still falls back to the deterministic template response)."""
+    register_response = client.post("/auth/register", json={"email": "trajectory-user@example.com", "password": "correct-horse-battery"})
+    token = register_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.post("/checkins", json={"risk_score": 0.15, "band": "low", "routing_decision": "no_referral_needed", "themes": []}, headers=headers)
+    client.post("/checkins", json={"risk_score": 0.45, "band": "elevated", "routing_decision": "refer", "themes": ["anxiety"]}, headers=headers)
+    client.post("/mood-checkins", json={"mood": 4}, headers=headers)
+    client.post("/mood-checkins", json={"mood": 2}, headers=headers)
+    client.post("/helpful-practices", json={"practice_name": "5-4-3-2-1 grounding"}, headers=headers)
+
+    response = client.post("/ai/chat", json={"message": "I feel anxious again"}, headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "grounded_support"
+
+
+def test_summarize_trajectory_detects_rising_trend() -> None:
+    check_ins = [
+        CheckIn(user_id="u", risk_score=0.4, band="elevated", routing_decision="refer", themes=""),
+        CheckIn(user_id="u", risk_score=0.15, band="low", routing_decision="no_referral_needed", themes=""),
+    ]
+    summary = summarize_trajectory(check_ins)
+    assert summary is not None
+    assert "rising" in summary
+
+
+def test_summarize_trajectory_needs_at_least_two_check_ins() -> None:
+    assert summarize_trajectory([]) is None
+    assert summarize_trajectory([CheckIn(user_id="u", risk_score=0.1, band="low", routing_decision="no_referral_needed", themes="")]) is None

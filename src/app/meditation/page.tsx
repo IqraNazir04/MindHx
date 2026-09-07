@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf, DoodleSun, DoodleWave } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { techniques } from "./data";
 
 const copy = {
@@ -41,6 +43,7 @@ export default function MeditationPage() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
+      <NatureBanner {...naturePhotos.meadow} />
       <section className="reference-grid">
         {techniques.map((technique) => {
           const content = technique[isUrdu ? "ur" : "en"];

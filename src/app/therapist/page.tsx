@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleSun } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { CITIES, getDirectoryLinks, getProvidersForCity, type City } from "./providers";
 
 const TYPE_LABELS: Record<string, { en: string; ur: string }> = {
@@ -85,6 +87,7 @@ export default function TherapistPage() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
+      <NatureBanner {...naturePhotos.forestBridge} caption="Take the next step." />
       <section className="therapist-contact">
         <div>
           <p className="card-kicker">{text.whatToSay}</p>

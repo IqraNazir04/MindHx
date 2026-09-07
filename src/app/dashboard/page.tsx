@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ProtectedRoute from "../components/ProtectedRoute";
 import SiteHeader from "../components/SiteHeader";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { fetchCheckIns, logout, type CheckInRecord } from "../lib/auth";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
@@ -40,6 +42,7 @@ function DashboardContent({ email }: { email: string }) {
         <h1>Check-in history<br /><em>for {email}.</em></h1>
         <p>Only the score, band, and detected themes from each check-in are saved here - never your transcript, typed answers, or individual questionnaire responses.</p>
       </section>
+      <NatureBanner {...naturePhotos.mountainRange} />
       {error && <p className="assessment-error dashboard-error">{error}</p>}
       {checkIns === null && !error && <p className="dashboard-loading">Loading your history…</p>}
       {checkIns?.length === 0 && (

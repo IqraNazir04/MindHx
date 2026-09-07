@@ -4,6 +4,8 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleCloud } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 
 type CrisisContext = {
   source: "phq9_item9" | "text_crisis_language" | "manual";
@@ -72,6 +74,7 @@ export default function EmergencyPage() {
         <h1>{text.title}</h1>
         <p>{text.lede}</p>
       </section>
+      <NatureBanner {...naturePhotos.softDawn} />
       <section className="emergency-steps">
         <p className="card-kicker">{text.stepsTitle}</p>
         <ol>{text.steps.map((step) => <li key={step}>{step}</li>)}</ol>

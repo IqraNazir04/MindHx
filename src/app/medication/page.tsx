@@ -3,6 +3,8 @@
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleLeaf } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 
 const entries = [
   {
@@ -57,6 +59,7 @@ export default function MedicationPage() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
+      <NatureBanner {...naturePhotos.balancedStones} />
       <section className="reference-grid">
         {entries.map((entry) => {
           const content = entry[isUrdu ? "ur" : "en"];

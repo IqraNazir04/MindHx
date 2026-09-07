@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { login } from "../lib/auth";
 
 export default function LoginPage() {
@@ -35,6 +37,7 @@ export default function LoginPage() {
         <h1>Sign in<br /><em>to see your history.</em></h1>
         <p>Signing in is entirely optional. Your check-in itself never requires an account - this only lets you save and revisit past results.</p>
       </section>
+      <NatureBanner {...naturePhotos.forestPath} />
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
           <span>Email</span>

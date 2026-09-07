@@ -1,22 +1,24 @@
 import SiteHeader from "../components/SiteHeader";
 import { DoodleSun, DoodleWave } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 
 type Swatch = { name: string; textColor: string; background: string; usage: string };
 
 const PRIMARY: Swatch[] = [
-  { name: "Dark", textColor: "#EDF5FB", background: "#08121F", usage: "#EDF5FB on #08121F" },
-  { name: "Light", textColor: "#172B49", background: "#FFFFFF", usage: "#172B49 on #FFFFFF" },
-  { name: "Signal gradient", textColor: "#FFFFFF", background: "linear-gradient(135deg,#2C7BC4,#54B49A)", usage: "#FFFFFF on motion gradient" },
+  { name: "Page", textColor: "#24344A", background: "#FBF3E6", usage: "#24344A on #FBF3E6" },
+  { name: "Surface", textColor: "#24344A", background: "#FFFFFF", usage: "#24344A on #FFFFFF" },
+  { name: "Signal gradient", textColor: "#FFFFFF", background: "linear-gradient(135deg,#2C6FBA,#2F8F6E)", usage: "#FFFFFF on motion gradient" },
 ];
 
 const SECONDARY: Swatch[] = [
-  { name: "Blue (voice)", textColor: "#66B1EE", background: "#193349", usage: "#66B1EE on #193349" },
-  { name: "Teal (clinical)", textColor: "#70C6A7", background: "#0D1D2D", usage: "#70C6A7 on #0D1D2D" },
-  { name: "Orange (words)", textColor: "#FFFFFF", background: "#E98232", usage: "#FFFFFF on #E98232" },
+  { name: "Blue (voice)", textColor: "#2C6FBA", background: "#E5F0FB", usage: "#2C6FBA on #E5F0FB" },
+  { name: "Teal (clinical)", textColor: "#2F8F6E", background: "#E3F6EE", usage: "#2F8F6E on #E3F6EE" },
+  { name: "Orange (words)", textColor: "#E98232", background: "#FFF0E3", usage: "#E98232 on #FFF0E3" },
 ];
 
 const TECHNICAL: Swatch[] = [
-  { name: "Crisis red", textColor: "#FFC6C6", background: "#102438", usage: "#FFC6C6 on #102438 - reserved for crisis/safety UI only" },
+  { name: "Crisis red", textColor: "#8B3535", background: "#FBE9E8", usage: "#8B3535 on #FBE9E8 - reserved for crisis/safety UI only" },
 ];
 
 function SwatchGroup({ eyebrow, description, swatches }: { eyebrow: string; description: string; swatches: Swatch[] }) {
@@ -53,8 +55,9 @@ export default function BrandPage() {
       <section className="resource-hero">
         <p className="eyebrow">BRAND</p>
         <h1>Color system<br /><em>for every touchpoint.</em></h1>
-        <p>MindHx pairs a calm, clinical dark base with three signal colors - blue for voice, teal for the PHQ-9-family clinical scales, and orange for language - plus a reserved red used only for crisis and safety contexts, never decoratively.</p>
+        <p>MindHx pairs a calm, clinical light base with three signal colors - blue for voice, teal for the PHQ-9-family clinical scales, and orange for language - plus a reserved red used only for crisis and safety contexts, never decoratively.</p>
       </section>
+      <NatureBanner {...naturePhotos.mountainLake} />
       <SwatchGroup eyebrow="PRIMARY" description="Standard use across all brand touchpoints" swatches={PRIMARY} />
       <SwatchGroup eyebrow="SECONDARY" description="Creative contexts only - marketing collateral, banners" swatches={SECONDARY} />
       <SwatchGroup eyebrow="TECHNICAL" description="Documentation sites and technical contexts only" swatches={TECHNICAL} />

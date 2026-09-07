@@ -71,3 +71,18 @@ def get_current_user(
     if not user:
         raise unauthorized
     return user
+
+
+def get_optional_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+) -> Optional[User]:
+    """Like get_current_user, but returns None instead of raising 401 - for
+    endpoints (like /ai/chat) that must work for anonymous callers too, while
+    still personalizing when a valid token is present."""
+    if not credentials:
+        return None
+    user_id = decode_access_token(credentials.credentials)
+    if not user_id:
+        return None
+    return db.get(User, user_id)

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { DoodleLeaf, DoodleSun } from "../../components/Doodles";
+import NatureBanner from "../../components/NatureBanner";
+import { naturePhotos } from "../../components/naturePhotos";
 import type { Technique } from "../data";
 
 const copy = {
@@ -27,6 +29,7 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
         <h1>{content.name}</h1>
         <p>{content.summary}</p>
       </section>
+      <NatureBanner {...naturePhotos.meadow} />
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.how}</p>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleSpeechBubble } from "../components/Doodles";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { therapies } from "./data";
 
 const copy = {
@@ -42,6 +44,7 @@ export default function TherapiesPage() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
+      <NatureBanner {...naturePhotos.forestPath} />
       <section className="reference-grid therapy-reference">
         {therapies.map((therapy) => {
           const content = therapy[isUrdu ? "ur" : "en"];
@@ -57,7 +60,7 @@ export default function TherapiesPage() {
           );
         })}
       </section>
-      <Link className="result-primary" href="/therapist">{text.discuss} <span>→</span></Link>
+      <Link className="result-primary result-primary-orange" href="/therapist">{text.discuss} <span>→</span></Link>
     </main>
   );
 }

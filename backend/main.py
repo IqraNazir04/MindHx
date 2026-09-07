@@ -19,9 +19,9 @@ from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from auth import create_access_token, get_current_user, hash_password, verify_password
+from auth import create_access_token, get_current_user, get_optional_current_user, hash_password, verify_password
 from database import get_db, init_db
-from models import CheckIn, User
+from models import CheckIn, HelpfulPractice, MoodCheckIn, User
 
 
 @asynccontextmanager
@@ -56,10 +56,36 @@ class SupportResourcesRequest(BaseModel):
     language: str = "en"
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class ScreeningContext(BaseModel):
+    band: Optional[str] = Field(default=None, max_length=20)
+    risk_score: Optional[float] = Field(default=None, ge=0, le=1)
+    themes: list[str] = Field(default_factory=list, max_length=10)
+    phq9_score: Optional[int] = Field(default=None, ge=0, le=27)
+    gad7_score: Optional[int] = Field(default=None, ge=0, le=21)
+    k10_score: Optional[int] = Field(default=None, ge=0, le=50)
+
+
 class AiSupportRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=5000)
+    message: str = Field(min_length=1, max_length=4000)
     language: str = "en"
     risk_clear: bool = True
+    history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+    screening_context: Optional[ScreeningContext] = None
+    mood_checkins: list[int] = Field(default_factory=list, max_length=14)
+    helpful_practices: list[str] = Field(default_factory=list, max_length=10)
+
+
+class MoodCheckInCreateRequest(BaseModel):
+    mood: int = Field(ge=1, le=5)
+
+
+class HelpfulPracticeRequest(BaseModel):
+    practice_name: str = Field(min_length=1, max_length=100)
 
 
 RAG_DOCUMENTS = [
@@ -107,7 +133,60 @@ RAG_DOCUMENTS = [
             "content": "کچھ ذہنی صحت کی کیفیات کے علاج میں ادویات شامل ہو سکتی ہیں، لیکن صحیح انتخاب - اگر کوئی ہو - تشخیص، طبی تاریخ، دیگر ادویات، اور ذاتی ردعمل جیسے انفرادی عوامل پر منحصر ہوتا ہے، جن کا صحیح جائزہ صرف ایک مستند تجویز کنندہ لے سکتا ہے۔ عمومی تعلیم میں حوالہ دی جانے والی عام مثالوں میں ڈپریشن اور کچھ اضطرابی امراض کے لیے ایس ایس آر آئیز، اور قریبی نگرانی میں شدید اضطراب کی علامات کے لیے قلیل مدتی اختیارات شامل ہیں؛ ہر ایک کے ساتھ ضمنی اثرات، انحصار، اور تعامل کے مختلف پہلو جڑے ہیں۔ اس گفتگو کی بنیاد پر کوئی دوا شروع، بند، یا تبدیل نہ کریں۔ اگر آپ فی الوقت کوئی دوا لے رہے ہیں اور خدشات رکھتے ہیں، یا پہلی بار ادویات پر غور کر رہے ہیں، تو یہ گفتگو آپ کے تجویز کنندہ کے ساتھ ہونی چاہیے، جو آپ کی مکمل صورتحال کا محفوظ طریقے سے جائزہ لے سکے۔",
         },
     },
+    {
+        "id": "family-stigma", "intent": "family_stigma", "link": "/therapist",
+        "en": {
+            "title": "Family expectations and stigma around seeking help",
+            "content": "Talking about mental health with family can feel complicated, especially where seeking help is sometimes seen as weakness, family shame, or something to hide rather than an ordinary health matter. You don't have to disclose everything to everyone at once, or at all - many people start by speaking privately with one trusted person, a doctor, or a counselor before deciding what, if anything, to share with family. If pressure around marriage, career choices, or \"log kya kahenge\" (what will people say) is part of what's weighing on you, that pressure is real and worth naming, not something to just push through silently. A mental-health professional can also help you think through how and whether to involve family, at your own pace, without deciding that for you.",
+        },
+        "ur": {
+            "title": "خاندانی توقعات اور مدد لینے کے حوالے سے بدنامی کا خوف",
+            "content": "خاندان کے ساتھ ذہنی صحت پر بات کرنا مشکل لگ سکتا ہے، خاص طور پر جہاں مدد لینا کبھی کبھار کمزوری، خاندانی بدنامی، یا چھپانے کی چیز سمجھا جاتا ہے، نہ کہ ایک عام صحت کا معاملہ۔ آپ کو ایک ساتھ سب کچھ سب کو بتانے کی ضرورت نہیں، یا بالکل بھی نہیں - بہت سے لوگ پہلے کسی ایک قابلِ اعتماد شخص، ڈاکٹر، یا مشیر سے نجی طور پر بات کرتے ہیں، پھر طے کرتے ہیں کہ خاندان کو کیا بتانا ہے۔ اگر شادی، کیریئر کے فیصلوں، یا 'لوگ کیا کہیں گے' کا دباؤ آپ پر بوجھ ہے، تو یہ دباؤ حقیقی ہے اور اسے نظرانداز کرنے کے بجائے تسلیم کرنا چاہیے۔ ایک ذہنی صحت کا ماہر آپ کو یہ سوچنے میں بھی مدد دے سکتا ہے کہ خاندان کو کیسے اور کب شامل کرنا ہے، آپ کی اپنی رفتار سے۔",
+        },
+    },
+    {
+        "id": "exam-work-pressure", "intent": "exam_pressure", "link": "/meditation",
+        "en": {
+            "title": "Exam, academic, and work pressure",
+            "content": "Board exams, entrance tests, competition for limited university seats, or job pressure can create stress that feels constant rather than occasional. It's common to tie your entire sense of worth to a single result, especially when family expectations or financial sacrifice are attached to it. A few things that can make this more manageable: breaking a large goal into smaller weekly targets, protecting basic sleep even during intense study or work periods, and telling one person - a teacher, family member, or counselor - about the pressure rather than carrying it alone. If the stress is affecting sleep, appetite, or concentration most days for two weeks or more, that's worth a conversation with a professional, separate from the exam or deadline itself.",
+        },
+        "ur": {
+            "title": "امتحان، تعلیمی، اور کام کا دباؤ",
+            "content": "بورڈ کے امتحانات، داخلہ ٹیسٹ، محدود یونیورسٹی نشستوں کا مقابلہ، یا نوکری کا دباؤ ایسا تناؤ پیدا کر سکتا ہے جو مسلسل محسوس ہو، کبھی کبھار نہیں۔ اکثر لوگ اپنی پوری قدر ایک نتیجے سے جوڑ دیتے ہیں، خاص طور پر جب خاندانی توقعات یا مالی قربانی اس کے ساتھ جڑی ہوں۔ اسے قابلِ انتظام بنانے کے کچھ طریقے: بڑے ہدف کو چھوٹے ہفتہ وار اہداف میں تقسیم کرنا، شدید پڑھائی یا کام کے دوران بھی بنیادی نیند کا خیال رکھنا، اور دباؤ اکیلے اٹھانے کے بجائے کسی ایک شخص - استاد، خاندان کے فرد، یا مشیر - کو بتانا۔ اگر تناؤ نیند، بھوک، یا توجہ کو دو ہفتوں یا اس سے زیادہ عرصے تک، زیادہ تر دن متاثر کر رہا ہو، تو امتحان یا ڈیڈ لائن سے الگ، کسی ماہر سے بات کرنا فائدہ مند ہوگا۔",
+        },
+    },
 ]
+
+INTERACTIVE_EXERCISES = {
+    "478-breathing": {
+        "en": {"name": "4-7-8 breathing", "steps": [
+            {"instruction": "Breathe in quietly through your nose", "seconds": 4},
+            {"instruction": "Hold your breath", "seconds": 7},
+            {"instruction": "Exhale completely through your mouth, making a whoosh sound", "seconds": 8},
+        ]},
+        "ur": {"name": "4-7-8 سانس کی مشق", "steps": [
+            {"instruction": "ناک سے آہستہ سانس اندر لیں", "seconds": 4},
+            {"instruction": "سانس روکیں", "seconds": 7},
+            {"instruction": "منہ سے مکمل سانس باہر نکالیں", "seconds": 8},
+        ]},
+    },
+    "grounding-54321": {
+        "en": {"name": "5-4-3-2-1 grounding", "steps": [
+            {"instruction": "Name 5 things you can see", "seconds": 20},
+            {"instruction": "Name 4 things you can feel", "seconds": 20},
+            {"instruction": "Name 3 things you can hear", "seconds": 15},
+            {"instruction": "Name 2 things you can smell", "seconds": 15},
+            {"instruction": "Name 1 thing you can taste", "seconds": 10},
+        ]},
+        "ur": {"name": "5-4-3-2-1 گراؤنڈنگ", "steps": [
+            {"instruction": "5 چیزیں جو آپ دیکھ سکتے ہیں بتائیں", "seconds": 20},
+            {"instruction": "4 چیزیں جو محسوس کر سکتے ہیں", "seconds": 20},
+            {"instruction": "3 چیزیں جو سن سکتے ہیں", "seconds": 15},
+            {"instruction": "2 چیزیں جن کی خوشبو محسوس ہو", "seconds": 15},
+            {"instruction": "1 چیز جس کا ذائقہ محسوس ہو", "seconds": 10},
+        ]},
+    },
+}
 
 
 class Profile(BaseModel):
@@ -179,6 +258,8 @@ def retrieve_rag_documents(message: str) -> list[dict]:
         "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
         "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
         "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
+        "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
+        "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
     }
     matched = [intent for intent, keywords in terms.items() if any(keyword in lowered for keyword in keywords)]
     return [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
@@ -754,9 +835,139 @@ AI_CHAT_COPY = {
 }
 
 
+CHAT_SYSTEM_PROMPT = """You are MindHx's grounded support assistant for early-stage stress and mental-health check-ins, used mainly in Pakistan (English and Urdu). You are talking to someone before things escalate, not during a crisis - crisis messages are filtered out before they ever reach you.
+
+STRICT RULES, no exceptions:
+- Never diagnose, never name or imply a diagnosis, never prescribe or recommend medication, dosages, or brand names.
+- Never provide crisis counseling or safety planning - that is handled elsewhere. If anything in the conversation reads as risk, do not improvise; keep your reply brief and defer to a professional.
+- Only use facts from the "Reference material" and "Situational context" you are given. Do not invent facts, statistics, studies, or advice beyond that material. If the reference material doesn't cover something, say so plainly rather than guessing.
+- Keep replies short and warm (2-5 sentences), not clinical or lecture-like.
+- If the user's message is vague (e.g. "I don't feel good", "not okay", "stressed"), do not guess what's wrong - ask exactly ONE short clarifying question instead, unless the conversation history shows you already asked a clarifying question on this topic and got an answer.
+- Situational context (risk band, questionnaire scores, mood trend, screening history) is background, not something to recite or diagnose from. Let it quietly shape tone and depth: e.g. more caution and a gentler pace for a rising trend or elevated band, a lighter touch for a stable low score - never mention the numbers themselves back to the user.
+- If an interactive exercise fits the moment and is available in the reference material, offer to walk through it right now rather than only describing it.
+- If this person has a practice listed as previously helpful, prefer offering that one again before suggesting something new.
+- After 3 or more exchanges on the same topic without resolution, gently suggest one concrete next step already available in the app that fits the conversation.
+- Reply in the requested language only (English or Urdu, matching the user's language field).
+
+Return ONLY a JSON object with this exact shape:
+{"action": "clarify" | "respond", "message": "<your reply text>", "offer_exercise": "<exercise id from the list, or null>", "suggested_cta": {"label": "<short label>", "href": "<one of the allowed paths>"} | null}"""
+
+ALLOWED_CTA_HREFS = {"/", "/meditation", "/therapies", "/medication", "/therapist", "/results"}
+
+
+def summarize_trajectory(check_ins: list[CheckIn]) -> Optional[str]:
+    """Turns a person's recent saved check-ins into a one-line trend summary
+    for the chat's situational context - never shown verbatim to the user."""
+    if len(check_ins) < 2:
+        return None
+    order = {"low": 0, "watch": 1, "elevated": 2, "crisis": 3}
+    bands = [c.band for c in reversed(check_ins) if c.band in order]
+    if len(bands) < 2:
+        return None
+    if order[bands[-1]] > order[bands[0]]:
+        trend = "rising (getting more elevated over time)"
+    elif order[bands[-1]] < order[bands[0]]:
+        trend = "falling (improving over time)"
+    else:
+        trend = "stable"
+    return f"Recent screening bands, oldest to newest: {', '.join(bands)}. Trend: {trend}."
+
+
+async def compose_chat_reply(
+    message: str,
+    language: str,
+    history: list[ChatTurn],
+    documents: list[dict],
+    screening_context: Optional[ScreeningContext],
+    trajectory_summary: Optional[str],
+    mood_checkins: list[int],
+    helpful_practices: list[str],
+) -> Optional[dict]:
+    """Composes a grounded, guarded chat reply via Qwen (preferred) or OpenRouter.
+    Returns None on any failure or unsafe/malformed output, so the caller can
+    fall back to the deterministic template response - the chat never goes
+    unanswered, it just loses the conversational layer."""
+    api_key = os.getenv("DASHSCOPE_API_KEY")
+    if api_key:
+        provider, model = "dashscope", os.getenv("DASHSCOPE_MODEL", "qwen-plus")
+        base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        url = f"{base_url}/chat/completions"
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    else:
+        api_key = os.getenv("OPENROUTER_API_KEY")
+        if not api_key:
+            return None
+        provider, model = "openrouter", os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+        url = "https://openrouter.ai/api/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "http://localhost:3000"), "X-OpenRouter-Title": "MindHx",
+        }
+
+    context_lines = []
+    if screening_context:
+        parts = []
+        if screening_context.band:
+            parts.append(f"risk band: {screening_context.band}")
+        if screening_context.themes:
+            parts.append(f"themes: {', '.join(screening_context.themes)}")
+        if parts:
+            context_lines.append("Current screening context (situational grounding only, not a diagnosis): " + "; ".join(parts))
+    if trajectory_summary:
+        context_lines.append(trajectory_summary)
+    if mood_checkins:
+        context_lines.append(f"Recent daily mood check-ins (1=low, 5=high), oldest to newest: {mood_checkins}")
+    if helpful_practices:
+        context_lines.append(f"Practices this person has said helped before: {', '.join(helpful_practices)}")
+
+    reference_material = "\n\n".join(f"[{document['id']}] {document[language]['title']}: {document[language]['content']}" for document in documents)
+    exercise_ids = ", ".join(INTERACTIVE_EXERCISES.keys())
+
+    messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+    for turn in history[-8:]:
+        messages.append({"role": turn.role, "content": turn.content})
+    messages.append({"role": "user", "content": "\n\n".join([
+        f"Language: {language}",
+        "\n".join(context_lines) if context_lines else "No situational context available.",
+        f"Reference material:\n{reference_material}",
+        f"Available interactive exercise ids: {exercise_ids}",
+        f"Allowed suggested_cta hrefs: {', '.join(sorted(ALLOWED_CTA_HREFS))}",
+        f"User message: {message}",
+    ])})
+
+    payload = {"model": model, "temperature": 0, "response_format": {"type": "json_object"}, "messages": messages}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            result = json.loads(content)
+    except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError):
+        return None
+
+    if result.get("action") not in {"clarify", "respond"}:
+        return None
+    if not isinstance(result.get("message"), str) or not result["message"].strip():
+        return None
+    if has_crisis_language(result["message"]):
+        # Defense in depth: never surface a generated reply that reads as crisis-adjacent,
+        # even though the input was already gated - fall back to the deterministic template.
+        return None
+    if result.get("offer_exercise") not in INTERACTIVE_EXERCISES:
+        result["offer_exercise"] = None
+    cta = result.get("suggested_cta")
+    if not (isinstance(cta, dict) and isinstance(cta.get("href"), str) and cta["href"] in ALLOWED_CTA_HREFS and isinstance(cta.get("label"), str)):
+        result["suggested_cta"] = None
+    result["_provider"] = provider
+    result["_model"] = model
+    return result
+
+
 @app.post("/ai/chat")
-def ai_chat(payload: AiSupportRequest) -> dict:
-    """Return grounded support content only after the caller's risk gate is clear."""
+async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depends(get_optional_current_user), db: Session = Depends(get_db)) -> dict:
+    """Return grounded support content only after the caller's risk gate is clear.
+    Works fully anonymously; personalizes further (trajectory, remembered helpful
+    practices) when a signed-in user's token is presented."""
     lang = "ur" if payload.language == "ur" else "en"
     text = AI_CHAT_COPY[lang]
     if not payload.risk_clear or has_crisis_language(payload.message):
@@ -765,14 +976,73 @@ def ai_chat(payload: AiSupportRequest) -> dict:
             "message": text["escalate"],
             "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
+
     documents = retrieve_rag_documents(payload.message)
-    return {
-        "status": "grounded_support",
+    mood_checkins = payload.mood_checkins
+    helpful_practices = payload.helpful_practices
+    trajectory_summary = None
+    if current_user:
+        recent_check_ins = db.query(CheckIn).filter(CheckIn.user_id == current_user.id).order_by(CheckIn.created_at.desc()).limit(5).all()
+        trajectory_summary = summarize_trajectory(recent_check_ins)
+        recent_moods = db.query(MoodCheckIn).filter(MoodCheckIn.user_id == current_user.id).order_by(MoodCheckIn.created_at.desc()).limit(14).all()
+        if recent_moods:
+            mood_checkins = [entry.mood for entry in reversed(recent_moods)]
+        recent_practices = db.query(HelpfulPractice).filter(HelpfulPractice.user_id == current_user.id).order_by(HelpfulPractice.created_at.desc()).limit(5).all()
+        if recent_practices:
+            helpful_practices = [entry.practice_name for entry in recent_practices]
+
+    composed = await compose_chat_reply(
+        message=payload.message, language=lang, history=payload.history, documents=documents,
+        screening_context=payload.screening_context, trajectory_summary=trajectory_summary,
+        mood_checkins=mood_checkins, helpful_practices=helpful_practices,
+    )
+
+    if composed is None:
+        return {
+            "status": "grounded_support",
+            "intent": documents[0]["intent"],
+            "message": text["grounded"],
+            "sources": [localize_rag_document(document, lang) for document in documents],
+            "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
+        }
+
+    response: dict = {
+        "status": "clarifying" if composed["action"] == "clarify" else "grounded_support",
         "intent": documents[0]["intent"],
-        "message": text["grounded"],
-        "sources": [localize_rag_document(document, lang) for document in documents],
-        "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
+        "message": composed["message"],
+        "sources": [] if composed["action"] == "clarify" else [localize_rag_document(document, lang) for document in documents],
+        "generation": {"provider": composed["_provider"], "model": composed["_model"], "diagnosis": False, "medication_prescribing": False},
     }
+    if composed.get("offer_exercise"):
+        exercise_id = composed["offer_exercise"]
+        response["exercise"] = {"id": exercise_id, **INTERACTIVE_EXERCISES[exercise_id][lang]}
+    if composed.get("suggested_cta"):
+        response["suggested_cta"] = composed["suggested_cta"]
+    return response
+
+
+@app.post("/mood-checkins", status_code=201)
+def create_mood_checkin(payload: MoodCheckInCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    entry = MoodCheckIn(user_id=current_user.id, mood=payload.mood)
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return {"id": entry.id, "mood": entry.mood, "created_at": entry.created_at.isoformat()}
+
+
+@app.get("/mood-checkins")
+def list_mood_checkins(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+    entries = db.query(MoodCheckIn).filter(MoodCheckIn.user_id == current_user.id).order_by(MoodCheckIn.created_at.desc()).limit(30).all()
+    return [{"id": entry.id, "mood": entry.mood, "created_at": entry.created_at.isoformat()} for entry in entries]
+
+
+@app.post("/helpful-practices", status_code=201)
+def create_helpful_practice(payload: HelpfulPracticeRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    entry = HelpfulPractice(user_id=current_user.id, practice_name=payload.practice_name)
+    db.add(entry)
+    db.commit()
+    db.refresh(entry)
+    return {"id": entry.id, "practice_name": entry.practice_name, "created_at": entry.created_at.isoformat()}
 
 
 @app.post("/synthesize")
