@@ -25,7 +25,7 @@ export default function SiteHeader({ backHref = "/", backLabel, language = "Engl
   return (
     <header className="site-header-sticky">
       <div className="resource-header" dir={isUrdu ? "rtl" : "ltr"}>
-        <Link href="/" className="results-brand"><span className="brand-mark">M</span> Mind<span>Hx</span></Link>
+        <Link href="/" className="results-brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></Link>
         <nav className="topbar-nav" aria-label="MindHx resources">
           {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} className={link.emergency ? "topbar-nav-emergency" : undefined}>{isUrdu ? link.ur : link.en}</Link>)}
         </nav>

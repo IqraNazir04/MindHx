@@ -1,5 +1,8 @@
+import type { naturePhotos } from "../components/naturePhotos";
+
 export type Technique = {
   slug: string;
+  image: keyof typeof naturePhotos;
   en: { name: string; summary: string; notes: string; steps: string[] };
   ur: { name: string; summary: string; notes: string; steps: string[] };
   relatedThemes: string[];
@@ -8,6 +11,7 @@ export type Technique = {
 export const techniques: Technique[] = [
   {
     slug: "box-breathing",
+    image: "grassBreeze",
     en: {
       name: "Box breathing",
       summary: "Inhale, hold, exhale, and hold for four counts each.",
@@ -36,6 +40,7 @@ export const techniques: Technique[] = [
   },
   {
     slug: "grounding-5-4-3-2-1",
+    image: "mistyForestLake",
     en: {
       name: "5-4-3-2-1 grounding",
       summary: "Name five things you see, four you feel, three you hear, two you smell, and one you taste.",
@@ -66,6 +71,7 @@ export const techniques: Technique[] = [
   },
   {
     slug: "body-scan",
+    image: "calmLakeReflection",
     en: {
       name: "Body scan",
       summary: "Notice sensations from head to feet without trying to change them.",
@@ -94,6 +100,7 @@ export const techniques: Technique[] = [
   },
   {
     slug: "one-small-action",
+    image: "sprout",
     en: {
       name: "One small action",
       summary: "Choose one achievable action for the next hour: water, food, daylight, or a message to someone safe.",
@@ -117,6 +124,70 @@ export const techniques: Technique[] = [
       ],
     },
     relatedThemes: ["hardship", "loss", "patience"],
+  },
+  {
+    slug: "progressive-muscle-relaxation",
+    image: "oceanSunrise",
+    en: {
+      name: "Progressive muscle relaxation",
+      summary: "Tense each muscle group for a few seconds, then release, working through the body from feet to head.",
+      notes: "A physical way to notice the difference between tension and relaxation. Skip any area with pain or injury.",
+      steps: [
+        "Sit or lie down somewhere comfortable and take a few slow breaths.",
+        "Curl your toes tightly for about 5 seconds, then release and notice the difference.",
+        "Tense your calves and thighs for 5 seconds, then let go.",
+        "Clench your hands and forearms for 5 seconds, then release.",
+        "Raise your shoulders toward your ears for 5 seconds, then drop them.",
+        "Gently scrunch your face muscles for 5 seconds, then soften them.",
+        "Take one slow breath and notice how your body feels overall.",
+      ],
+    },
+    ur: {
+      name: "بتدریج پٹھوں میں نرمی",
+      summary: "ہر عضلاتی گروہ کو چند سیکنڈ کے لیے سخت کریں، پھر ڈھیلا چھوڑیں، پاؤں سے سر تک۔",
+      notes: "تناؤ اور نرمی کے فرق کو محسوس کرنے کا ایک جسمانی طریقہ۔ درد یا چوٹ والے حصے کو نظرانداز کریں۔",
+      steps: [
+        "کسی آرام دہ جگہ بیٹھیں یا لیٹ جائیں اور چند آہستہ سانسیں لیں۔",
+        "اپنے پاؤں کی انگلیاں 5 سیکنڈ تک سختی سے موڑیں، پھر چھوڑ دیں اور فرق محسوس کریں۔",
+        "اپنی پنڈلیوں اور رانوں کو 5 سیکنڈ تک سخت کریں، پھر ڈھیلا چھوڑیں۔",
+        "اپنے ہاتھوں اور بازوؤں کو 5 سیکنڈ تک بھینچیں، پھر چھوڑ دیں۔",
+        "اپنے کندھوں کو 5 سیکنڈ تک کانوں کی طرف اٹھائیں، پھر گرا دیں۔",
+        "اپنے چہرے کے پٹھوں کو نرمی سے 5 سیکنڈ تک سکیڑیں، پھر نرم کریں۔",
+        "ایک آہستہ سانس لیں اور محسوس کریں کہ آپ کا پورا جسم کیسا محسوس ہو رہا ہے۔",
+      ],
+    },
+    relatedThemes: ["anxiety", "hardship"],
+  },
+  {
+    slug: "mindful-walking",
+    image: "forestBridge",
+    en: {
+      name: "Mindful walking",
+      summary: "A short, slow walk where attention rests on physical sensation rather than thoughts.",
+      notes: "Works indoors or outdoors and needs no equipment or special time - even 5 minutes counts.",
+      steps: [
+        "Choose a short path, indoors or outside, where you can walk slowly for a few minutes.",
+        "Begin walking slower than usual, noticing your feet touching the ground.",
+        "Notice the shift of weight from one foot to the other with each step.",
+        "When your mind wanders to thoughts, gently bring attention back to your feet and legs.",
+        "Notice the air on your skin and any sounds around you without needing to react to them.",
+        "End by standing still for a moment before continuing your day.",
+      ],
+    },
+    ur: {
+      name: "ذہن نشین چہل قدمی",
+      summary: "ایک مختصر، آہستہ چہل قدمی جہاں توجہ خیالات کی بجائے جسمانی احساس پر رہتی ہے۔",
+      notes: "گھر کے اندر یا باہر کام کرتی ہے اور کسی سامان یا خاص وقت کی ضرورت نہیں - 5 منٹ بھی کافی ہیں۔",
+      steps: [
+        "ایک مختصر راستہ منتخب کریں، گھر کے اندر یا باہر، جہاں آپ چند منٹ آہستہ چل سکیں۔",
+        "معمول سے آہستہ چلنا شروع کریں، اپنے پاؤں کے زمین کو چھونے کو محسوس کریں۔",
+        "ہر قدم کے ساتھ ایک پاؤں سے دوسرے پاؤں پر وزن کی تبدیلی محسوس کریں۔",
+        "جب ذہن خیالات کی طرف بھٹکے تو نرمی سے توجہ واپس پاؤں اور ٹانگوں کی طرف لائیں۔",
+        "اپنی جلد پر ہوا اور ارد گرد کی آوازوں کو بغیر ردعمل کے محسوس کریں۔",
+        "اپنے دن کو جاری رکھنے سے پہلے ایک لمحے کے لیے ساکت کھڑے ہو کر ختم کریں۔",
+      ],
+    },
+    relatedThemes: ["hardship", "patience"],
   },
 ];
 

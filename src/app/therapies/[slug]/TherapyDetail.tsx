@@ -29,7 +29,7 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
         <h1>{content.name}</h1>
         <p>{content.summary}</p>
       </section>
-      <NatureBanner {...naturePhotos.forestPath} />
+      <NatureBanner {...naturePhotos[therapy.image]} />
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.whatToExpect}</p>

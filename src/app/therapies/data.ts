@@ -1,5 +1,8 @@
+import type { naturePhotos } from "../components/naturePhotos";
+
 export type Therapy = {
   slug: string;
+  image: keyof typeof naturePhotos;
   en: { name: string; summary: string; sessionInfo: string; whatToExpect: string[] };
   ur: { name: string; summary: string; sessionInfo: string; whatToExpect: string[] };
   relatedThemes: string[];
@@ -8,6 +11,7 @@ export type Therapy = {
 export const therapies: Therapy[] = [
   {
     slug: "cbt",
+    image: "balancedStones",
     en: {
       name: "CBT",
       summary: "Cognitive behavioral therapy explores patterns between thoughts, feelings, and behavior.",
@@ -34,6 +38,7 @@ export const therapies: Therapy[] = [
   },
   {
     slug: "dbt",
+    image: "mountainRange",
     en: {
       name: "DBT",
       summary: "Dialectical behavior therapy teaches emotion regulation, distress tolerance, and interpersonal skills.",
@@ -60,6 +65,7 @@ export const therapies: Therapy[] = [
   },
   {
     slug: "exposure-therapy",
+    image: "steppingStones",
     en: {
       name: "Exposure therapy",
       summary: "A clinician-guided approach for some anxiety and fear responses.",
@@ -84,6 +90,7 @@ export const therapies: Therapy[] = [
   },
   {
     slug: "trauma-informed-therapy",
+    image: "forestCabin",
     en: {
       name: "Trauma-informed therapy",
       summary: "A safety-led approach that respects pacing, choice, and control.",
@@ -108,6 +115,7 @@ export const therapies: Therapy[] = [
   },
   {
     slug: "medical-review",
+    image: "softDawn",
     en: {
       name: "Medical review",
       summary: "Primary-care or psychiatric review can consider physical contributors, sleep, medicines, and safety.",
@@ -129,6 +137,33 @@ export const therapies: Therapy[] = [
       ],
     },
     relatedThemes: ["medical_state", "hardship"],
+  },
+  {
+    slug: "peer-support-groups",
+    image: "pebbleCircle",
+    en: {
+      name: "Peer support groups",
+      summary: "Structured groups where people with similar experiences share support under trained facilitation.",
+      sessionInfo: "Sessions are usually confidential and led or co-led by a trained facilitator, not just an informal chat.",
+      whatToExpect: [
+        "An introduction to group norms - confidentiality, respect, and voluntary sharing.",
+        "Structured time for members to share experiences and what has helped them.",
+        "A facilitator who keeps the space safe and makes sure no single person dominates.",
+        "No pressure to speak - many people attend several sessions before sharing anything.",
+      ],
+    },
+    ur: {
+      name: "ہم خیال معاون گروپ",
+      summary: "منظم گروپ جہاں ملتے جلتے تجربات رکھنے والے افراد تربیت یافتہ نگرانی میں ایک دوسرے کی مدد کرتے ہیں۔",
+      sessionInfo: "سیشنز عام طور پر خفیہ ہوتے ہیں اور ایک تربیت یافتہ سہولت کار کی رہنمائی میں ہوتے ہیں، محض غیر رسمی گفتگو نہیں۔",
+      whatToExpect: [
+        "گروپ کے اصولوں کا تعارف - رازداری، احترام، اور رضاکارانہ شرکت۔",
+        "اراکین کے لیے اپنے تجربات اور جو کچھ ان کی مدد کرتا رہا ہے شیئر کرنے کا منظم وقت۔",
+        "ایک سہولت کار جو ماحول کو محفوظ رکھتا ہے اور یقینی بناتا ہے کہ کوئی ایک شخص گفتگو پر حاوی نہ ہو۔",
+        "بولنے کا کوئی دباؤ نہیں - بہت سے لوگ کچھ بھی شیئر کرنے سے پہلے کئی سیشنز میں شریک ہوتے ہیں۔",
+      ],
+    },
+    relatedThemes: ["hardship", "grief", "loss"],
   },
 ];
 

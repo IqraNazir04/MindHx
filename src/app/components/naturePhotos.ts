@@ -56,4 +56,40 @@ export const naturePhotos = {
     photographerName: "Marek Piwnicki",
     photographerUrl: "https://unsplash.com/@marekpiwnicki",
   },
+  grassBreeze: {
+    src: "https://images.unsplash.com/photo-1762052123295-765a5721e365",
+    alt: "Tall grass swaying gently in the breeze",
+    photographerName: "Vikram Singh",
+    photographerUrl: "https://unsplash.com/@vikraw",
+  },
+  calmLakeReflection: {
+    src: "https://images.unsplash.com/photo-1759434192747-686564ffb58d",
+    alt: "Calm lake reflecting mountains and hills under a blue sky",
+    photographerName: "Jonny Gios",
+    photographerUrl: "https://unsplash.com/@supergios",
+  },
+  sprout: {
+    src: "https://images.unsplash.com/photo-1563642722545-9434ad3e03da",
+    alt: "A small green sprout emerging from the soil",
+    photographerName: "Manikandan Annamalai",
+    photographerUrl: "https://unsplash.com/@maneye",
+  },
+  steppingStones: {
+    src: "https://images.unsplash.com/photo-1695327069959-a5647d59b59d",
+    alt: "A set of stepping stones crossing a stream, Kyoto, Japan",
+    photographerName: "Anne Laure P",
+    photographerUrl: "https://unsplash.com/@byannel",
+  },
+  forestCabin: {
+    src: "https://images.unsplash.com/photo-1749867053109-69b8aa8e6267",
+    alt: "A small cabin sheltered in the middle of a forest",
+    photographerName: "Katelyn G",
+    photographerUrl: "https://unsplash.com/@katelyn_g",
+  },
+  pebbleCircle: {
+    src: "https://images.unsplash.com/photo-1445232371214-b65758057bec",
+    alt: "A circle of smooth pebbles resting on a larger stone",
+    photographerName: "Corina Ardeleanu",
+    photographerUrl: "https://unsplash.com/@corina",
+  },
 } as const;
