@@ -39,7 +39,7 @@ export default function LoginClient() {
         <h1>Sign in<br /><em>to see your history.</em></h1>
         <p>Signing in is entirely optional. Your check-in itself never requires an account - this only lets you save and revisit past results.</p>
       </section>
-      <NatureBanner {...naturePhotos.forestPath} />
+      <NatureBanner {...naturePhotos.forestPath} priority />
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
           <span>Email</span>

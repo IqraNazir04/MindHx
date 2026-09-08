@@ -67,7 +67,7 @@ export default function BrandPage() {
         <h1>Color system<br /><em>for every touchpoint.</em></h1>
         <p>MindHx pairs a calm, clinical light base with three signal colors - blue for voice, teal for the PHQ-9-family clinical scales, and orange for language - plus a reserved red used only for crisis and safety contexts, never decoratively.</p>
       </section>
-      <NatureBanner {...naturePhotos.mountainLake} />
+      <NatureBanner {...naturePhotos.mountainLake} priority />
       <SwatchGroup eyebrow="PRIMARY" description="Standard use across all brand touchpoints" swatches={PRIMARY} />
       <SwatchGroup eyebrow="SECONDARY" description="Creative contexts only - marketing collateral, banners" swatches={SECONDARY} />
       <SwatchGroup eyebrow="TECHNICAL" description="Documentation sites and technical contexts only" swatches={TECHNICAL} />

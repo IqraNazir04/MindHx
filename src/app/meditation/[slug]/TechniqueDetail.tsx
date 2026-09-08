@@ -32,7 +32,7 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
         <h1>{content.name}</h1>
         <p>{content.summary}</p>
       </section>
-      <NatureBanner {...naturePhotos[technique.image]} />
+      <NatureBanner {...naturePhotos[technique.image]} priority />
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.how}</p>

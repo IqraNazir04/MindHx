@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>MindHx Project Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --background:#fbf3e6; --surface:#ffffff;
+    --navy:#24344a; --muted:#5a6b7c;
+    --line:#e2d9c4; --line-cool:#dbe6f0;
+    --blue:#2c6fba; --blue-soft:#e5f0fb;
+    --orange:#e98232; --orange-soft:#fff0e3;
+    --teal:#2f8f6e; --teal-soft:#e3f6ee;
+    --red:#c84f4f; --red-soft:#fbe9e8;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; background:#2a2a2a; font-family:'DM Sans',sans-serif; color:var(--navy); }
+  @page { size:8.5in 11in; margin:0; }
+
+  .page {
+    width:8.5in; min-height:11in; position:relative;
+    background:#fff;
+    page-break-after:always; break-after:page;
+    padding:0.85in 0.9in 0.9in;
+  }
+  .page:last-child { page-break-after:auto; }
+  .page-footer { position:absolute; bottom:0.4in; left:0.9in; right:0.9in; display:flex; justify-content:space-between; font:9px 'DM Mono',monospace; color:var(--muted); border-top:1px solid var(--line); padding-top:8px; }
+
+  h1.doc-title { font:600 30px/1.25 'Playfair Display',serif; color:var(--navy); margin:0 0 6px; }
+  h1.section { font:600 22px/1.3 'Playfair Display',serif; color:var(--navy); margin:0 0 14px; padding-bottom:8px; border-bottom:2px solid var(--teal); }
+  h2.sub { font:600 15px/1.3 'DM Sans',sans-serif; color:var(--blue); margin:22px 0 8px; }
+  h3.subsub { font:600 12.5px/1.3 'DM Sans',sans-serif; color:var(--navy); margin:14px 0 6px; }
+  p { font-size:11px; line-height:1.65; color:var(--navy); margin:0 0 10px; text-align:justify; }
+  .lede { color:var(--muted); }
+  ul, ol { font-size:11px; line-height:1.65; color:var(--navy); margin:0 0 12px; padding-left:20px; }
+  li { margin-bottom:5px; }
+  .section-no { color:var(--teal); font:600 11px 'DM Mono',monospace; letter-spacing:1px; }
+
+  /* Cover page */
+  .cover { background:radial-gradient(circle at 80% 10%,rgba(233,130,50,.12),transparent 34%),radial-gradient(circle at 15% 85%,rgba(47,143,110,.12),transparent 38%),var(--background); display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; height:11in; }
+  .cover .mark { width:88px; height:88px; border-radius:24px; background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; display:grid; place-items:center; font:48px Georgia,serif; margin-bottom:24px; box-shadow:0 22px 48px rgba(44,111,186,.25); }
+  .cover h1 { font:600 46px 'Playfair Display',serif; margin:0; color:var(--navy); }
+  .cover .hx { color:var(--orange); }
+  .cover .subtitle { font:italic 500 20px 'Playfair Display',serif; color:var(--teal); margin:10px 0 30px; }
+  .cover .report-label { font:600 12px 'DM Mono',monospace; letter-spacing:3px; color:var(--blue); text-transform:uppercase; margin-bottom:8px; }
+  .cover .meta { margin-top:50px; font-size:13px; color:var(--navy); line-height:2; }
+  .cover .meta b { color:var(--navy); }
+  .cover .stackline { margin-top:26px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .pill { padding:6px 14px; border-radius:20px; border:1px solid var(--line-cool); background:var(--surface); font:10px 'DM Mono',monospace; color:var(--blue); }
+
+  /* TOC */
+  .toc-entry { display:flex; justify-content:space-between; font-size:12px; padding:7px 0; border-bottom:1px dotted var(--line); }
+  .toc-entry b { color:var(--navy); }
+  .toc-entry .dots { flex:1; }
+  .toc-sub { padding-left:18px; font-size:11px; color:var(--muted); }
+
+  /* Diagrams */
+  .diagram-box { border:1px solid var(--line); border-radius:10px; background:var(--surface); padding:16px; margin:14px 0; }
+  .diagram-caption { text-align:center; font:10px 'DM Mono',monospace; color:var(--muted); margin-top:8px; letter-spacing:.5px; }
+
+  table.spec { width:100%; border-collapse:collapse; font-size:10.5px; margin:10px 0 14px; }
+  table.spec th { text-align:left; background:var(--teal-soft); color:var(--navy); font-weight:700; padding:6px 8px; border:1px solid var(--line); }
+  table.spec td { padding:6px 8px; border:1px solid var(--line); color:var(--navy); vertical-align:top; }
+  table.spec tr:nth-child(even) td { background:#fafaf7; }
+
+  .callout { border-left:3px solid var(--teal); background:var(--teal-soft); padding:10px 14px; border-radius:0 8px 8px 0; font-size:10.5px; margin:12px 0; }
+  .callout.warn { border-color:var(--red); background:var(--red-soft); }
+  .callout.info { border-color:var(--blue); background:var(--blue-soft); }
+
+  .two-col { display:flex; gap:20px; }
+  .two-col > div { flex:1; }
+
+  code, .mono { font-family:'DM Mono',monospace; font-size:10px; background:#f4f0e6; padding:1px 5px; border-radius:4px; color:#7a4318; }
+  .code-block { font-family:'DM Mono',monospace; font-size:9.5px; background:#1c2531; color:#d8e4ee; padding:12px 14px; border-radius:8px; line-height:1.6; margin:10px 0; overflow-wrap:break-word; }
+  .code-block .c1 { color:#7fd1a0; }
+  .code-block .c2 { color:#e9b96e; }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<section class="page cover">
+  <div class="report-label">Project Report</div>
+  <div class="mark">M</div>
+  <h1>Mind<span class="hx">Hx</span></h1>
+  <p class="subtitle">An Explainable, Bilingual Mental-Health Triage Aid</p>
+  <div class="stackline">
+    <span class="pill">Next.js 16</span>
+    <span class="pill">FastAPI</span>
+    <span class="pill">Qwen / DashScope</span>
+    <span class="pill">PHQ-9 · GAD-7 · K10</span>
+    <span class="pill">English + اردو</span>
+  </div>
+  <div class="meta">
+    <div><b>Prepared by:</b> Iqra Nazir &amp; Faizan Arshad</div>
+    <div><b>Project:</b> MindHx — Signal-Based Mental Health Screening Platform</div>
+    <div><b>Report type:</b> Complete technical and functional project report</div>
+    <div><b>Date:</b> September 2026</div>
+  </div>
+</section>
+
+<!-- TABLE OF CONTENTS -->
+<section class="page">
+  <h1 class="section">Table of Contents</h1>
+  <div class="toc-entry"><span><b>Abstract</b></span><span>3</span></div>
+  <div class="toc-entry"><span><b>1. Introduction</b></span><span>4</span></div>
+  <div class="toc-sub">1.1 Background and Motivation · 1.2 Problem Statement · 1.3 Objectives · 1.4 Scope</div>
+  <div class="toc-entry"><span><b>2. Importance for Pakistan</b></span><span>6</span></div>
+  <div class="toc-entry"><span><b>3. Requirements</b></span><span>7</span></div>
+  <div class="toc-sub">3.1 Functional Requirements · 3.2 Non-Functional Requirements</div>
+  <div class="toc-entry"><span><b>4. System Architecture and Design</b></span><span>9</span></div>
+  <div class="toc-sub">4.1 High-Level Architecture · 4.2 Multimodal Signal Fusion · 4.3 Safety Gate Flow · 4.4 Bilingual Architecture · 4.5 Data Model</div>
+  <div class="toc-entry"><span><b>5. Technology Stack</b></span><span>13</span></div>
+  <div class="toc-entry"><span><b>6. Implementation Details</b></span><span>14</span></div>
+  <div class="toc-sub">6.1 Frontend · 6.2 Backend &amp; API · 6.3 The RAG Chatbot · 6.4 Urdu Language Support · 6.5 Explainable Risk Scoring</div>
+  <div class="toc-entry"><span><b>7. Core Functionality Walkthrough</b></span><span>19</span></div>
+  <div class="toc-entry"><span><b>8. Testing and Quality Assurance</b></span><span>21</span></div>
+  <div class="toc-entry"><span><b>9. Results and Discussion</b></span><span>22</span></div>
+  <div class="toc-entry"><span><b>10. Limitations</b></span><span>23</span></div>
+  <div class="toc-entry"><span><b>11. Future Work</b></span><span>24</span></div>
+  <div class="toc-entry"><span><b>12. Conclusion</b></span><span>25</span></div>
+  <div class="toc-entry"><span><b>References &amp; Data Sources</b></span><span>26</span></div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>2</span></div>
+</section>
+
+<!-- ABSTRACT -->
+<section class="page">
+  <h1 class="section">Abstract</h1>
+  <p>MindHx is an early-detection mental-health triage aid designed to lower the barrier to a first, private screening step. Rather than functioning as a diagnostic tool, MindHx fuses three independent signals — acoustic (how a person sounds when speaking), linguistic (what they say, in their own words), and three validated clinical questionnaires (PHQ-9, GAD-7, and K10) — into a single, explainable risk score. The system is built around three non-negotiable design commitments: it must be multimodal rather than relying on a single signal; it must route elevated risk to a human professional rather than attempting to diagnose; and it must collect the minimum possible data, with accounts entirely optional and raw audio and text never persisted.</p>
+  <p>A central and deliberate focus of this project is full bilingual support for English and Urdu. Every page of the application — the check-in flow, the AI chat, the therapist directory, the meditation and therapy reference libraries — exists in both languages, switchable with a single tap, with the layout correctly mirroring for Urdu's right-to-left script. This is treated as a first-class architectural requirement, not a translation layer added after the fact, because a screening tool available only in English quietly excludes a large portion of the population it is intended to serve, particularly in Pakistan.</p>
+  <p>The application also includes a bounded, source-grounded AI chatbot intended for everyday stress, anxiety, and burnout — situations that rarely reach a mental-health professional but still affect daily functioning. The chatbot answers exclusively from a fixed, reviewed reference library, never improvising medical advice, and is protected by multiple layers of safety logic: a crisis-language gate that runs before any content is generated, and a server-side script-detection guard that discards any AI-generated Urdu reply that is not actually written in Urdu.</p>
+  <p>This report documents the complete system: its motivation and objectives, its architecture and technology stack, the implementation of each major subsystem, the testing performed to validate correctness and safety, and an honest account of the project's current limitations and the future work required to move from a bilingual demonstration to a clinically validated, production-grade screening tool.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>3</span></div>
+</section>
+
+<!-- 1. INTRODUCTION -->
+<section class="page">
+  <h1 class="section"><span class="section-no">01</span> &nbsp;Introduction</h1>
+  <h2 class="sub">1.1 Background and Motivation</h2>
+  <p>Depression, anxiety, and related mental-health conditions are common but frequently under-screened. Two forces drive this gap. The first is structural: access to psychiatrists and psychologists is limited, especially outside major urban centers, and a first appointment often carries real cost in money, time, and travel. The second is social: seeking mental-health support is, in many communities, still read as a sign of weakness or a source of family shame rather than an ordinary health matter — a dynamic that is especially pronounced in South Asian contexts, including Pakistan.</p>
+  <p>MindHx was conceived to address the specific moment before either of those barriers is engaged: the moment a person first notices that something feels off, and would rather understand it a little before deciding what, if anything, to do next. That moment does not require a clinic, an appointment, or a disclosure to anyone — it requires a private, low-friction way to notice a pattern.</p>
+  <h2 class="sub">1.2 Problem Statement</h2>
+  <p>Existing digital mental-health tools tend to fall into one of two categories, each with a significant gap. Simple self-assessment apps ask a single type of question (typically a mood questionnaire) and return a score with no explanation of how it was derived, no connection between the score and what a person should do next, and often no consideration of language accessibility. On the other end, AI chatbot products designed for emotional support frequently generate free-form advice with no hard boundary against improvised medical claims, and no reliable mechanism to detect and escalate a genuine safety crisis before continuing the conversation.</p>
+  <p>Furthermore, almost all such tools are built and shipped in English only. For a country such as Pakistan, where Urdu is the national language and lingua franca, an English-only screening tool systematically excludes a large share of the population most likely to benefit from it.</p>
+  <h2 class="sub">1.3 Objectives</h2>
+  <ol>
+    <li>Design and implement a multimodal check-in that combines acoustic, linguistic, and validated clinical-questionnaire signals into one explainable, weighted risk score.</li>
+    <li>Ensure the system routes — rather than diagnoses — by using risk-tier language throughout and by short-circuiting to emergency-support routing the instant a crisis signal is detected, before any score is computed or shown.</li>
+    <li>Build the entire application bilingually in English and Urdu from the architectural ground up, including a fully mirrored right-to-left layout for Urdu.</li>
+    <li>Provide a bounded, source-grounded AI chatbot for everyday stress and anxiety that cannot improvise medical advice and defers immediately on any safety concern.</li>
+    <li>Minimize data collection by design: no account required for the core flow, no persisted audio or transcripts, and optional accounts that store only aggregate results.</li>
+    <li>Connect a person to real, verified next steps — a Pakistan-specific therapist and psychiatrist directory, and practical meditation/therapy reference material — rather than leaving the screening result as a dead end.</li>
+  </ol>
+  <h2 class="sub">1.4 Scope</h2>
+  <p>MindHx is explicitly scoped as a <b>screening and triage aid</b>, not a diagnostic or treatment system. It does not replace a licensed clinician, does not provide crisis counseling, and does not prescribe or recommend medication. Its combined risk score is a weighted heuristic rather than a clinically calibrated probability, and its Urdu translation of the PHQ-9, GAD-7, and K10 questionnaires is a careful draft for demonstration purposes rather than a licensed clinical instrument — both facts are disclosed openly within the application itself and within this report, rather than hidden or overstated.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>4</span></div>
+</section>
+
+<section class="page">
+  <h1 class="section" style="visibility:hidden; height:0; margin:0; padding:0; border:none;">.</h1>
+  <div style="margin-top:-40px;">
+  <h2 class="sub" style="margin-top:0;">1.4 Scope (continued) — What MindHx Is and Is Not</h2>
+  <table class="spec">
+    <tr><th style="width:30%">MindHx is</th><th>MindHx is not</th></tr>
+    <tr><td>A private, optional-account, multimodal screening check-in</td><td>A diagnostic tool or a substitute for a clinical assessment</td></tr>
+    <tr><td>An explainable risk-tier signal with a transparent breakdown</td><td>A calibrated clinical probability (no outcome data exists yet)</td></tr>
+    <tr><td>A safety-gated router to real professional and emergency resources</td><td>A crisis counseling service or emergency responder</td></tr>
+    <tr><td>A bounded, source-grounded chatbot for everyday stress and anxiety</td><td>A general-purpose conversational AI or a therapy replacement</td></tr>
+    <tr><td>Fully bilingual (English/Urdu) by architecture</td><td>Validated in Urdu as a clinical-grade instrument (yet)</td></tr>
+  </table>
+  <div class="callout warn"><b>Safety framing.</b> Any self-harm language or an affirmative answer to PHQ-9 item 9 (thoughts of self-harm) immediately routes the user to the Emergency Support page before any score is computed or any further processing occurs. This behavior cannot be bypassed by continuing the conversation, and is covered directly by automated tests (Section 8).</div>
+  </div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>5</span></div>
+</section>
+
+<!-- 2. IMPORTANCE FOR PAKISTAN -->
+<section class="page">
+  <h1 class="section"><span class="section-no">02</span> &nbsp;Importance for Pakistan</h1>
+  <p>While MindHx is designed to be useful anywhere, its architecture and content were deliberately shaped around the realities of mental-health access in Pakistan, for four concrete reasons.</p>
+  <h2 class="sub">2.1 A Structural Access Gap</h2>
+  <p>Pakistan has one of the lowest psychiatrist-to-population ratios in the world; widely cited estimates put the number of practicing psychiatrists nationally under 500 for a population exceeding 240 million, with those professionals concentrated in a small number of major cities. For a large share of the population — particularly outside Karachi, Lahore, and Islamabad — a first psychiatric consultation is simply not a short-notice option.</p>
+  <h2 class="sub">2.2 Social Stigma</h2>
+  <p>Seeking mental-health support is frequently perceived as a sign of personal weakness or a source of family shame rather than an ordinary health matter. This social cost discourages people from taking even the first, private step of understanding what they are experiencing, independent of whether professional care is ultimately affordable or accessible.</p>
+  <h2 class="sub">2.3 The Language Gap</h2>
+  <p>Urdu is Pakistan's national language and its most widely understood lingua franca, yet the overwhelming majority of digital mental-health tools — screening instruments, chatbots, and educational content alike — are available only in English. An English-only tool does not merely inconvenience Urdu-speaking users; it silently excludes precisely the population segment least likely to already have access to English-language mental-health resources through other channels.</p>
+  <h2 class="sub">2.4 Cost and Distance</h2>
+  <p>Even where a psychiatrist or psychologist is geographically reachable, a first appointment carries a real cost in consultation fees, transportation, and time away from work or family responsibilities — a cost many people are unwilling to bear simply to find out whether their situation warrants further attention.</p>
+  <div class="callout"><b>MindHx's response.</b> The application is built directly against all four barriers: it is private and free to try, requires no account for its core functionality, is fully bilingual with a properly mirrored Urdu experience, and is paired with a real, verified, city-by-city directory of psychiatric and psychological care providers in Pakistan — turning "I should probably see someone" into an actual, concrete next step.</div>
+  <h2 class="sub">2.5 Everyday Mental Health, Not Just Crisis Mental Health</h2>
+  <p>Most people in Pakistan never consult a professional for the kind of mental-health friction that affects daily life without rising to crisis level: poor sleep, work pressure, household responsibility overload, or ordinary daily anxiety. MindHx's AI chatbot is explicitly designed to serve this middle ground — offering simple, safe, immediately actionable meditation techniques and basic therapy-approach education without requiring an appointment or a wait, while still recognizing and redirecting the small number of conversations that turn serious toward real emergency support instead of continuing unsupervised.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>6</span></div>
+</section>
+
+<!-- 3. REQUIREMENTS -->
+<section class="page">
+  <h1 class="section"><span class="section-no">03</span> &nbsp;Requirements</h1>
+  <h2 class="sub">3.1 Functional Requirements</h2>
+  <table class="spec">
+    <tr><th style="width:8%">ID</th><th style="width:32%">Requirement</th><th>Description</th></tr>
+    <tr><td>FR-1</td><td>Voice signal capture</td><td>Record a short voice note (up to 60 seconds) and extract acoustic features without storing the audio.</td></tr>
+    <tr><td>FR-2</td><td>Text signal capture</td><td>Accept free-text input and analyze sentiment and thematic content without persisting the raw text.</td></tr>
+    <tr><td>FR-3</td><td>Clinical questionnaires</td><td>Administer PHQ-9, GAD-7, and K10 in full, in both English and Urdu.</td></tr>
+    <tr><td>FR-4</td><td>Signal fusion</td><td>Combine all signals into one weighted risk score with a transparent, per-signal attribution breakdown.</td></tr>
+    <tr><td>FR-5</td><td>Crisis short-circuiting</td><td>Detect PHQ-9 item 9 responses and free-text self-harm language and route directly to Emergency Support before scoring.</td></tr>
+    <tr><td>FR-6</td><td>AI chat</td><td>Provide a bounded, source-grounded chatbot answering only from a reviewed reference library.</td></tr>
+    <tr><td>FR-7</td><td>Resource libraries</td><td>Provide meditation technique and therapy-approach reference pages with step-by-step instructions.</td></tr>
+    <tr><td>FR-8</td><td>Therapist directory</td><td>Provide a verified, city-searchable directory of Pakistani psychiatric/psychological providers, plus live external directory links.</td></tr>
+    <tr><td>FR-9</td><td>Bilingual UI</td><td>Every page must be fully available in English and Urdu with a single-tap toggle and correct RTL mirroring.</td></tr>
+    <tr><td>FR-10</td><td>Optional accounts</td><td>Allow account creation for saving check-in history (score, band, themes only) without requiring one for core use.</td></tr>
+  </table>
+  <h2 class="sub">3.2 Non-Functional Requirements</h2>
+  <table class="spec">
+    <tr><th style="width:20%">Category</th><th>Requirement</th></tr>
+    <tr><td>Privacy</td><td>No audio or free-text content is ever written to persistent storage; only aggregate results are optionally saved.</td></tr>
+    <tr><td>Safety</td><td>Crisis detection cannot be bypassed by conversation flow; AI-generated content is re-checked before display.</td></tr>
+    <tr><td>Explainability</td><td>Every combined score must be decomposable into the exact contribution of each input signal.</td></tr>
+    <tr><td>Accessibility</td><td>Full functional and visual parity between the English and Urdu experience, including correct RTL layout.</td></tr>
+    <tr><td>Honesty</td><td>The system must not overstate its own certainty — calibration status and translation-validation status are disclosed in-product.</td></tr>
+    <tr><td>Performance</td><td>Above-the-fold imagery loads with priority hints; the core check-in completes in under five minutes.</td></tr>
+    <tr><td>Maintainability</td><td>Automated tests cover safety-critical logic; the codebase is fully type-checked and linted.</td></tr>
+    <tr><td>Discoverability</td><td>Each page carries distinct, search-relevant metadata, a sitemap, and structured data for search engines.</td></tr>
+  </table>
+  <div class="page-footer"><span>MindHx Project Report</span><span>7</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">3.3 User Roles</h2>
+  <table class="spec">
+    <tr><th style="width:22%">Role</th><th>Description and Capabilities</th></tr>
+    <tr><td>Anonymous user</td><td>Full access to the check-in flow, results, AI chat, resource libraries, and therapist directory. No data persists beyond the browser session.</td></tr>
+    <tr><td>Registered user</td><td>All anonymous capabilities, plus a saved check-in history (score, band, detected themes) visible on a personal dashboard across visits, and personalized AI-chat context based on trend and previously helpful practices.</td></tr>
+  </table>
+  <h2 class="sub">3.4 Constraints</h2>
+  <ul>
+    <li>No real-time human clinician is in the loop; all triage logic is automated and must therefore be conservative by design.</li>
+    <li>The Urdu translation of the validated questionnaires is unlicensed and must not be presented as clinically equivalent to the English original.</li>
+    <li>The acoustic signal is a local heuristic (pause ratio, loudness variability, speaking rate) rather than a clinically validated voice biomarker, and is explicitly disclosed as such.</li>
+    <li>The system has no access to real-world diagnostic outcome data, so the combined score cannot yet be statistically calibrated against ground truth.</li>
+  </ul>
+  <div class="page-footer"><span>MindHx Project Report</span><span>8</span></div>
+</section>
+
+<!-- 4. SYSTEM ARCHITECTURE -->
+<section class="page">
+  <h1 class="section"><span class="section-no">04</span> &nbsp;System Architecture and Design</h1>
+  <h2 class="sub">4.1 High-Level Architecture</h2>
+  <p>MindHx is built as two independently deployable services: a Next.js 16 frontend (App Router) and a FastAPI backend. The screening and risk-assessment endpoints are fully stateless — every request is self-contained and nothing is written to a database unless a user has explicitly created an optional account. Figure 1 illustrates the high-level architecture and the external services the backend integrates with.</p>
+  <div class="diagram-box">
+    <svg viewBox="0 0 720 380" width="100%">
+      <defs>
+        <marker id="arrow1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5a6b7c"/></marker>
+      </defs>
+      <!-- Browser -->
+      <rect x="30" y="30" width="180" height="70" rx="10" fill="#e5f0fb" stroke="#2c6fba" stroke-width="1.5"/>
+      <text x="120" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#194d85" font-family="DM Sans">Browser</text>
+      <text x="120" y="76" text-anchor="middle" font-size="9.5" fill="#194d85" font-family="DM Sans">Next.js 16 (App Router)</text>
+      <text x="120" y="90" text-anchor="middle" font-size="8.5" fill="#194d85" font-family="DM Mono">EN / اردو · RTL-aware</text>
+
+      <!-- Backend -->
+      <rect x="270" y="30" width="200" height="70" rx="10" fill="#e3f6ee" stroke="#2f8f6e" stroke-width="1.5"/>
+      <text x="370" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#1c5c42" font-family="DM Sans">FastAPI Backend</text>
+      <text x="370" y="76" text-anchor="middle" font-size="9.5" fill="#1c5c42" font-family="DM Sans">Stateless screening endpoints</text>
+      <text x="370" y="90" text-anchor="middle" font-size="8.5" fill="#1c5c42" font-family="DM Mono">20 REST endpoints</text>
+
+      <!-- DB -->
+      <rect x="540" y="30" width="150" height="70" rx="10" fill="#fff0e3" stroke="#e98232" stroke-width="1.5"/>
+      <text x="615" y="58" text-anchor="middle" font-size="12" font-weight="700" fill="#7a4318" font-family="DM Sans">PostgreSQL</text>
+      <text x="615" y="76" text-anchor="middle" font-size="9.5" fill="#7a4318" font-family="DM Sans">(SQLite in dev)</text>
+      <text x="615" y="90" text-anchor="middle" font-size="8.5" fill="#7a4318" font-family="DM Mono">optional accounts only</text>
+
+      <line x1="210" y1="65" x2="268" y2="65" stroke="#5a6b7c" stroke-width="1.5" marker-end="url(#arrow1)"/>
+      <line x1="470" y1="65" x2="538" y2="65" stroke="#5a6b7c" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+      <!-- External services row -->
+      <text x="30" y="140" font-size="10" font-weight="700" fill="#24344a" font-family="DM Sans">External services (backend-mediated only — never called from the browser)</text>
+
+      <rect x="30" y="155" width="150" height="60" rx="9" fill="#fff" stroke="#e2d9c4"/>
+      <text x="105" y="180" text-anchor="middle" font-size="10" font-weight="700" fill="#24344a" font-family="DM Sans">Qwen / DashScope</text>
+      <text x="105" y="196" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">Text analysis + chat</text>
+
+      <rect x="195" y="155" width="150" height="60" rx="9" fill="#fff" stroke="#e2d9c4"/>
+      <text x="270" y="180" text-anchor="middle" font-size="10" font-weight="700" fill="#24344a" font-family="DM Sans">OpenRouter</text>
+      <text x="270" y="196" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">Fallback LLM provider</text>
+
+      <rect x="360" y="155" width="150" height="60" rx="9" fill="#fff" stroke="#e2d9c4"/>
+      <text x="435" y="180" text-anchor="middle" font-size="10" font-weight="700" fill="#24344a" font-family="DM Sans">faster-whisper</text>
+      <text x="435" y="196" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">Local transcription</text>
+
+      <rect x="525" y="155" width="165" height="60" rx="9" fill="#fff" stroke="#e2d9c4"/>
+      <text x="607" y="180" text-anchor="middle" font-size="10" font-weight="700" fill="#24344a" font-family="DM Sans">Uplift AI</text>
+      <text x="607" y="196" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">Urdu text-to-speech</text>
+
+      <line x1="105" y1="100" x2="105" y2="153" stroke="#5a6b7c" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arrow1)"/>
+      <line x1="270" y1="100" x2="270" y2="153" stroke="#5a6b7c" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arrow1)"/>
+      <line x1="435" y1="100" x2="435" y2="153" stroke="#5a6b7c" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arrow1)"/>
+      <line x1="607" y1="100" x2="607" y2="153" stroke="#5a6b7c" stroke-width="1.2" stroke-dasharray="3,2" marker-end="url(#arrow1)"/>
+
+      <!-- Fallback chain note -->
+      <rect x="30" y="245" width="660" height="100" rx="9" fill="#fbf3e6" stroke="#e2d9c4"/>
+      <text x="360" y="268" text-anchor="middle" font-size="10.5" font-weight="700" fill="#24344a" font-family="DM Sans">Text analysis provider fallback chain</text>
+      <text x="360" y="292" text-anchor="middle" font-size="9.5" fill="#194d85" font-family="DM Mono">Qwen (DashScope)  →  OpenRouter  →  Local heuristic classifier</text>
+      <text x="360" y="312" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">If no API key is configured, or a call fails, the system degrades gracefully</text>
+      <text x="360" y="326" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">to the next provider — the chat and analysis features never go fully unanswered.</text>
+    </svg>
+    <div class="diagram-caption">Figure 1 — High-level system architecture and external service integration</div>
+  </div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>9</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">4.2 Multimodal Signal Fusion</h2>
+  <p>The core of MindHx's screening logic is the fusion of three independent signals into one combined, explainable risk score. Each signal is scored on its own scale first, then combined using an additive weighted model. Because the model is additive, each term's contribution to the final score is the exact — not approximated — Shapley-equivalent attribution, which is what allows the results page to show a genuine per-signal breakdown rather than a black-box number.</p>
+  <div class="diagram-box">
+    <svg viewBox="0 0 720 300" width="100%">
+      <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5a6b7c"/></marker></defs>
+      <rect x="20" y="20" width="180" height="55" rx="9" fill="#fff0e3" stroke="#e98232"/>
+      <text x="110" y="42" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7a4318" font-family="DM Sans">Voice signal</text>
+      <text x="110" y="60" text-anchor="middle" font-size="8.5" fill="#7a4318" font-family="DM Sans">pause ratio · loudness · rate</text>
+
+      <rect x="20" y="100" width="180" height="55" rx="9" fill="#e5f0fb" stroke="#2c6fba"/>
+      <text x="110" y="122" text-anchor="middle" font-size="10.5" font-weight="700" fill="#194d85" font-family="DM Sans">Text signal</text>
+      <text x="110" y="140" text-anchor="middle" font-size="8.5" fill="#194d85" font-family="DM Sans">sentiment · keyword themes</text>
+
+      <rect x="20" y="180" width="180" height="55" rx="9" fill="#fbe9e8" stroke="#c84f4f"/>
+      <text x="110" y="202" text-anchor="middle" font-size="10.5" font-weight="700" fill="#8f2f2f" font-family="DM Sans">Clinical signal</text>
+      <text x="110" y="220" text-anchor="middle" font-size="8.5" fill="#8f2f2f" font-family="DM Sans">PHQ-9 · GAD-7 · K10</text>
+
+      <line x1="200" y1="47" x2="270" y2="120" stroke="#5a6b7c" stroke-width="1.3" marker-end="url(#arrow2)"/>
+      <line x1="200" y1="127" x2="270" y2="140" stroke="#5a6b7c" stroke-width="1.3" marker-end="url(#arrow2)"/>
+      <line x1="200" y1="207" x2="270" y2="160" stroke="#5a6b7c" stroke-width="1.3" marker-end="url(#arrow2)"/>
+
+      <rect x="280" y="90" width="160" height="90" rx="10" fill="#e3f6ee" stroke="#2f8f6e" stroke-width="1.5"/>
+      <text x="360" y="120" text-anchor="middle" font-size="11" font-weight="700" fill="#1c5c42" font-family="DM Sans">Weighted</text>
+      <text x="360" y="136" text-anchor="middle" font-size="11" font-weight="700" fill="#1c5c42" font-family="DM Sans">additive fusion</text>
+      <text x="360" y="156" text-anchor="middle" font-size="8" fill="#1c5c42" font-family="DM Mono">exact per-term</text>
+      <text x="360" y="168" text-anchor="middle" font-size="8" fill="#1c5c42" font-family="DM Mono">attribution</text>
+
+      <line x1="440" y1="135" x2="500" y2="135" stroke="#5a6b7c" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+      <rect x="510" y="90" width="190" height="90" rx="10" fill="#fff" stroke="#e2d9c4" stroke-width="1.5"/>
+      <text x="605" y="115" text-anchor="middle" font-size="11" font-weight="700" fill="#24344a" font-family="DM Sans">Combined risk score</text>
+      <text x="605" y="133" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">+ band (low/watch/elevated)</text>
+      <text x="605" y="149" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">+ per-signal attribution %</text>
+      <text x="605" y="165" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">+ routing decision</text>
+
+      <text x="360" y="250" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">Note: a crisis check on the raw inputs (see Figure 3) runs independently and BEFORE</text>
+      <text x="360" y="265" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">this fusion pipeline — an affirmative crisis signal bypasses scoring entirely.</text>
+    </svg>
+    <div class="diagram-caption">Figure 2 — Multimodal signal fusion into one explainable combined score</div>
+  </div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>10</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">4.3 Safety Gate and Crisis Routing Flow</h2>
+  <p>Safety logic is deliberately positioned outside and ahead of the scoring pipeline rather than as a post-hoc check on the result. Figure 3 shows the decision flow applied to both the structured questionnaire flow and the AI chat.</p>
+  <div class="diagram-box">
+    <svg viewBox="0 0 680 340" width="100%">
+      <defs><marker id="arrow3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5a6b7c"/></marker></defs>
+      <rect x="260" y="15" width="160" height="50" rx="25" fill="#e5f0fb" stroke="#2c6fba"/>
+      <text x="340" y="45" text-anchor="middle" font-size="10.5" font-weight="700" fill="#194d85" font-family="DM Sans">User input received</text>
+
+      <line x1="340" y1="65" x2="340" y2="95" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow3)"/>
+
+      <polygon points="340,95 430,140 340,185 250,140" fill="#fff0e3" stroke="#e98232" stroke-width="1.5"/>
+      <text x="340" y="135" text-anchor="middle" font-size="9.5" font-weight="700" fill="#7a4318" font-family="DM Sans">PHQ-9 item 9 answered,</text>
+      <text x="340" y="149" text-anchor="middle" font-size="9.5" font-weight="700" fill="#7a4318" font-family="DM Sans">or self-harm language</text>
+      <text x="340" y="163" text-anchor="middle" font-size="9.5" font-weight="700" fill="#7a4318" font-family="DM Sans">detected?</text>
+
+      <line x1="430" y1="140" x2="520" y2="140" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow3)"/>
+      <text x="475" y="132" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">yes</text>
+
+      <rect x="520" y="110" width="140" height="60" rx="10" fill="#fbe9e8" stroke="#c84f4f" stroke-width="1.6"/>
+      <text x="590" y="135" text-anchor="middle" font-size="10" font-weight="700" fill="#8f2f2f" font-family="DM Sans">Emergency Support</text>
+      <text x="590" y="151" text-anchor="middle" font-size="8.5" fill="#8f2f2f" font-family="DM Sans">shown immediately —</text>
+      <text x="590" y="163" text-anchor="middle" font-size="8.5" fill="#8f2f2f" font-family="DM Sans">no score computed</text>
+
+      <line x1="340" y1="185" x2="340" y2="220" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow3)"/>
+      <text x="352" y="205" font-size="9" fill="#5a6b7c" font-family="DM Sans">no</text>
+
+      <rect x="240" y="220" width="200" height="55" rx="10" fill="#e3f6ee" stroke="#2f8f6e" stroke-width="1.5"/>
+      <text x="340" y="245" text-anchor="middle" font-size="10" font-weight="700" fill="#1c5c42" font-family="DM Sans">Continue to signal</text>
+      <text x="340" y="261" text-anchor="middle" font-size="10" font-weight="700" fill="#1c5c42" font-family="DM Sans">fusion / grounded reply</text>
+
+      <line x1="340" y1="275" x2="340" y2="300" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow3)"/>
+      <text x="340" y="322" text-anchor="middle" font-size="9" fill="#5a6b7c" font-family="DM Sans">Results / support plan / bounded AI reply shown to the user</text>
+    </svg>
+    <div class="diagram-caption">Figure 3 — Crisis safety gate: applied identically in the check-in flow and the AI chat</div>
+  </div>
+  <div class="callout warn">This exact behavior is covered by dedicated automated tests, including a regression test confirming the safety gate cannot be bypassed even when conversation history, screening context, and mood-trend data are supplied alongside a crisis message (Section 8).</div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>11</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">4.4 Bilingual Architecture and the Urdu Safety Guard</h2>
+  <p>Bilingual support is implemented at the data level, not as a runtime translation service. Every page defines one bilingual copy object keyed by language, and a single header-level toggle switches both the active language and the text direction (<span class="mono">dir="rtl"</span>) together, so CSS flexbox and logical properties correctly mirror the entire layout rather than only swapping words inside a left-to-right frame.</p>
+  <p>The AI chat introduces an additional risk: an LLM (Qwen) is instructed via its system prompt to reply in the requested language, but large language models do not always comply with such instructions. MindHx addresses this with a second, independent safety layer specific to language correctness, shown in Figure 4.</p>
+  <div class="diagram-box">
+    <svg viewBox="0 0 680 230" width="100%">
+      <defs><marker id="arrow4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#5a6b7c"/></marker></defs>
+      <rect x="20" y="30" width="170" height="55" rx="9" fill="#e5f0fb" stroke="#2c6fba"/>
+      <text x="105" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="#194d85" font-family="DM Sans">Urdu requested</text>
+      <text x="105" y="68" text-anchor="middle" font-size="8.5" fill="#194d85" font-family="DM Sans">language: "ur"</text>
+
+      <line x1="190" y1="57" x2="240" y2="57" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow4)"/>
+
+      <rect x="250" y="30" width="180" height="55" rx="9" fill="#fff0e3" stroke="#e98232"/>
+      <text x="340" y="52" text-anchor="middle" font-size="10" font-weight="700" fill="#7a4318" font-family="DM Sans">Qwen generates reply</text>
+      <text x="340" y="68" text-anchor="middle" font-size="8.5" fill="#7a4318" font-family="DM Sans">per system-prompt instruction</text>
+
+      <line x1="430" y1="57" x2="480" y2="57" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow4)"/>
+
+      <rect x="490" y="20" width="170" height="75" rx="9" fill="#fbe9e8" stroke="#c84f4f" stroke-width="1.5"/>
+      <text x="575" y="42" text-anchor="middle" font-size="9.5" font-weight="700" fill="#8f2f2f" font-family="DM Sans">is_urdu_script()</text>
+      <text x="575" y="58" text-anchor="middle" font-size="8" fill="#8f2f2f" font-family="DM Sans">checks letter composition</text>
+      <text x="575" y="70" text-anchor="middle" font-size="8" fill="#8f2f2f" font-family="DM Sans">of the generated reply</text>
+      <text x="575" y="84" text-anchor="middle" font-size="8" fill="#8f2f2f" font-family="DM Sans">(≥40% Urdu-script letters)</text>
+
+      <line x1="575" y1="95" x2="575" y2="130" stroke="#5a6b7c" stroke-width="1.4" marker-end="url(#arrow4)"/>
+
+      <rect x="440" y="130" width="130" height="55" rx="9" fill="#e3f6ee" stroke="#2f8f6e"/>
+      <text x="505" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#1c5c42" font-family="DM Sans">Passes check</text>
+      <text x="505" y="168" text-anchor="middle" font-size="8" fill="#1c5c42" font-family="DM Sans">→ shown to user</text>
+
+      <rect x="590" y="130" width="130" height="55" rx="9" fill="#fbe9e8" stroke="#c84f4f" transform="translate(-40,0)"/>
+      <text x="615" y="152" text-anchor="middle" font-size="9" font-weight="700" fill="#8f2f2f" font-family="DM Sans">Fails check</text>
+      <text x="615" y="168" text-anchor="middle" font-size="8" fill="#8f2f2f" font-family="DM Sans">→ discarded, falls back</text>
+
+      <text x="340" y="215" text-anchor="middle" font-size="8.5" fill="#5a6b7c" font-family="DM Sans">On failure, the caller falls back to the deterministic, pre-translated Urdu reference template — the chat never shows an English reply to an Urdu-selected user.</text>
+    </svg>
+    <div class="diagram-caption">Figure 4 — Server-side Urdu-script safety guard on AI-generated chat replies</div>
+  </div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>12</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">4.5 Data Model</h2>
+  <p>The optional accounts layer uses four tables, shown below. No table stores raw transcripts, typed check-in text, or audio — only aggregate, non-identifying results.</p>
+  <table class="spec">
+    <tr><th style="width:18%">Table</th><th style="width:40%">Key fields</th><th>Purpose</th></tr>
+    <tr><td><span class="mono">users</span></td><td>id, email, password_hash, age_range</td><td>Optional account identity; password stored only as a bcrypt hash</td></tr>
+    <tr><td><span class="mono">check_ins</span></td><td>id, user_id, risk_score, band, routing_decision, themes, created_at</td><td>Saved screening result — deliberately excludes any transcript field</td></tr>
+    <tr><td><span class="mono">mood_checkins</span></td><td>id, user_id, mood (1–5), created_at</td><td>Lightweight daily mood log feeding AI-chat trend context</td></tr>
+    <tr><td><span class="mono">helpful_practices</span></td><td>id, user_id, practice_name, created_at</td><td>Records which coping exercise a user found helpful, for future personalization</td></tr>
+  </table>
+  <p>All four tables relate back to <span class="mono">users.id</span> via a standard one-to-many foreign key. When no <span class="mono">DATABASE_URL</span> is configured, the backend defaults to a local SQLite file for development; a real deployment sets this to a PostgreSQL connection string.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>13</span></div>
+</section>
+
+<!-- 5. TECHNOLOGY STACK -->
+<section class="page">
+  <h1 class="section"><span class="section-no">05</span> &nbsp;Technology Stack</h1>
+  <table class="spec">
+    <tr><th style="width:24%">Layer</th><th>Technology &amp; Rationale</th></tr>
+    <tr><td>Frontend framework</td><td><b>Next.js 16</b> (App Router, Turbopack) — server components enable per-page SEO metadata; client components handle interactive check-in state.</td></tr>
+    <tr><td>Styling</td><td>Hand-authored CSS (<span class="mono">globals.css</span>) plus Tailwind's base layer — a single light design system across every page, with dedicated RTL overrides for Urdu typography.</td></tr>
+    <tr><td>Backend framework</td><td><b>FastAPI</b> (Python) — async-friendly, automatic request validation via Pydantic, and a lifespan-managed startup for database initialization.</td></tr>
+    <tr><td>Database / ORM</td><td><b>PostgreSQL</b> in production (SQLite locally) via <b>SQLAlchemy</b>, used only by the optional accounts layer.</td></tr>
+    <tr><td>Authentication</td><td><b>bcrypt</b> (direct library) for password hashing and <b>PyJWT</b> for stateless session tokens — chosen over passlib/python-jose after compatibility and native-compilation issues.</td></tr>
+    <tr><td>LLM providers</td><td><b>Qwen</b> via Alibaba Cloud <b>DashScope</b> (preferred), falling back to <b>OpenRouter</b>, then a local heuristic classifier — used for text-sentiment analysis and the grounded AI chat.</td></tr>
+    <tr><td>Speech-to-text</td><td><b>faster-whisper</b>, run locally (<span class="mono">compute_type="int8"</span>) so voice notes never leave the server as stored audio.</td></tr>
+    <tr><td>Text-to-speech</td><td><b>Uplift AI</b> for Urdu voice synthesis of check-in content.</td></tr>
+    <tr><td>Testing</td><td><b>pytest</b> (backend, 23 tests) and TypeScript's <span class="mono">tsc --noEmit</span> plus <b>ESLint</b> (frontend), run on every change.</td></tr>
+    <tr><td>Deployment</td><td>Docker Compose for local multi-service orchestration; Next.js standalone output mode for the frontend container.</td></tr>
+  </table>
+  <div class="page-footer"><span>MindHx Project Report</span><span>14</span></div>
+</section>
+
+<!-- 6. IMPLEMENTATION DETAILS -->
+<section class="page">
+  <h1 class="section"><span class="section-no">06</span> &nbsp;Implementation Details</h1>
+  <h2 class="sub">6.1 Frontend</h2>
+  <p>The frontend is organized as one route per major feature: the home check-in, results, medication reference, AI chat, meditation and therapy libraries (each with dynamic per-item detail pages), the therapist directory, emergency support, a brand/design-system page, and the optional login/register/dashboard flow. Every top-level route follows a consistent pattern — a thin server component (<span class="mono">page.tsx</span>) exports Next.js Metadata (title, description, canonical URL, Open Graph tags) and renders an accompanying client component that holds the actual interactive logic. This split exists specifically because Next.js cannot export page metadata from a client component, and per-page search-relevant titles were a deliberate requirement rather than an afterthought.</p>
+  <p>Shared components include <span class="mono">SiteHeader</span> and <span class="mono">SiteFooter</span> (sticky navigation and a dark full-width footer present on every page), an original hand-built <span class="mono">Doodles</span> illustration set, a <span class="mono">NatureBanner</span> component wrapping verified free-to-use photography with visible photographer attribution, an original glossy-3D <span class="mono">StepIcons</span>/<span class="mono">SignalGraphics</span> icon system replacing generic emoji and line icons across the product, and a <span class="mono">ProtectedRoute</span> client-side auth gate for the dashboard.</p>
+  <h2 class="sub">6.2 Backend and API</h2>
+  <p>The FastAPI backend exposes 20 REST endpoints spanning five concerns: transcription and acoustic/text analysis, questionnaire scoring and fused risk assessment, the bounded AI chat, optional authentication, and check-in/mood/practice persistence for signed-in users. Every screening-relevant endpoint is stateless by default; the only endpoints that touch a database are the authentication and history endpoints, and only when a user has explicitly created an account.</p>
+  <div class="code-block">POST /risk-assess<span class="c1">  # fuses voice + text + PHQ-9/GAD-7/K10 into one explainable score</span><br/>POST /ai/chat<span class="c1">      # safety-gated, source-grounded chat reply</span><br/>POST /auth/register, /auth/login<span class="c1">  # optional account creation/sign-in</span><br/>GET&nbsp; /auth/me<span class="c1">          # returns the current user for a valid Bearer token</span></div>
+  <h2 class="sub">6.3 The RAG Chatbot</h2>
+  <p>The AI chat is a retrieval-augmented, bounded system rather than an open-ended conversational agent. A small library of reviewed reference documents (<span class="mono">RAG_DOCUMENTS</span>) covers common early-stage themes — anxiety, depression, therapy, medication, family stigma, and exam/work pressure — each with a matched English and Urdu version. An incoming message is matched to the relevant document(s) by keyword, and if an LLM provider is configured, Qwen composes a natural-language reply constrained to cite only that retrieved material, returning strict JSON validated against an allow-list of interactive-exercise IDs and CTA links before anything is shown to the user. If no LLM key is configured, or the LLM's output fails validation (including the crisis-language and Urdu-script checks described in Sections 4.3–4.4), the system falls back to the deterministic reference-document reply — the chat is never left unanswered, it simply loses the conversational layer.</p>
+  <h2 class="sub">6.4 Urdu Language Support</h2>
+  <p>Urdu support spans five layers: (1) a bilingual copy object on every page; (2) a header-level toggle that switches language and text direction together; (3) a dedicated Nastaliq-appropriate heading font and RTL-specific typography rules (line-height and font-size), added after an early implementation defect caused Urdu headings to visually overlap when reusing Latin display-font metrics; (4) fully translated RAG reference content and interactive-exercise instructions; and (5) the server-side <span class="mono">is_urdu_script()</span> defense-in-depth guard described in Section 4.4.</p>
+  <h2 class="sub">6.5 Explainable Risk Scoring</h2>
+  <p>The combined score uses an additive weighted model, meaning the exact contribution of each signal to the final number is available in closed form rather than requiring an approximation technique such as sampled Shapley values. This was a deliberate modeling choice: it trades some of the expressive power of a non-linear model for the ability to show a person, truthfully, "here is exactly how much your voice, your words, and your questionnaire answers each moved this number."</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>15</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">6.6 Original Visual Design System</h2>
+  <p>Rather than sourcing third-party icon packs or stock illustration, MindHx uses two original, hand-authored SVG systems built specifically for this project:</p>
+  <ul>
+    <li><b>StepIcons</b> — a library of roughly 40 glossy, 3D-shaded badge icons (radial-gradient body, inset highlight, drop shadow) illustrating individual steps within each meditation technique and therapy approach, replacing plain numbered lists.</li>
+    <li><b>SignalGraphics</b> and <b>MoodFace</b> — large (96px) illustrated graphics for the home page's three signal cards (a microphone with sound-wave arcs, a chat bubble, a clinical clipboard with a heartbeat pulse), and a five-expression glossy mood-face set replacing operating-system emoji in the daily mood check-in widget.</li>
+  </ul>
+  <p>All photography used across the product (nature banners on every resource page) is sourced from Unsplash and individually verified to exclude Unsplash+ premium images, with photographer name and profile linked in a visible attribution line on every banner, per the Unsplash license's attribution guidance.</p>
+  <h2 class="sub">6.7 Search Engine Optimization</h2>
+  <p>Because every page was originally a client component, the entire site shared one generic browser-tab title. This was corrected by splitting every route into a thin server-rendered wrapper carrying distinct, search-relevant metadata, plus a <span class="mono">sitemap.xml</span> covering every static and dynamic route, a <span class="mono">robots.txt</span> excluding private/authenticated pages from indexing, a dynamically generated favicon matching the in-app brand mark, and <span class="mono">WebApplication</span> JSON-LD structured data on the home page.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>16</span></div>
+</section>
+
+<!-- 7. CORE FUNCTIONALITY WALKTHROUGH -->
+<section class="page">
+  <h1 class="section"><span class="section-no">07</span> &nbsp;Core Functionality Walkthrough</h1>
+  <h3 class="subsub">7.1 The Check-In</h3>
+  <p>A person opens the home page and is presented with three signal cards: <b>How you sound</b> (an optional 60-second voice recording), <b>What you say</b> (a free-text box, analyzed for sentiment and never stored), and <b>Clinical check-in</b> (PHQ-9, GAD-7, and K10 administered in sequence, in the selected language). A live, client-side estimate updates as each signal is completed, before the user ever submits anything to the server.</p>
+  <h3 class="subsub">7.2 Results and Explanation</h3>
+  <p>Submitting the check-in calls <span class="mono">/risk-assess</span>, which returns a combined score, a risk band, a routing decision, detected themes, and — critically — a per-signal attribution breakdown rendered directly on the results page, alongside a support plan matched to the detected themes (grounding techniques for anxiety, behavioral-activation prompts for low motivation, pacing guidance after loss or trauma, and so on).</p>
+  <h3 class="subsub">7.3 The AI Chat</h3>
+  <p>A person can continue the conversation in the MindHx AI chat, which grounds every reply in the reviewed reference library described in Section 6.3, offers interactive exercises (4-7-8 breathing, 5-4-3-2-1 grounding) directly inline, and — for signed-in users — quietly incorporates recent mood trend and previously-helpful practices into its tone without ever reciting the underlying numbers back to the user.</p>
+  <h3 class="subsub">7.4 Resource Libraries</h3>
+  <p>The meditation library documents six grounding and relaxation techniques (box breathing, 5-4-3-2-1 grounding, body scan, one small action, progressive muscle relaxation, mindful walking); the therapies library documents six evidence-based approaches (CBT, DBT, exposure therapy, trauma-informed therapy, medical review, and peer support groups). Every technique and therapy detail page illustrates its steps with the original 3D icon system described in Section 6.6.</p>
+  <h3 class="subsub">7.5 Finding a Professional</h3>
+  <p>The therapist page frames what to say at a first appointment and what to bring, then offers a city-searchable directory combining curated, verified real institutions (for example, in Karachi: Karwan-e-Hayat Institute for Mental Health Care, Civil Hospital Karachi's Department of Psychiatry, and Karachi Psychiatric Hospital) with live links to established individual-provider directories (oladoc.com, Marham.pk) that stay current without MindHx needing to maintain a static, decaying list itself.</p>
+  <h3 class="subsub">7.6 Emergency Support</h3>
+  <p>Reachable from the top navigation on every page at all times, the Emergency Support page provides immediate-action guidance framed explicitly as a risk signal rather than a diagnosis, and is the automatic destination the moment the safety gate (Section 4.3) is triggered.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>17</span></div>
+</section>
+
+<section class="page">
+  <h2 class="sub" style="margin-top:0;">7.7 Illustrative Screenshots</h2>
+  <div class="two-col">
+    <div>
+      <div class="diagram-box" style="padding:6px;"><img src="screenshots/home.jpg" style="width:100%; border-radius:6px; display:block;"/></div>
+      <div class="diagram-caption">Home / check-in (English)</div>
+    </div>
+    <div>
+      <div class="diagram-box" style="padding:6px;"><img src="screenshots/ur/home.jpg" style="width:100%; border-radius:6px; display:block;"/></div>
+      <div class="diagram-caption">Home / check-in (اردو, RTL)</div>
+    </div>
+  </div>
+  <div class="two-col">
+    <div>
+      <div class="diagram-box" style="padding:6px;"><img src="screenshots/chat-working-en.jpg" style="width:100%; border-radius:6px; display:block;"/></div>
+      <div class="diagram-caption">MindHx AI — a live grounded exchange (English)</div>
+    </div>
+    <div>
+      <div class="diagram-box" style="padding:6px;"><img src="screenshots/ur/chat-working-ur.jpg" style="width:100%; border-radius:6px; display:block;"/></div>
+      <div class="diagram-caption">MindHx AI — the same exchange, entirely in Urdu</div>
+    </div>
+  </div>
+  <div class="page-footer"><span>MindHx Project Report</span><span>18</span></div>
+</section>
+
+<!-- 8. TESTING -->
+<section class="page">
+  <h1 class="section"><span class="section-no">08</span> &nbsp;Testing and Quality Assurance</h1>
+  <p>Correctness and, especially, safety-critical behavior are verified with an automated backend test suite (<span class="mono">pytest</span>, 23 tests) rather than manual inspection alone. Test coverage includes:</p>
+  <ul>
+    <li>Crisis short-circuiting via PHQ-9 item 9 and via free-text self-harm language, including a regression test confirming this cannot be bypassed even when conversation history, screening context, and mood-trend data are supplied alongside the crisis message.</li>
+    <li>Theme detection accuracy (anxiety, depression, therapy, medication, family stigma, exam/work pressure), including a regression test for a previously fixed keyword-matching defect.</li>
+    <li>Bilingual AI chat responses, including a dedicated test asserting that Urdu-requested replies contain predominantly non-ASCII (Urdu-script) characters, and a test that a fabricated English LLM reply is correctly discarded when Urdu was requested (Section 4.4).</li>
+    <li>The prosodic acoustic-signal math, tested independently of whether the optional PyAV dependency is available in the runtime environment.</li>
+    <li>The full account lifecycle: register, login, <span class="mono">/auth/me</span>, saved check-ins, mood check-ins, and helpful-practice recording.</li>
+    <li>The risk-assessment fusion shape and score boundaries for PHQ-9 (0–27), GAD-7 (0–21), and K10 (10–50).</li>
+  </ul>
+  <p>Beyond automated tests, the frontend is verified with TypeScript's strict compiler (<span class="mono">tsc --noEmit</span>) and ESLint on every change, and every significant visual or bilingual change in this project was verified with real headless-browser screenshots — in both English and Urdu — rather than assumed correct from the source code, a discipline that directly surfaced and led to the fix of several real defects, including a flexbox spacing bug in the site logo, an animated graphic overlapping hero text, and the Urdu heading line-height/overlap defect described in Section 6.4.</p>
+  <table class="spec">
+    <tr><th style="width:30%">Test category</th><th>Result</th></tr>
+    <tr><td>Backend automated tests</td><td>23 / 23 passing</td></tr>
+    <tr><td>Frontend type-check</td><td>Clean (no errors)</td></tr>
+    <tr><td>Frontend lint</td><td>Clean (no warnings)</td></tr>
+    <tr><td>Manual bilingual screenshot QA</td><td>Performed across every route, English and Urdu</td></tr>
+  </table>
+  <div class="page-footer"><span>MindHx Project Report</span><span>19</span></div>
+</section>
+
+<!-- 9. RESULTS AND DISCUSSION -->
+<section class="page">
+  <h1 class="section"><span class="section-no">09</span> &nbsp;Results and Discussion</h1>
+  <p>The completed system delivers a fully functional, end-to-end triage experience across 12 frontend routes and 20 backend endpoints, with complete feature and language parity between English and Urdu. The explainable-attribution design goal was achieved exactly as specified: because the fusion model is additive, the results page can show a mathematically exact — not approximated — breakdown of each signal's contribution, which is a meaningfully stronger explainability guarantee than the "feature importance" outputs typical of black-box models.</p>
+  <p>The safety-gate design goal was validated both by direct testing (Section 8) and by construction: crisis detection runs as an independent check ahead of, not inside, the scoring and chat-generation pipelines, so it cannot be quietly weakened by a future change to either of those pipelines without also changing the gate itself.</p>
+  <p>The bilingual goal proved to be the most implementation-intensive commitment in the project. Achieving genuine parity required more than translated strings: it required RTL-aware CSS throughout, a script-appropriate heading font and metrics (Section 6.4), and — for the AI chat specifically — a second, independent safety mechanism to guard against an LLM silently reverting to English. The project's experience suggests that "bilingual support" for a right-to-left script is best treated as a distinct architectural requirement from the outset, rather than a checklist item added after a left-to-right design is otherwise complete; several of the defects found during this project (heading overlap, an untranslated nature-banner caption on two pages) trace directly to places where that discipline slipped.</p>
+  <p>The privacy-by-design goal (no persisted audio, no persisted transcript, optional-only accounts) was maintained throughout without exception, including under feature pressure — for example, an Alibaba Cloud OSS-based audio-caching feature was considered and explicitly declined during development because it would have contradicted the project's "nothing is saved by default" commitment.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>20</span></div>
+</section>
+
+<!-- 10. LIMITATIONS -->
+<section class="page">
+  <h1 class="section"><span class="section-no">10</span> &nbsp;Limitations</h1>
+  <p>The following limitations are disclosed deliberately, both within the application itself and here, because a screening tool that overstates its own certainty is more dangerous than one that plainly states what it does not yet know.</p>
+  <ul>
+    <li><b>The combined risk score is not clinically calibrated.</b> It is a weighted heuristic that has not been fit or validated against real diagnostic-outcome data, and should be read as a relative risk-tier indicator rather than a calibrated probability.</li>
+    <li><b>The Urdu translation of PHQ-9, GAD-7, and K10 is not a licensed clinical instrument.</b> It is a careful draft translation appropriate for demonstration purposes; item 9 (self-harm ideation) is safety-critical in the validated original, and shipping an unlicensed translation as clinically equivalent would be irresponsible.</li>
+    <li><b>The acoustic voice signal is a local heuristic, not a validated biomarker.</b> Pause ratio, loudness variability, and speaking rate are explicit proxies, intentionally isolated behind a pluggable provider interface so a real, validated vendor could be integrated later without changing the rest of the pipeline.</li>
+    <li><b>Authentication has not yet been hardened for production scale.</b> The current implementation covers password hashing and token expiry but lacks login rate-limiting/brute-force protection, and stores the access token in <span class="mono">localStorage</span> rather than an httpOnly cookie for implementation simplicity — a real concern given the sensitivity of the data an account can be linked to.</li>
+    <li><b>The therapist directory is curated, not exhaustive.</b> It combines a small number of manually verified institutions with live third-party directory links, and is explicitly framed as a starting point rather than an endorsement.</li>
+  </ul>
+  <div class="page-footer"><span>MindHx Project Report</span><span>21</span></div>
+</section>
+
+<!-- 11. FUTURE WORK -->
+<section class="page">
+  <h1 class="section"><span class="section-no">11</span> &nbsp;Future Work</h1>
+  <h3 class="subsub">11.1 Score Calibration</h3>
+  <p>Once real, labeled outcome data becomes available (for example, through a partnership with a clinical institution willing to compare MindHx's signal against eventual clinical assessment), techniques such as Platt scaling or isotonic regression could convert the current relative risk-tier score into an actual calibrated probability — a prerequisite for any future clinical-deployment claim.</p>
+  <h3 class="subsub">11.2 A Validated Urdu Clinical Instrument</h3>
+  <p>Partnering with a qualified translator and a clinical reviewer to produce and validate a proper Urdu PHQ-9/GAD-7/K10 translation is identified as the single highest-leverage remaining localization gap — it would allow MindHx to move from a bilingual demonstration to a genuine screening tool usable in Urdu-speaking clinical settings.</p>
+  <h3 class="subsub">11.3 A Real Acoustic Biomarker Vendor</h3>
+  <p>The existing <span class="mono">VOICE_BIOMARKER_PROVIDER</span> abstraction was built specifically so a clinically validated speech-biomarker vendor with a public API contract could be integrated as a drop-in replacement for today's local heuristic, likely the single largest lever on overall score reliability given that the text and questionnaire signals are already backed by either a real classifier model or validated instruments.</p>
+  <h3 class="subsub">11.4 Deeper Alibaba Cloud Integration</h3>
+  <p>Qwen via DashScope is already integrated as the preferred text-analysis and chat-generation provider; further Alibaba-native deployment — for example, Function Compute for the FastAPI service — is a natural next step for any deployment targeting that cloud stack, while continuing to avoid persistent object storage for user audio, which would contradict the project's core privacy commitment.</p>
+  <h3 class="subsub">11.5 Additional Regional Languages</h3>
+  <p>Because the bilingual architecture (Section 4.4) is built around a per-page copy object and a direction-aware layout rather than any Urdu-specific assumption, the same pattern generalizes to other regional languages such as Punjabi, Pashto, or Sindhi with comparatively modest additional engineering effort.</p>
+  <h3 class="subsub">11.6 Authentication Hardening</h3>
+  <p>Adding login rate-limiting and migrating the access token from <span class="mono">localStorage</span> to an httpOnly cookie are both identified as necessary steps before the optional-accounts feature should be considered ready for real users at scale.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>22</span></div>
+</section>
+
+<!-- 12. CONCLUSION -->
+<section class="page">
+  <h1 class="section"><span class="section-no">12</span> &nbsp;Conclusion</h1>
+  <p>MindHx demonstrates that a mental-health screening tool can be simultaneously private, explainable, safety-first, and genuinely bilingual without treating any of those four properties as optional or as an afterthought bolted onto a simpler design. By fusing three independent, honestly-scoped signals into one transparent score, by routing rather than diagnosing, by defaulting to storing nothing, and by building the Urdu experience as a first-class architectural requirement rather than a translation pass, the project delivers a tool that meaningfully lowers the barrier to a first mental-health screening step — particularly for a Pakistani audience facing real, structural, and social barriers to that first step today.</p>
+  <p>Equally important to what has been built is what has been deliberately left unbuilt or clearly labeled as provisional: an uncalibrated score, a demo-grade Urdu clinical translation, and a heuristic rather than validated acoustic signal. This project treats honesty about those limitations as inseparable from the product's core safety commitment, on the view that a screening tool which oversells its own certainty poses a greater risk than one that plainly discloses what it does not yet know. The roadmap in Section 11 charts a concrete path from the current bilingual demonstration toward a properly validated, production-grade screening platform.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>23</span></div>
+</section>
+
+<!-- REFERENCES -->
+<section class="page">
+  <h1 class="section">References &amp; Data Sources</h1>
+  <h3 class="subsub">Clinical Instruments</h3>
+  <ul>
+    <li>Kroenke, K., Spitzer, R.L., &amp; Williams, J.B. — <i>The PHQ-9: Validity of a Brief Depression Severity Measure.</i> Standard 9-item depression screening instrument (0–27 scale), used under its established public-domain terms for clinical screening use.</li>
+    <li>Spitzer, R.L., Kroenke, K., Williams, J.B., &amp; Löwe, B. — <i>A Brief Measure for Assessing Generalized Anxiety Disorder: The GAD-7.</i> 7-item anxiety screening instrument (0–21 scale).</li>
+    <li>Kessler, R.C. et al. — <i>The K10 and K6 Screening Scales.</i> 10-item non-specific psychological distress scale (10–50 scale).</li>
+  </ul>
+  <h3 class="subsub">Technology and Service Providers</h3>
+  <ul>
+    <li>Alibaba Cloud DashScope — Qwen large language model API, used for text analysis and the grounded AI chat.</li>
+    <li>OpenRouter — fallback large language model provider.</li>
+    <li>Uplift AI — Urdu text-to-speech synthesis.</li>
+    <li>faster-whisper (SYSTRAN) — local, open-source speech-to-text transcription.</li>
+  </ul>
+  <h3 class="subsub">Pakistan Provider Directory (Section 7.5)</h3>
+  <ul>
+    <li>Karwan-e-Hayat, Institute for Mental Health Care, Karachi — keh.org.pk</li>
+    <li>Civil Hospital Karachi, Department of Psychiatry — chk.gov.pk</li>
+    <li>Karachi Psychiatric Hospital, Quaidabad</li>
+    <li>oladoc.com and Marham.pk — live, third-party individual-provider directories</li>
+  </ul>
+  <h3 class="subsub">Photography</h3>
+  <p>All nature photography used across the product is sourced from Unsplash (unsplash.com), individually verified as free-to-use (not Unsplash+ premium), with photographer attribution displayed on every image per the Unsplash license.</p>
+  <h3 class="subsub">Project Repository</h3>
+  <p>Full source code, commit history, and both companion presentation files (PDF and PowerPoint) are maintained in the project's version-controlled repository, alongside the automated test suite referenced in Section 8.</p>
+  <div class="page-footer"><span>MindHx Project Report</span><span>24</span></div>
+</section>
+
+</body>
+</html>

@@ -46,7 +46,7 @@ export default function TherapiesClient() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.forestPath} />
+      <NatureBanner {...naturePhotos.forestPath} priority />
       <section className="reference-grid therapy-reference">
         {therapies.map((therapy) => {
           const content = therapy[isUrdu ? "ur" : "en"];

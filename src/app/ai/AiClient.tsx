@@ -186,7 +186,7 @@ export default function AiClient() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.oceanSunrise} />
+      <NatureBanner {...naturePhotos.oceanSunrise} priority />
       {showMoodCheckIn && <MoodCheckIn prompt={text.moodPrompt} thanks={text.moodThanks} onSelect={handleMoodSelect} />}
       <section className="ai-chat">
         <div className="chat-label">{text.chatLabel}</div>

@@ -25,97 +25,106 @@
     width:13.333in; height:7.5in; overflow:hidden; position:relative;
     background:var(--background);
     page-break-after:always; break-after:page;
-    padding:0.55in 0.75in;
+    padding:0.5in 0.75in;
     display:flex; flex-direction:column;
   }
   .slide:last-child { page-break-after:auto; }
 
-  .eyebrow { color:var(--blue); font:600 12px/1 'DM Mono',monospace; letter-spacing:2px; text-transform:uppercase; margin:0 0 14px; }
-  h1 { font:600 42px/1.14 'Playfair Display',serif; margin:0 0 14px; color:var(--navy); letter-spacing:-1px; }
+  .eyebrow { color:var(--blue); font:600 11.5px/1 'DM Mono',monospace; letter-spacing:2px; text-transform:uppercase; margin:0 0 12px; }
+  h1 { font:600 40px/1.14 'Playfair Display',serif; margin:0 0 12px; color:var(--navy); letter-spacing:-1px; }
   h1 em { font-style:italic; color:var(--teal); font-weight:500; }
-  h2 { font:600 28px/1.22 'Playfair Display',serif; margin:0 0 16px; color:var(--navy); }
-  p.lede { font-size:14.5px; line-height:1.58; color:var(--muted); max-width:9.8in; margin:0 0 9px; }
-  .footer-mark { position:absolute; bottom:0.4in; left:0.75in; right:0.75in; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font:10px 'DM Mono',monospace; letter-spacing:1px; }
+  h2 { font:600 27px/1.22 'Playfair Display',serif; margin:0 0 14px; color:var(--navy); }
+  p.lede { font-size:14px; line-height:1.55; color:var(--muted); max-width:9.8in; margin:0 0 8px; }
+  .footer-mark { position:absolute; bottom:0.35in; left:0.75in; right:0.75in; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font:10px 'DM Mono',monospace; letter-spacing:1px; }
   .wordmark { display:flex; align-items:center; gap:8px; color:var(--navy); font-weight:700; font-size:15px; }
   .wordmark .mark { width:26px; height:26px; border-radius:8px; background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; display:grid; place-items:center; font-family:Georgia,serif; font-size:15px; }
   .wordmark .hx { color:var(--orange); }
 
-  /* Section divider slides */
   .slide-divider { align-items:center; justify-content:center; text-align:center; background:linear-gradient(135deg,#1c4f36,#173a55); }
   .slide-divider .eyebrow { color:#9fd8c2; }
-  .slide-divider h1 { color:#fff; font-size:52px; }
+  .slide-divider h1 { color:#fff; font-size:50px; }
   .slide-divider h1 em { color:#f5c68a; }
   .slide-divider p.lede { color:#cfe3da; margin:0 auto; text-align:center; }
   .slide-divider .footer-mark { color:#9fb8ac; }
   .slide-divider .wordmark { color:#fff; }
 
-  /* Title slide */
   .slide-title { align-items:center; justify-content:center; text-align:center; background:radial-gradient(circle at 80% 8%,rgba(233,130,50,.14),transparent 32%),radial-gradient(circle at 10% 85%,rgba(47,143,110,.14),transparent 36%),var(--background); }
-  .slide-title .mark-big { width:72px; height:72px; border-radius:20px; background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; display:grid; place-items:center; font-family:Georgia,serif; font-size:40px; margin:0 auto 22px; box-shadow:0 20px 45px rgba(44,111,186,.25); }
-  .slide-title h1 { font-size:56px; text-align:center; }
-  .slide-title .tagline { font:italic 500 24px 'Playfair Display',serif; color:var(--teal); margin-bottom:18px; }
-  .slide-title .sub { font-size:15px; color:var(--muted); max-width:7.6in; margin:0 auto; line-height:1.6; }
-  .stackline { margin-top:26px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .slide-title .mark-big { width:70px; height:70px; border-radius:20px; background:linear-gradient(135deg,var(--blue),var(--teal)); color:#fff; display:grid; place-items:center; font-family:Georgia,serif; font-size:38px; margin:0 auto 20px; box-shadow:0 20px 45px rgba(44,111,186,.25); }
+  .slide-title h1 { font-size:54px; text-align:center; }
+  .slide-title .tagline { font:italic 500 23px 'Playfair Display',serif; color:var(--teal); margin-bottom:16px; }
+  .slide-title .sub { font-size:14.5px; color:var(--muted); max-width:7.6in; margin:0 auto; line-height:1.55; }
+  .stackline { margin-top:24px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
   .pill { padding:6px 14px; border-radius:20px; border:1px solid var(--line-cool); background:var(--surface); font:10.5px 'DM Mono',monospace; color:var(--blue); letter-spacing:.5px; }
-  .team-line { margin-top:28px; color:var(--navy); font-size:13.5px; }
+  .team-line { margin-top:24px; color:var(--navy); font-size:13px; }
   .team-line b { color:var(--navy); }
 
-  /* two-column bullets */
-  .cols { display:flex; gap:0.5in; flex:1; margin-top:8px; }
+  .cols { display:flex; gap:0.45in; flex:1; margin-top:6px; }
   .col { flex:1; }
-  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:12px; box-shadow:0 8px 20px rgba(70,52,20,.06); }
-  .card b { display:block; font-size:14px; color:var(--navy); margin-bottom:5px; }
-  .card p { margin:0; font-size:12px; line-height:1.48; color:var(--muted); }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:16px 18px; margin-bottom:11px; box-shadow:0 8px 20px rgba(70,52,20,.06); }
+  .card b { display:block; font-size:13.5px; color:var(--navy); margin-bottom:4px; }
+  .card p { margin:0; font-size:11.5px; line-height:1.45; color:var(--muted); }
   .card.blue b { color:var(--blue); }
   .card.teal b { color:var(--teal); }
   .card.orange b { color:var(--orange); }
+  .card.red b { color:var(--red); }
 
-  ul.plain { margin:0; padding-left:20px; font-size:13.5px; line-height:1.75; color:var(--navy); }
+  ul.plain { margin:0; padding-left:20px; font-size:13px; line-height:1.7; color:var(--navy); }
   ul.plain li { margin-bottom:6px; }
   ul.plain b { color:var(--teal); }
-  ul.compact { margin:0; padding-left:18px; font-size:12px; line-height:1.6; color:var(--navy); }
-  ul.compact li { margin-bottom:5px; }
+  ul.compact { margin:0; padding-left:18px; font-size:11.5px; line-height:1.55; color:var(--navy); }
+  ul.compact li { margin-bottom:4px; }
 
   .tag-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
   .tag { padding:6px 13px; border-radius:8px; background:var(--surface); border:1px solid var(--line); font:11px 'DM Mono',monospace; color:var(--navy); }
   .tag.not-built { background:var(--orange-soft); border-color:transparent; color:#7a4318; }
 
-  /* screenshot slides */
-  .shot-wrap { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; gap:0.4in; margin-top:6px; overflow:hidden; }
-  .shot-frame { border-radius:14px; overflow:hidden; box-shadow:0 22px 50px rgba(36,52,74,.22); border:1px solid var(--line); background:#fff; line-height:0; }
+  .shot-wrap { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; gap:0.4in; margin-top:4px; overflow:hidden; }
+  .shot-frame { border-radius:13px; overflow:hidden; box-shadow:0 20px 46px rgba(36,52,74,.22); border:1px solid var(--line); background:#fff; line-height:0; }
   .shot-frame img { display:block; width:auto; height:auto; max-width:100%; }
-  .shot-frame.single { max-width:10.6in; }
-  .shot-frame.single img { max-height:4.0in; }
-  .shot-frame.half { max-width:5.3in; }
-  .shot-frame.half img { max-height:4.5in; }
-  .caption { text-align:center; margin-top:12px; font:12px 'DM Mono',monospace; color:var(--muted); letter-spacing:.5px; }
+  .shot-frame.single { max-width:10.4in; }
+  .shot-frame.single img { max-height:3.85in; }
+  .shot-frame.half { max-width:5.2in; }
+  .shot-frame.half img { max-height:4.3in; }
+  .caption { text-align:center; margin-top:10px; font:11.5px 'DM Mono',monospace; color:var(--muted); letter-spacing:.5px; }
   .shot-pair { display:flex; gap:0.35in; flex:1; min-height:0; align-items:flex-start; justify-content:center; overflow:hidden; }
   .shot-col { display:flex; flex-direction:column; align-items:center; flex:1; min-width:0; }
 
-  .stat-row { display:flex; gap:0.35in; margin-top:14px; }
-  .stat { flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:16px; text-align:center; }
-  .stat .num { font:700 30px 'Playfair Display',serif; color:var(--blue); }
-  .stat .label { font:10px 'DM Mono',monospace; color:var(--muted); letter-spacing:1px; margin-top:4px; }
+  .stat-row { display:flex; gap:0.32in; margin-top:12px; }
+  .stat { flex:1; background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:14px; text-align:center; }
+  .stat .num { font:700 28px 'Playfair Display',serif; color:var(--blue); }
+  .stat .label { font:9.5px 'DM Mono',monospace; color:var(--muted); letter-spacing:1px; margin-top:3px; }
 
-  table.endpoints { width:100%; border-collapse:collapse; font-size:11px; }
-  table.endpoints th { text-align:left; color:var(--blue); font:600 10px 'DM Mono',monospace; letter-spacing:1px; padding:6px 10px; border-bottom:1px solid var(--line); }
-  table.endpoints td { padding:6px 10px; border-bottom:1px solid var(--line); color:var(--navy); vertical-align:top; }
+  table.endpoints { width:100%; border-collapse:collapse; font-size:10.5px; }
+  table.endpoints th { text-align:left; color:var(--blue); font:600 9.5px 'DM Mono',monospace; letter-spacing:1px; padding:5px 9px; border-bottom:1px solid var(--line); }
+  table.endpoints td { padding:5px 9px; border-bottom:1px solid var(--line); color:var(--navy); vertical-align:top; }
   table.endpoints td:first-child { font-family:'DM Mono',monospace; color:var(--teal); white-space:nowrap; }
 
   .closing { align-items:center; justify-content:center; text-align:center; }
-  .disclaimer-box { margin-top:22px; padding:16px 26px; border-radius:12px; background:var(--red-soft); color:#7a2d2d; font-size:12.5px; max-width:8in; line-height:1.6; }
+  .disclaimer-box { margin-top:20px; padding:14px 24px; border-radius:12px; background:var(--red-soft); color:#7a2d2d; font-size:12px; max-width:8in; line-height:1.55; }
 
-  .badge-row { display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; }
-  .badge { display:flex; align-items:center; gap:8px; padding:8px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--line); font-size:12px; color:var(--navy); }
+  .badge-row { display:flex; gap:12px; margin-top:8px; flex-wrap:wrap; }
+  .badge { display:flex; align-items:center; gap:7px; padding:7px 13px; border-radius:10px; background:var(--surface); border:1px solid var(--line); font-size:11.5px; color:var(--navy); }
   .badge .dot { width:8px; height:8px; border-radius:50%; }
 
-  .team-cards { display:flex; gap:0.5in; margin-top:24px; justify-content:center; }
-  .team-card { flex:0 0 3.2in; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:28px; text-align:center; box-shadow:0 10px 26px rgba(70,52,20,.08); }
-  .team-avatar { width:64px; height:64px; border-radius:50%; margin:0 auto 14px; display:grid; place-items:center; color:#fff; font:600 24px 'Playfair Display',serif; }
-  .team-card h3 { margin:0 0 4px; font:600 19px 'Playfair Display',serif; color:var(--navy); }
-  .team-card p { margin:0; color:var(--muted); font-size:12.5px; }
+  .team-cards { display:flex; gap:0.5in; margin-top:20px; justify-content:center; }
+  .team-card { flex:0 0 3.1in; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:24px; text-align:center; box-shadow:0 10px 26px rgba(70,52,20,.08); }
+  .team-avatar { width:60px; height:60px; border-radius:50%; margin:0 auto 12px; display:grid; place-items:center; color:#fff; font:600 22px 'Playfair Display',serif; }
+  .team-card h3 { margin:0 0 4px; font:600 18px 'Playfair Display',serif; color:var(--navy); }
+  .team-card p { margin:0; color:var(--muted); font-size:12px; }
 
-  .quote-strip { border-left:3px solid var(--teal); padding-left:14px; margin:10px 0; }
+  .quote-strip { border-left:3px solid var(--teal); padding-left:14px; margin:8px 0; }
+  .therapy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.28in; margin-top:8px; flex:1; }
+  .approach-tag { color:var(--blue); font:600 9.5px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:4px; }
+  .cta-tag { display:inline-block; margin-top:10px; padding:8px 16px; border-radius:20px; background:var(--orange-soft); color:#7a4318; font-size:12px; font-weight:600; }
+  .inst-card { background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:16px 18px; flex:1; }
+  .inst-type { color:var(--teal); font:600 9.5px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:5px; }
+  .inst-name { font-size:13.5px; font-weight:700; color:var(--navy); margin-bottom:5px; }
+  .inst-note { font-size:11px; color:var(--muted); line-height:1.4; }
+  .directory-row { display:flex; gap:0.4in; margin-top:10px; }
+  .directory-card { flex:1; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .directory-card b { display:block; font-size:16px; color:var(--navy); margin-bottom:8px; }
+  .directory-card .links { display:flex; gap:10px; }
+  .directory-card .links span { font:11px 'DM Mono',monospace; color:var(--blue); padding:5px 11px; border:1px solid var(--line-cool); border-radius:8px; }
 </style>
 </head>
 <body>
@@ -125,7 +134,7 @@
   <div class="mark-big">M</div>
   <h1>Mind<span style="color:var(--orange)">Hx</span></h1>
   <p class="tagline">Notice the signal. Keep the human.</p>
-  <p class="sub">An early-detection mental-health triage aid that fuses voice, language, and validated clinical questionnaires into one explainable risk signal - private by default, and bilingual in English and Urdu from the ground up.</p>
+  <p class="sub">An early-detection mental-health triage aid that fuses voice, language, and validated clinical questionnaires into one explainable risk signal - private by default, bilingual in English and Urdu from the ground up.</p>
   <div class="stackline">
     <span class="pill">Next.js 16</span>
     <span class="pill">FastAPI</span>
@@ -147,14 +156,15 @@
         <li><b>02</b> Why this matters for Pakistan</li>
         <li><b>03</b> The product - screenshots and functionality</li>
         <li><b>04</b> The AI chatbot - everyday support</li>
+        <li><b>05</b> Therapy approaches and finding a professional</li>
       </ul>
     </div>
     <div class="col">
       <ul class="plain">
-        <li><b>05</b> Urdu language - the core of MindHx's accessibility mission</li>
-        <li><b>06</b> Technical architecture, quality, and safety</li>
-        <li><b>07</b> Roadmap and future possibilities</li>
-        <li><b>08</b> Team and closing</li>
+        <li><b>06</b> Urdu language - the core of MindHx's accessibility mission</li>
+        <li><b>07</b> Technical architecture, quality, and safety</li>
+        <li><b>08</b> Roadmap and future possibilities</li>
+        <li><b>09</b> Team and closing</li>
       </ul>
     </div>
   </div>
@@ -165,17 +175,11 @@
 <section class="slide">
   <p class="eyebrow">01 / Objective</p>
   <h1>Lower the barrier<br/><em>to a first screening step.</em></h1>
-  <p class="lede">Depression, anxiety, and related conditions are frequently under-screened, especially where access to mental-health professionals is limited and stigma discourages self-report. MindHx's objective is a private, low-friction check-in that surfaces a risk signal a person can act on - explicit about what it is not: not a diagnosis, not a replacement for a clinician, not a clinically calibrated instrument (yet).</p>
+  <p class="lede">Depression, anxiety, and related conditions are frequently under-screened, especially where access to mental-health professionals is limited and stigma discourages self-report. MindHx's objective is a private, low-friction check-in that surfaces a risk signal a person can act on.</p>
   <div class="cols">
-    <div class="col">
-      <div class="card blue"><b>Multimodal, not single-signal</b><p>Voice, text, and three validated questionnaires are fused into one explainable score with a genuine per-signal attribution breakdown.</p></div>
-    </div>
-    <div class="col">
-      <div class="card teal"><b>Route, don't diagnose</b><p>Risk-tier language throughout, never diagnostic language. Crisis signals short-circuit everything and go straight to Emergency Support.</p></div>
-    </div>
-    <div class="col">
-      <div class="card orange"><b>Minimal data, accounts optional</b><p>The core check-in never requires an account. Audio is processed and discarded. Only score/band/themes are ever saved.</p></div>
-    </div>
+    <div class="col"><div class="card blue"><b>Multimodal, not single-signal</b><p>Voice, text, and three validated questionnaires fused into one explainable score with a genuine per-signal attribution breakdown.</p></div></div>
+    <div class="col"><div class="card teal"><b>Route, don't diagnose</b><p>Risk-tier language throughout. Crisis signals short-circuit everything and go straight to Emergency Support.</p></div></div>
+    <div class="col"><div class="card orange"><b>Minimal data, accounts optional</b><p>The core check-in never requires an account. Audio is processed and discarded. Only score/band/themes are ever saved.</p></div></div>
   </div>
   <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>03</span></div>
 </section>
@@ -198,17 +202,17 @@
     <div class="col">
       <ul class="plain">
         <li><b>Access:</b> Pakistan has one of the world's lowest psychiatrist-to-population ratios - widely cited estimates put it under 500 psychiatrists for a population of 240+ million, concentrated in a handful of major cities.</li>
-        <li><b>Stigma:</b> seeking mental-health help is often read as personal weakness or family shame, especially outside urban centers, which keeps people from taking even a first, private step.</li>
+        <li><b>Stigma:</b> seeking mental-health help is often read as personal weakness or family shame, especially outside urban centers.</li>
       </ul>
     </div>
     <div class="col">
       <ul class="plain">
         <li><b>Language:</b> Urdu is the national language and lingua franca, yet most digital mental-health tools are English-only - quietly excluding the people most likely to need them.</li>
-        <li><b>Cost and distance:</b> a first appointment often requires travel, time off work, and a fee just to find out whether something is worth pursuing further.</li>
+        <li><b>Cost and distance:</b> a first appointment often requires travel, time off work, and a fee just to find out whether it's worth pursuing further.</li>
       </ul>
     </div>
   </div>
-  <p class="lede" style="margin-top:8px;">MindHx is built directly against these four barriers: private and free to try, no account required, fully bilingual, and paired with a real, verified directory of Pakistani providers for the moment a person is ready for a real conversation.</p>
+  <p class="lede" style="margin-top:6px;">MindHx is built directly against these four barriers: private and free to try, no account required, fully bilingual, and paired with a real, verified directory of Pakistani providers.</p>
   <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>05</span></div>
 </section>
 
@@ -217,45 +221,74 @@
   <p class="eyebrow">03 / The Product</p>
   <h1>Voice, words, and a<br/><em>short clinical questionnaire —</em><br/>in one flow.</h1>
   <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/home.jpg"/></div></div>
-  <div class="caption">Home / check-in — a live combined-signal preview updates as each of the three signals is completed</div>
+  <div class="caption">Home / check-in — a live combined-signal preview updates as each signal is completed</div>
   <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>06</span></div>
 </section>
 
-<!-- 7. How the score works -->
+<!-- 6b. Signal cards close-up: voice + words -->
+<section class="slide">
+  <p class="eyebrow">03 / The Product — A Closer Look</p>
+  <h1>Signal 01 &amp; 02:<br/><em>how you sound, what you say.</em></h1>
+  <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/signal-cards-voice-words-en.jpg"/></div></div>
+  <div class="caption">Original 3D graphics anchor each signal card - a microphone for voice, a chat bubble for text</div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>07</span></div>
+</section>
+
+<!-- 6c. Signal card close-up: clinical check-in (the validated tests) -->
+<section class="slide">
+  <p class="eyebrow">03 / The Product — A Closer Look</p>
+  <h1>Signal 03: the validated<br/><em>clinical tests — PHQ-9, GAD-7, K10.</em></h1>
+  <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/signal-card-clinical-en.jpg"/></div></div>
+  <div class="caption">The same three questionnaires clinicians already use, answered right inside the check-in</div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>08</span></div>
+</section>
+
+<!-- 7. Medication reference, EN + UR -->
+<section class="slide">
+  <p class="eyebrow">03 / The Product</p>
+  <h1>Medication reference —<br/><em>general education, in both languages.</em></h1>
+  <div class="shot-pair">
+    <div class="shot-col"><div class="shot-frame half"><img src="screenshots/medication.jpg"/></div><div class="caption">Medication reference — English</div></div>
+    <div class="shot-col"><div class="shot-frame half"><img src="screenshots/ur/medication.jpg"/></div><div class="caption urdu" style="direction:ltr">ادویات کی معلومات — اردو</div></div>
+  </div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>09</span></div>
+</section>
+
+<!-- 8. How the score works -->
 <section class="slide">
   <p class="eyebrow">03 / The Product</p>
   <h2>How the combined score is calculated</h2>
-  <p class="lede">Each signal - acoustic, linguistic, and clinical - is scored independently first, then combined into one weighted estimate using an additive model. Each term's share in the final number is the real, mathematically exact contribution, not an approximation bolted on afterward - shown directly on the results page.</p>
+  <p class="lede">Each signal - acoustic, linguistic, and clinical - is scored independently first, then combined into one weighted estimate using an additive model. Each term's share in the final number is the real, mathematically exact contribution, not an approximation.</p>
   <div class="stat-row">
     <div class="stat"><div class="num">3</div><div class="label">FUSED SIGNALS</div></div>
     <div class="stat"><div class="num">27</div><div class="label">PHQ-9 MAX SCORE</div></div>
     <div class="stat"><div class="num">21</div><div class="label">GAD-7 MAX SCORE</div></div>
     <div class="stat"><div class="num">50</div><div class="label">K10 MAX SCORE</div></div>
   </div>
-  <p class="lede" style="margin-top:14px;">If the voice signal reads flat but the questionnaire answers are mild - or the other way around - that tension is shown honestly, not smoothed into one tidy number.</p>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>07</span></div>
+  <p class="lede" style="margin-top:12px;">If the voice signal reads flat but the questionnaire answers are mild - or the other way around - that tension is shown honestly, not smoothed into one tidy number.</p>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>10</span></div>
 </section>
 
-<!-- 8. RAG chatbot working (EN) -->
+<!-- 9. RAG chatbot working (EN) -->
 <section class="slide">
   <p class="eyebrow">03 / The Product</p>
   <h1>MindHx AI —<br/><em>a real grounded reply,</em><br/>not a canned demo.</h1>
   <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/chat-working-en.jpg"/></div></div>
   <div class="caption">A live exchange: a user message about anxiety and poor sleep, answered from the reviewed reference library</div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>08</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>11</span></div>
 </section>
 
-<!-- 9. The AI chatbot: everyday support (verbatim, part 2) -->
+<!-- 10. The AI chatbot: everyday support (verbatim, part 2) -->
 <section class="slide">
   <p class="eyebrow">04 / The AI Chatbot — Everyday Support</p>
   <h2>A middle ground between doing nothing and seeing a professional</h2>
   <p class="lede">MindHx also includes an AI chatbot built for everyday stress, anxiety, and burnout - the kind of thing most people never bring up with anyone. It only answers from a fixed, reviewed set of information, so there is no risk of unsafe advice.</p>
   <p class="lede">Most people here never see a professional for smaller issues like poor sleep, work pressure, or daily anxiety. Through the chatbot they get simple meditation techniques and basic therapy approaches right away - no appointment, no waiting.</p>
   <div class="quote-strip"><p class="lede" style="margin:0;">It fills a middle ground. Not a replacement for real treatment, but not leaving someone with nothing either. If the conversation turns serious, it stops and redirects to emergency support instead of continuing.</p></div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>09</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>12</span></div>
 </section>
 
-<!-- 10. Meditation + therapy -->
+<!-- 11. Meditation + therapy screenshots -->
 <section class="slide">
   <p class="eyebrow">03 / The Product</p>
   <h1>A practice library with<br/><em>step-by-step 3D icons.</em></h1>
@@ -263,10 +296,26 @@
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/meditation-grounding.jpg"/></div><div class="caption">5-4-3-2-1 grounding — original 3D-shaded step icons</div></div>
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/therapy-cbt.jpg"/></div><div class="caption">CBT — what sessions may include</div></div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>10</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>13</span></div>
 </section>
 
-<!-- 11. Therapist + emergency -->
+<!-- 12. Therapy approaches overview -->
+<section class="slide">
+  <p class="eyebrow">05 / Therapy Approaches</p>
+  <h1>There is more than<br/><em>one path to support.</em></h1>
+  <div class="therapy-grid">
+    <div class="card blue"><div class="approach-tag">APPROACH</div><b>CBT</b><p>Cognitive behavioral therapy explores patterns between thoughts, feelings, and behavior.</p></div>
+    <div class="card teal"><div class="approach-tag">APPROACH</div><b>DBT</b><p>Dialectical behavior therapy teaches emotion regulation, distress tolerance, and interpersonal skills.</p></div>
+    <div class="card orange"><div class="approach-tag">APPROACH</div><b>Exposure therapy</b><p>A clinician-guided approach for some anxiety and fear responses.</p></div>
+    <div class="card red"><div class="approach-tag">APPROACH</div><b>Trauma-informed therapy</b><p>A safety-led approach that respects pacing, choice, and control.</p></div>
+    <div class="card blue"><div class="approach-tag">APPROACH</div><b>Medical review</b><p>Primary-care or psychiatric review can consider physical contributors, sleep, medicines, and safety.</p></div>
+    <div class="card teal"><div class="approach-tag">APPROACH</div><b>Peer support groups</b><p>Structured groups where people with similar experiences share support under trained facilitation.</p></div>
+  </div>
+  <div style="text-align:center;"><span class="cta-tag">Discuss treatment with a professional →</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>14</span></div>
+</section>
+
+<!-- 13. Therapist + emergency screenshots -->
 <section class="slide">
   <p class="eyebrow">03 / The Product</p>
   <h1>From a private check-in<br/><em>to a real next step.</em></h1>
@@ -274,190 +323,251 @@
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/therapist.jpg"/></div><div class="caption">Verified Pakistan therapist/psychiatrist directory</div></div>
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/emergency.jpg"/></div><div class="caption">Emergency support — reachable at any point in the flow</div></div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>11</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>15</span></div>
 </section>
 
-<!-- 12. Urdu divider -->
+<!-- 14. Take the next step with a licensed professional -->
+<section class="slide">
+  <p class="eyebrow">05 / Finding a Therapist</p>
+  <h1>Take the next step<br/><em>with a licensed professional.</em></h1>
+  <p class="lede">Bring your MindHx screening results to a qualified clinician. They can review your context, symptoms, safety, medical history, and treatment options with you. MindHx flags elevated risk - only a clinician can assess or diagnose.</p>
+  <div class="cols" style="margin-top:6px;">
+    <div class="col">
+      <div class="card teal"><b>WHAT TO SAY</b><p style="font-style:italic; color:var(--navy); margin-bottom:6px;">"I completed a mental-health screening and would like a professional evaluation."</p><p>Use a regulated local provider directory, hospital service, university clinic, or established telehealth provider in your country.</p></div>
+    </div>
+    <div class="col">
+      <div class="card blue"><b>BEFORE THE APPOINTMENT</b><p>Keep your PHQ-9, GAD-7, K10 results, text/voice explanation, current medicines, and questions ready if you choose to share them.</p></div>
+    </div>
+  </div>
+  <p class="lede" style="font-style:italic;">MindHx does not book appointments or provide emergency care.</p>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>16</span></div>
+</section>
+
+<!-- 15. Find a professional in Pakistan - Karachi example -->
+<section class="slide">
+  <p class="eyebrow">05 / Finding a Therapist — Find a Professional in Pakistan</p>
+  <h2>Search by city — known institutions (Karachi example)</h2>
+  <p class="lede">A starting point for finding psychiatrists and psychologists in Pakistan. This is not exhaustive and not an endorsement - confirm credentials and details yourself.</p>
+  <div class="cols" style="gap:0.3in;">
+    <div class="inst-card"><div class="inst-type">NGO / COMMUNITY CLINIC</div><div class="inst-name">Karwan-e-Hayat, Institute for Mental Health Care</div><div class="inst-note">Psychiatric treatment, psychological services, and rehabilitation care.</div></div>
+    <div class="inst-card"><div class="inst-type">PUBLIC HOSPITAL</div><div class="inst-name">Civil Hospital Karachi — Dept. of Psychiatry</div><div class="inst-note">Psychiatric inpatient, outpatient, and acute care for adults, adolescents, and children.</div></div>
+    <div class="inst-card"><div class="inst-type">PRIVATE HOSPITAL</div><div class="inst-name">Karachi Psychiatric Hospital, Quaidabad</div><div class="inst-note">General psychiatric hospital with outpatient consultation.</div></div>
+  </div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>17</span></div>
+</section>
+
+<!-- 16. Live doctor directories -->
+<section class="slide">
+  <p class="eyebrow">05 / Finding a Therapist — Live Doctor Directories</p>
+  <h2>More reliable than a static list</h2>
+  <p class="lede">These platforms maintain current, verified individual psychiatrist and psychologist profiles with fees, reviews, and booking - more reliable than a static list for finding an individual provider.</p>
+  <div class="directory-row">
+    <div class="directory-card"><b>oladoc.com</b><div class="links"><span>Psychiatrists →</span><span>Psychologists →</span></div></div>
+    <div class="directory-card"><b>Marham.pk</b><div class="links"><span>Psychiatrists →</span><span>Psychologists →</span></div></div>
+  </div>
+  <p class="lede" style="margin-top:16px; font-style:italic;">MindHx does not verify real-time availability, fees, or credentials for any listing above. Confirm details directly with the provider before booking.</p>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>18</span></div>
+</section>
+
+<!-- 17. Urdu divider -->
 <section class="slide slide-divider">
-  <p class="eyebrow">05 / Core Focus</p>
+  <p class="eyebrow">06 / Core Focus</p>
   <h1>Urdu Language<br/><em>Not a translation layer —<br/>a core requirement.</em></h1>
   <p class="lede">The single most important design decision in MindHx: built bilingual from the ground up, not translated as an afterthought.</p>
 </section>
 
-<!-- 13. Why Urdu matters -->
+<!-- 18. Why Urdu matters -->
 <section class="slide">
-  <p class="eyebrow">05 / Urdu Language</p>
+  <p class="eyebrow">06 / Urdu Language</p>
   <h1>Why Urdu, and<br/><em>why it had to be built in,</em><br/>not bolted on.</h1>
-  <p class="lede">Every page - the check-in itself, the AI chat, the therapist directory - exists in both English and Urdu, switchable with a single tap in the header, with the entire layout correctly mirroring for Urdu's right-to-left script rather than just swapping words inside a left-to-right frame. A screening tool available only in English quietly excludes most of the people who might actually need it in a country where Urdu is the lingua franca.</p>
+  <p class="lede">Every page - the check-in itself, the AI chat, the therapist directory - exists in both English and Urdu, switchable with a single tap in the header, with the entire layout correctly mirroring for Urdu's right-to-left script. A screening tool available only in English quietly excludes most of the people who might actually need it in a country where Urdu is the lingua franca.</p>
   <div class="badge-row">
     <span class="badge"><span class="dot" style="background:var(--blue)"></span>Header-level toggle on every page</span>
     <span class="badge"><span class="dot" style="background:var(--teal)"></span>Full RTL layout mirroring</span>
     <span class="badge"><span class="dot" style="background:var(--orange)"></span>Server-side Urdu-script safety guard</span>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>13</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>19</span></div>
 </section>
 
-<!-- 14. Urdu home -->
+<!-- 19. Urdu home -->
 <section class="slide">
-  <p class="eyebrow">05 / اردو (Urdu, RTL)</p>
+  <p class="eyebrow">06 / اردو (Urdu, RTL)</p>
   <h1 class="urdu">آہستہ چلیں۔ <em>اشارے کو محسوس کریں۔</em></h1>
   <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/ur/home.jpg"/></div></div>
   <div class="caption urdu" style="direction:ltr">Home / check-in — fully mirrored Urdu layout</div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>14</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>20</span></div>
 </section>
 
-<!-- 15. Urdu chatbot working -->
+<!-- 19b. Urdu signal cards close-up: voice + words -->
 <section class="slide">
-  <p class="eyebrow">05 / اردو (Urdu, RTL)</p>
+  <p class="eyebrow">06 / اردو (Urdu, RTL) — قریبی نظارہ</p>
+  <h2 class="urdu">پہلا اور دوسرا اشارہ: آپ کی آواز اور آپ کے الفاظ</h2>
+  <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/ur/signal-cards-voice-words-ur.jpg"/></div></div>
+  <div class="caption urdu" style="direction:ltr">The same original 3D graphics, correctly mirrored for Urdu's right-to-left layout</div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>21</span></div>
+</section>
+
+<!-- 19c. Urdu signal card close-up: clinical check-in -->
+<section class="slide">
+  <p class="eyebrow">06 / اردو (Urdu, RTL) — قریبی نظارہ</p>
+  <h2 class="urdu">تیسرا اشارہ: مستند طبی جانچ — PHQ-9, GAD-7, K10</h2>
+  <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/ur/signal-card-clinical-ur.jpg"/></div></div>
+  <div class="caption urdu" style="direction:ltr">The validated questionnaires, fully translated and readable end to end in Urdu</div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>22</span></div>
+</section>
+
+<!-- 20. Urdu chatbot working -->
+<section class="slide">
+  <p class="eyebrow">06 / اردو (Urdu, RTL)</p>
   <h2 class="urdu">MindHx AI — ایک حقیقی اردو گفتگو</h2>
   <div class="shot-wrap"><div class="shot-frame single"><img src="screenshots/ur/chat-working-ur.jpg"/></div></div>
   <div class="caption urdu" style="direction:ltr">The same RAG chatbot, live, replying entirely in Urdu to an Urdu message</div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>15</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>23</span></div>
 </section>
 
-<!-- 16. AI chatbot in Urdu (verbatim, full Urdu passage) -->
+<!-- 21. AI chatbot in Urdu (verbatim, part 1) -->
 <section class="slide">
-  <p class="eyebrow" style="direction:ltr">05 / AI چیٹ بوٹ — اردو میں</p>
-  <div class="urdu" style="font-size:15px; line-height:2.05;">
-    <p style="margin:0 0 10px;">MindHx کے اندر ایک AI چیٹ بوٹ بھی شامل ہے جو روزمرہ کے عام ذہنی دباؤ، پریشانی اور تھکن جیسے مسائل میں فوری رہنمائی فراہم کرتا ہے۔</p>
-    <p style="margin:0 0 10px;">یہ چیٹ بوٹ آزادانہ طور پر کچھ بھی نہیں بناتا بلکہ صرف پہلے سے طے شدہ اور محفوظ معلومات کی بنیاد پر جواب دیتا ہے، تاکہ کوئی غلط یا خطرناک مشورہ نہ دیا جائے۔</p>
-    <p style="margin:0 0 10px;">پاکستان میں زیادہ تر لوگ چھوٹے موٹے ذہنی مسائل جیسے نیند کی کمی، کام کا دباؤ، گھریلو ذمہ داریوں کا بوجھ یا روزمرہ کی بے چینی کے لیے کسی ماہر کے پاس نہیں جاتے۔ اس چیٹ بوٹ کے ذریعے ایسے لوگوں کو سادہ مراقبے کی تکنیکیں اور بنیادی تھراپی کے طریقے فوری طور پر مل جاتے ہیں، بغیر کسی اپائنٹمنٹ یا انتظار کے۔</p>
+  <p class="eyebrow" style="direction:ltr">06 / AI چیٹ بوٹ — اردو میں</p>
+  <div class="urdu" style="font-size:14px; line-height:1.95;">
+    <p style="margin:0 0 9px;">MindHx کے اندر ایک AI چیٹ بوٹ بھی شامل ہے جو روزمرہ کے عام ذہنی دباؤ، پریشانی اور تھکن جیسے مسائل میں فوری رہنمائی فراہم کرتا ہے۔</p>
+    <p style="margin:0 0 9px;">یہ چیٹ بوٹ آزادانہ طور پر کچھ بھی نہیں بناتا بلکہ صرف پہلے سے طے شدہ اور محفوظ معلومات کی بنیاد پر جواب دیتا ہے، تاکہ کوئی غلط یا خطرناک مشورہ نہ دیا جائے۔</p>
+    <p style="margin:0 0 9px;">پاکستان میں زیادہ تر لوگ چھوٹے موٹے ذہنی مسائل جیسے نیند کی کمی، کام کا دباؤ، گھریلو ذمہ داریوں کا بوجھ یا روزمرہ کی بے چینی کے لیے کسی ماہر کے پاس نہیں جاتے۔ اس چیٹ بوٹ کے ذریعے ایسے لوگوں کو سادہ مراقبے کی تکنیکیں اور بنیادی تھراپی کے طریقے فوری طور پر مل جاتے ہیں، بغیر کسی اپائنٹمنٹ یا انتظار کے۔</p>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>16</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>24</span></div>
 </section>
 
-<!-- 17. AI chatbot in Urdu, continued -->
+<!-- 22. AI chatbot in Urdu, continued -->
 <section class="slide">
-  <p class="eyebrow" style="direction:ltr">05 / AI چیٹ بوٹ — اردو میں (جاری)</p>
-  <div class="urdu" style="font-size:15px; line-height:2.05;">
-    <p style="margin:0 0 10px;">مثال کے طور پر اگر کسی کو نیند نہیں آ رہی یا ذہنی تناؤ محسوس ہو رہا ہے، تو وہ فوراً سانس لینے کی مشقیں، ذہنی سکون کی تکنیکیں یا سادہ طرزِ عمل تھراپی کے مشورے حاصل کر سکتا ہے۔</p>
-    <p style="margin:0 0 10px;">یہ خاص طور پر ان لوگوں کے لیے مفید ہے جو یہ سمجھتے ہیں کہ ان کا مسئلہ اتنا بڑا نہیں کہ ڈاکٹر کے پاس جایا جائے، مگر پھر بھی روزمرہ زندگی متاثر ہو رہی ہوتی ہے۔ اس طرح یہ چیٹ بوٹ ایک درمیانی درجے کی مدد فراہم کرتا ہے۔ نہ تو یہ طبی علاج کا متبادل ہے اور نہ ہی صارف کو بغیر رہنمائی کے چھوڑتا ہے۔</p>
+  <p class="eyebrow" style="direction:ltr">06 / AI چیٹ بوٹ — اردو میں (جاری)</p>
+  <div class="urdu" style="font-size:14px; line-height:1.95;">
+    <p style="margin:0 0 9px;">مثال کے طور پر اگر کسی کو نیند نہیں آ رہی یا ذہنی تناؤ محسوس ہو رہا ہے، تو وہ فوراً سانس لینے کی مشقیں، ذہنی سکون کی تکنیکیں یا سادہ طرزِ عمل تھراپی کے مشورے حاصل کر سکتا ہے۔</p>
+    <p style="margin:0 0 9px;">یہ خاص طور پر ان لوگوں کے لیے مفید ہے جو یہ سمجھتے ہیں کہ ان کا مسئلہ اتنا بڑا نہیں کہ ڈاکٹر کے پاس جایا جائے، مگر پھر بھی روزمرہ زندگی متاثر ہو رہی ہوتی ہے۔ اس طرح یہ چیٹ بوٹ ایک درمیانی درجے کی مدد فراہم کرتا ہے۔ نہ تو یہ طبی علاج کا متبادل ہے اور نہ ہی صارف کو بغیر رہنمائی کے چھوڑتا ہے۔</p>
     <p style="margin:0;">اگر کبھی بات زیادہ سنگین ہو جائے، جیسے خودکشی کے خیالات ظاہر ہوں، تو چیٹ بوٹ فوراً بات چیت روک کر صارف کو ایمرجنسی سپورٹ کی طرف بھیج دیتا ہے۔ اس طرح MindHx صرف ایک سکریننگ ٹول نہیں بلکہ روزمرہ کی ذہنی صحت کی دیکھ بھال کا ایک عملی ساتھی بھی بن جاتا ہے، خاص طور پر اس ملک میں جہاں تھراپی تک رسائی محدود اور مہنگی ہے۔</p>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>17</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>25</span></div>
 </section>
 
-<!-- 18. Urdu meditation + therapies -->
+<!-- 23. Urdu meditation + therapies -->
 <section class="slide">
-  <p class="eyebrow">05 / اردو (Urdu, RTL)</p>
+  <p class="eyebrow">06 / اردو (Urdu, RTL)</p>
   <h2 class="urdu">مراقبے کی تکنیکیں اور تھراپیز</h2>
   <div class="shot-pair">
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/ur/meditation-list.jpg"/></div><div class="caption urdu" style="direction:ltr">مراقبے کی تکنیکیں — اردو</div></div>
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/ur/therapies-list.jpg"/></div><div class="caption urdu" style="direction:ltr">تھراپیز — اردو</div></div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>18</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>26</span></div>
 </section>
 
-<!-- 19. Urdu therapist + emergency -->
+<!-- 24. Urdu therapist + emergency -->
 <section class="slide">
-  <p class="eyebrow">05 / اردو (Urdu, RTL)</p>
+  <p class="eyebrow">06 / اردو (Urdu, RTL)</p>
   <h2 class="urdu">معالج تلاش کریں اور فوری مدد</h2>
   <div class="shot-pair">
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/ur/therapist.jpg"/></div><div class="caption urdu" style="direction:ltr">معالج تلاش کریں — اردو</div></div>
     <div class="shot-col"><div class="shot-frame half"><img src="screenshots/ur/emergency.jpg"/></div><div class="caption urdu" style="direction:ltr">فوری مدد — اردو</div></div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>19</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>27</span></div>
 </section>
 
-<!-- 20. Technical safety for Urdu -->
+<!-- 25. Technical safety for Urdu -->
 <section class="slide">
-  <p class="eyebrow">05 / Urdu Language — Technical Safety</p>
+  <p class="eyebrow">06 / Urdu Language — Technical Safety</p>
   <h1>Defense in depth:<br/><em>never show an English reply</em><br/>when Urdu was requested.</h1>
-  <p class="lede">The AI's system prompt instructs Qwen to reply in the requested language - but LLMs don't always comply. MindHx adds a server-side guard, <b>is_urdu_script()</b>, that checks the letter composition of any generated reply. If Urdu was requested and the reply reads as English, it is discarded and replaced with the guaranteed-correct deterministic Urdu template - the same defense-in-depth pattern already used for crisis-language re-checking.</p>
-  <div class="card teal" style="max-width:9in;"><b>Backend, main.py</b><p style="font-family:'DM Mono',monospace; font-size:11.5px;">if language == "ur" and not is_urdu_script(result["message"]):<br/>&nbsp;&nbsp;&nbsp;&nbsp;return None  # fall back to the verified-Urdu template</p></div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>20</span></div>
+  <p class="lede">The AI's system prompt instructs Qwen to reply in the requested language - but LLMs don't always comply. MindHx adds a server-side guard, <b>is_urdu_script()</b>, that checks the letter composition of any generated reply. If Urdu was requested and the reply reads as English, it is discarded and replaced with the guaranteed-correct deterministic Urdu template.</p>
+  <div class="card teal" style="max-width:9in;"><b>Backend, main.py</b><p style="font-family:'DM Mono',monospace; font-size:11px;">if language == "ur" and not is_urdu_script(result["message"]):<br/>&nbsp;&nbsp;&nbsp;&nbsp;return None  # fall back to the verified-Urdu template</p></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>28</span></div>
 </section>
 
-<!-- 21. Honesty about Urdu limits -->
+<!-- 26. Honesty about Urdu limits -->
 <section class="slide">
-  <p class="eyebrow">05 / Urdu Language — Being Honest</p>
+  <p class="eyebrow">06 / Urdu Language — Being Honest</p>
   <h1>A careful draft,<br/><em>not a validated instrument —</em><br/>and we say so.</h1>
-  <p class="lede">The Urdu translation of PHQ-9, GAD-7, and K10 is a careful draft for this session, not a licensed clinical instrument - stated plainly on-screen whenever Urdu is active, not hidden in fine print. Item 9 (self-harm ideation) is safety-critical in the validated instrument; shipping an unlicensed translation as clinical-grade would be irresponsible.</p>
-  <p class="lede"><b style="color:var(--teal)">The roadmap is explicit about this:</b> partnering for a properly validated Urdu instrument is the single highest-leverage localization gap remaining - it would let MindHx move from a bilingual demo to a real screening tool usable in Urdu-speaking clinical settings.</p>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>21</span></div>
+  <p class="lede">The Urdu translation of PHQ-9, GAD-7, and K10 is a careful draft for this session, not a licensed clinical instrument - stated plainly on-screen whenever Urdu is active. Item 9 (self-harm ideation) is safety-critical in the validated instrument; shipping an unlicensed translation as clinical-grade would be irresponsible.</p>
+  <p class="lede"><b style="color:var(--teal)">The roadmap is explicit about this:</b> partnering for a properly validated Urdu instrument is the single highest-leverage localization gap remaining.</p>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>29</span></div>
 </section>
 
-<!-- 22. Full functions list -->
+<!-- 27. Full functions list -->
 <section class="slide">
-  <p class="eyebrow">06 / Functions</p>
+  <p class="eyebrow">07 / Functions</p>
   <h1>Everything the app<br/><em>actually does.</em></h1>
   <div class="cols">
     <div class="col">
       <ul class="plain">
         <li>Voice, text, and PHQ-9/GAD-7/K10 check-in with a live combined-signal preview</li>
         <li>Explainable per-signal attribution on the results page</li>
-        <li>Crisis short-circuiting (PHQ-9 item 9, self-harm language) straight to Emergency Support</li>
-        <li>Bounded, source-grounded AI chat with interactive exercises (4-7-8 breathing, 5-4-3-2-1 grounding)</li>
+        <li>Crisis short-circuiting straight to Emergency Support</li>
+        <li>Bounded, source-grounded AI chat with interactive exercises</li>
       </ul>
     </div>
     <div class="col">
       <ul class="plain">
         <li>Meditation and therapy reference libraries with original 3D step icons</li>
         <li>Verified Pakistan therapist/psychiatrist directory, city by city</li>
-        <li>Full English/Urdu bilingual UI with a header-level toggle, everywhere</li>
-        <li>Optional accounts (bcrypt + JWT) for saved check-in history - score/band/themes only</li>
+        <li>Full English/Urdu bilingual UI, everywhere</li>
+        <li>Optional accounts for saved check-in history - score/band/themes only</li>
       </ul>
     </div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>22</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>30</span></div>
 </section>
 
-<!-- 23. Technical architecture -->
+<!-- 28. Technical architecture -->
 <section class="slide">
-  <p class="eyebrow">07 / Technical Architecture</p>
+  <p class="eyebrow">08 / Technical Architecture</p>
   <h1>Two services.<br/><em>Stateless by default.</em></h1>
-  <p class="lede">A Next.js 16 (App Router) frontend and a FastAPI backend. The screening/risk-assessment endpoints are fully stateless - every request self-contained, nothing persisted. An optional layer adds PostgreSQL-backed accounts purely for people who choose to save history.</p>
+  <p class="lede">A Next.js 16 (App Router) frontend and a FastAPI backend. The screening/risk-assessment endpoints are fully stateless. An optional layer adds PostgreSQL-backed accounts purely for people who choose to save history.</p>
   <div class="stat-row">
     <div class="stat"><div class="num">20</div><div class="label">BACKEND ENDPOINTS</div></div>
     <div class="stat"><div class="num">12</div><div class="label">FRONTEND ROUTES</div></div>
     <div class="stat"><div class="num">23</div><div class="label">BACKEND TESTS</div></div>
     <div class="stat"><div class="num">2</div><div class="label">LANGUAGES</div></div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>23</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>31</span></div>
 </section>
 
-<!-- 24. Endpoint table -->
+<!-- 29. Endpoint table -->
 <section class="slide">
-  <p class="eyebrow">07 / Technical Architecture</p>
+  <p class="eyebrow">08 / Technical Architecture</p>
   <h2>Selected backend endpoints</h2>
   <table class="endpoints">
     <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td>POST /analyze-voice</td><td>Heuristic prosodic signal (pause ratio, loudness variability, speaking rate) — pluggable via VOICE_BIOMARKER_PROVIDER</td></tr>
+    <tr><td>POST /analyze-voice</td><td>Heuristic prosodic signal — pluggable via VOICE_BIOMARKER_PROVIDER</td></tr>
     <tr><td>POST /analyze-text</td><td>Sentiment + crisis-language detection — Qwen (DashScope) → OpenRouter → local heuristic fallback</td></tr>
-    <tr><td>POST /ai/chat</td><td>Bounded, source-grounded chat; safety-gated before any content is returned; server-side Urdu-script guard on generated replies</td></tr>
+    <tr><td>POST /ai/chat</td><td>Bounded, source-grounded chat; safety-gated; Urdu-script guard on generated replies</td></tr>
     <tr><td>POST /risk-assess</td><td>Fuses all signals into the combined score, band, explanation, and routing decision</td></tr>
     <tr><td>POST /score-phq9, /score-gad7, /score-k10</td><td>Individual validated-questionnaire scoring</td></tr>
     <tr><td>POST /auth/register, /auth/login</td><td>Optional account creation/sign-in — bcrypt + JWT</td></tr>
     <tr><td>POST /synthesize</td><td>Urdu text-to-speech via Uplift AI</td></tr>
   </table>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>24</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>32</span></div>
 </section>
 
-<!-- 25. Quality & testing -->
+<!-- 30. Quality & testing -->
 <section class="slide">
-  <p class="eyebrow">07 / Quality &amp; Safety Design</p>
+  <p class="eyebrow">08 / Quality &amp; Safety Design</p>
   <h1>Verified, not<br/><em>assumed.</em></h1>
   <div class="cols">
     <div class="col">
       <div class="card blue"><b>23 backend tests</b><p>Crisis short-circuiting, bilingual AI chat responses, trend-aware replies, risk-fusion math, and the full account flow.</p></div>
-      <div class="card teal"><b>Type-checked &amp; linted</b><p>tsc --noEmit and eslint run clean on every change - no silent runtime surprises.</p></div>
+      <div class="card teal"><b>Type-checked &amp; linted</b><p>tsc --noEmit and eslint run clean on every change.</p></div>
     </div>
     <div class="col">
-      <div class="card orange"><b>Real screenshot QA</b><p>Every visual change verified via headless-Chrome screenshots in both English and Urdu, not assumed from the code.</p></div>
-      <div class="card blue"><b>Defense in depth</b><p>Crisis-language re-check and the Urdu-script guard both discard unsafe generated output rather than trusting the model once.</p></div>
+      <div class="card orange"><b>Real screenshot QA</b><p>Every visual change verified via headless-Chrome screenshots in both English and Urdu.</p></div>
+      <div class="card blue"><b>Defense in depth</b><p>Crisis-language re-check and the Urdu-script guard both discard unsafe generated output.</p></div>
     </div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>25</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>33</span></div>
 </section>
 
-<!-- 26. Roadmap -->
+<!-- 31. Roadmap -->
 <section class="slide">
-  <p class="eyebrow">08 / Roadmap</p>
+  <p class="eyebrow">09 / Roadmap</p>
   <h1>What's built —<br/><em>and what's deliberately not.</em></h1>
   <div class="cols">
     <div class="col">
-      <b style="color:var(--teal); font-size:13px; letter-spacing:1px;">BUILT</b>
-      <ul class="compact" style="margin-top:8px;">
+      <b style="color:var(--teal); font-size:12px; letter-spacing:1px;">BUILT</b>
+      <ul class="compact" style="margin-top:6px;">
         <li>Voice + text + PHQ-9/GAD-7/K10 fused into one explainable score</li>
         <li>Bounded AI chat with a hard safety gate, in English and Urdu</li>
         <li>Original 3D step-icon library across every technique/therapy page</li>
@@ -466,35 +576,35 @@
       </ul>
     </div>
     <div class="col">
-      <b style="color:#7a4318; font-size:13px; letter-spacing:1px;">NOT YET BUILT — DELIBERATELY</b>
-      <ul class="compact" style="margin-top:8px;">
+      <b style="color:#7a4318; font-size:12px; letter-spacing:1px;">NOT YET BUILT — DELIBERATELY</b>
+      <ul class="compact" style="margin-top:6px;">
         <li><b>Score calibration</b> — no labeled outcome data yet</li>
-        <li><b>Clinically validated Urdu PHQ-9/GAD-7/K10</b> — current translation is demo-only</li>
-        <li><b>Real acoustic biomarker vendor</b> — today's signal is a heuristic proxy</li>
-        <li><b>Auth hardening</b> — rate-limiting and httpOnly cookies still pending</li>
+        <li><b>Clinically validated Urdu PHQ-9/GAD-7/K10</b> — demo-only today</li>
+        <li><b>Real acoustic biomarker vendor</b> — heuristic proxy today</li>
+        <li><b>Auth hardening</b> — rate-limiting and httpOnly cookies pending</li>
       </ul>
     </div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>26</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>34</span></div>
 </section>
 
-<!-- 27. Future possibilities -->
+<!-- 32. Future possibilities -->
 <section class="slide">
-  <p class="eyebrow">08 / Future Possibilities</p>
+  <p class="eyebrow">09 / Future Possibilities</p>
   <h1>Where this goes<br/><em>from here.</em></h1>
   <ul class="plain">
-    <li><b>A validated Urdu instrument</b> - partnering to properly validate the PHQ-9/GAD-7/K10 Urdu translation would unlock real clinical deployment in Urdu-speaking settings, not just a bilingual demo.</li>
-    <li><b>Score calibration</b> - once labeled outcome data exists, Platt scaling or isotonic regression would let the score become an actual probability.</li>
+    <li><b>A validated Urdu instrument</b> - would unlock real clinical deployment in Urdu-speaking settings.</li>
+    <li><b>Score calibration</b> - Platt scaling or isotonic regression once labeled outcome data exists.</li>
     <li><b>A real acoustic biomarker vendor</b> - upgrading the voice signal from a heuristic proxy to a validated one.</li>
-    <li><b>Deeper Alibaba Cloud integration</b> - Qwen/DashScope is already live; Function Compute and OSS-backed caching are natural next steps.</li>
-    <li><b>More regional languages</b> - the same bilingual architecture (per-page copy objects, RTL-aware layout) generalizes to Punjabi, Pashto, or Sindhi.</li>
+    <li><b>Deeper Alibaba Cloud integration</b> - Function Compute and OSS-backed caching, building on Qwen/DashScope.</li>
+    <li><b>More regional languages</b> - Punjabi, Pashto, or Sindhi, using the same bilingual architecture.</li>
   </ul>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>27</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>35</span></div>
 </section>
 
-<!-- 28. Team -->
+<!-- 33. Team -->
 <section class="slide">
-  <p class="eyebrow">09 / Team</p>
+  <p class="eyebrow">10 / Team</p>
   <h1 style="text-align:center;">Built by</h1>
   <div class="team-cards">
     <div class="team-card">
@@ -508,12 +618,12 @@
       <p>MindHx</p>
     </div>
   </div>
-  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>28</span></div>
+  <div class="footer-mark"><span class="wordmark"><span class="mark">M</span>Mind<span class="hx">Hx</span></span><span>36</span></div>
 </section>
 
-<!-- 29. Closing -->
+<!-- 34. Closing -->
 <section class="slide closing">
-  <div class="wordmark" style="font-size:22px; margin-bottom:18px; justify-content:center;"><span class="mark" style="width:34px;height:34px;font-size:19px;">M</span>Mind<span class="hx">Hx</span></div>
+  <div class="wordmark" style="font-size:22px; margin-bottom:16px; justify-content:center;"><span class="mark" style="width:34px;height:34px;font-size:19px;">M</span>Mind<span class="hx">Hx</span></div>
   <h1 style="text-align:center;">Notice the signal.<br/><em>Keep the human.</em></h1>
   <div class="disclaimer-box">MindHx is a screening and triage aid, not a diagnosis. Every score is a starting point for a conversation with a qualified professional — never a replacement for one.</div>
 </section>

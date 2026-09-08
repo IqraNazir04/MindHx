@@ -44,7 +44,7 @@ function DashboardContent({ email }: { email: string }) {
         <h1>Check-in history<br /><em>for {email}.</em></h1>
         <p>Only the score, band, and detected themes from each check-in are saved here - never your transcript, typed answers, or individual questionnaire responses.</p>
       </section>
-      <NatureBanner {...naturePhotos.mountainRange} />
+      <NatureBanner {...naturePhotos.mountainRange} priority />
       {error && <p className="assessment-error dashboard-error">{error}</p>}
       {checkIns === null && !error && <p className="dashboard-loading">Loading your history…</p>}
       {checkIns?.length === 0 && (

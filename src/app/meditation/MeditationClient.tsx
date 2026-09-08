@@ -45,7 +45,7 @@ export default function MeditationClient() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.meadow} />
+      <NatureBanner {...naturePhotos.meadow} priority />
       <section className="reference-grid">
         {techniques.map((technique) => {
           const content = technique[isUrdu ? "ur" : "en"];

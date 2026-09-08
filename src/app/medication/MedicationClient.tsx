@@ -61,7 +61,7 @@ export default function MedicationClient() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.balancedStones} />
+      <NatureBanner {...naturePhotos.balancedStones} priority />
       <section className="reference-grid">
         {entries.map((entry) => {
           const content = entry[isUrdu ? "ur" : "en"];

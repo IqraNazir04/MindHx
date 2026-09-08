@@ -91,7 +91,7 @@ export default function TherapistClient() {
         <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.forestBridge} caption={text.bannerCaption} />
+      <NatureBanner {...naturePhotos.forestBridge} caption={text.bannerCaption} priority />
       <section className="therapist-contact">
         <div>
           <p className="card-kicker">{text.whatToSay}</p>

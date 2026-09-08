@@ -64,7 +64,7 @@ export default function ResultsClient() {
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "60px", right: "3%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "50%", left: "1%", width: "26px", height: "auto" }} />
       <SiteHeader right={<span className="results-private"><i /> Private session result</span>} backLabel="Back to check-in" />
-      <NatureBanner {...naturePhotos.mountainRange} caption="A clearer picture, from higher ground." />
+      <NatureBanner {...naturePhotos.mountainRange} caption="A clearer picture, from higher ground." priority />
       <section className="results-hero"><div><p className="eyebrow">YOUR MINDHX CHECK-IN</p><h1>A clearer picture<br /><em>to take forward.</em></h1><p className="results-lede">These signals are a starting point for a conversation, not a diagnosis. You remain in control of what happens next.</p></div><div className="result-score-card"><p className="card-kicker">COMBINED SIGNAL</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{result.band.replaceAll("_", " ")}</b><small>{result.routing_decision.replaceAll("_", " ")}</small></div></section>
 
       <section className="result-section"><div className="result-section-heading"><p className="eyebrow">01 / THE SIGNALS</p><h2>What contributed to this picture</h2><p>Each measure is shown separately so the combined estimate stays explainable.</p></div><div className="result-signal-grid">

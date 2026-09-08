@@ -44,7 +44,7 @@ export default function RegisterClient() {
         <h1>Create an account<br /><em>entirely optional.</em></h1>
         <p>An account lets you save check-in results (score, band, and themes only - never your transcript or written answers) and revisit them later. You can keep using MindHx anonymously without one.</p>
       </section>
-      <NatureBanner {...naturePhotos.forestPath} />
+      <NatureBanner {...naturePhotos.forestPath} priority />
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
           <span>Email</span>

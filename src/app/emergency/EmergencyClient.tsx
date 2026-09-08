@@ -76,7 +76,7 @@ export default function EmergencyClient() {
         <h1>{text.title}</h1>
         <p>{text.lede}</p>
       </section>
-      <NatureBanner {...naturePhotos.softDawn} />
+      <NatureBanner {...naturePhotos.softDawn} priority />
       <section className="emergency-steps">
         <p className="card-kicker">{text.stepsTitle}</p>
         <ol>{text.steps.map((step) => <li key={step}>{step}</li>)}</ol>
