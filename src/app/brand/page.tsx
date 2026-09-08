@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleSun, DoodleWave } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import { pageMetadata } from "../lib/seo";
+
+export const metadata: Metadata = pageMetadata({
+  title: "Brand & Color System",
+  description: "MindHx's color system and design tokens - blue for voice, teal for clinical scales, orange for language, and a reserved red used only for crisis and safety contexts.",
+  path: "/brand",
+});
 
 type Swatch = { name: string; textColor: string; background: string; usage: string };
 
