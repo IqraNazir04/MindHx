@@ -14,11 +14,11 @@ export const naturePhotos = {
     photographerName: "Damian",
     photographerUrl: "https://unsplash.com/@photographydamiankokot",
   },
-  mistyForestLake: {
-    src: "https://images.unsplash.com/photo-1758243488200-d0b43f504953",
-    alt: "Misty forest landscape with a calm lake",
-    photographerName: "Mathias Reding",
-    photographerUrl: "https://unsplash.com/@matreding",
+  foggyValley: {
+    src: "https://images.unsplash.com/photo-1681237444800-e3ec72d44a21",
+    alt: "A misty valley landscape with mountain silhouettes visible through fog",
+    photographerName: "Kushagra Dhall",
+    photographerUrl: "https://unsplash.com/@good_e_will",
   },
   balancedStones: {
     src: "https://images.unsplash.com/photo-1575907153548-ccfef23907a9",
@@ -97,5 +97,35 @@ export const naturePhotos = {
     alt: "Bare feet walking across lush green grass, grounded in the present moment",
     photographerName: "Klara Kulikova",
     photographerUrl: "https://unsplash.com/@kkalerry",
+  },
+  mistyMountains: {
+    src: "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429",
+    alt: "Layered mountain peaks shrouded in white mist during golden hour",
+    photographerName: "Ivana Cajina",
+    photographerUrl: "https://unsplash.com/@von_co",
+  },
+  forestCreek: {
+    src: "https://images.unsplash.com/photo-1421790500381-fc9b5996f343",
+    alt: "A serene creek flowing through a shaded forest with dappled light",
+    photographerName: "Matthew Smith",
+    photographerUrl: "https://unsplash.com/@whale",
+  },
+  goldenSea: {
+    src: "https://images.unsplash.com/photo-1444044205806-38f3ed106c10",
+    alt: "A tranquil ocean beneath a sky filled with golden, warm-toned clouds",
+    photographerName: "Jonathan Bean",
+    photographerUrl: "https://unsplash.com/@jonathanbean",
+  },
+  goldenField: {
+    src: "https://images.unsplash.com/photo-1692966508647-cb842f426568",
+    alt: "A scenic sunset over a field of tall grass during golden hour",
+    photographerName: "Giorgios Savidis",
+    photographerUrl: "https://unsplash.com/@mummyyyyy",
+  },
+  sunlitPathway: {
+    src: "https://images.unsplash.com/photo-1501889088093-90b27410d97e",
+    alt: "A sunlit forest pathway lined with trees, creating a natural tunnel of light",
+    photographerName: "Johannes Plenio",
+    photographerUrl: "https://unsplash.com/@jplenio",
   },
 } as const;
