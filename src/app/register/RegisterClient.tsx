@@ -7,12 +7,76 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
-import { register } from "../lib/auth";
+import { register, safeNextPath } from "../lib/auth";
+
+// Option values stay in English (they're what the backend stores); only
+// the visible labels are translated.
+const copy = {
+  English: {
+    back: "Back to check-in",
+    eyebrow: "ACCOUNT",
+    titleA: "Create an account",
+    titleB: "to see your results.",
+    intro: "Viewing your check-in results requires an account, so you can safely revisit them later. We save your overall score, band, themes, and each section's summary scores - never your transcript, your written words, or your individual question answers.",
+    email: "Email",
+    password: "Password (min. 8 characters)",
+    required: "*required",
+    fullName: "Full name (optional)",
+    fullNamePlaceholder: "Your name",
+    phone: "Phone number (optional)",
+    ageRange: "Age range (optional)",
+    gender: "Gender (optional)",
+    relationship: "Relationship status (optional)",
+    lifeContext: "Life context (optional)",
+    preferredLanguage: "Preferred language (optional)",
+    preferNot: "Prefer not to say",
+    noPreference: "No preference",
+    options: { Woman: "Woman", Man: "Man", "Non-binary": "Non-binary", Single: "Single", Partnered: "Partnered", Married: "Married", Student: "Student", Working: "Working", Retired: "Retired", "Between roles": "Between roles", Caregiving: "Caregiving" },
+    tooShort: "Password must be at least 8 characters.",
+    tooLong: "Password is too long. Use a shorter password.",
+    submit: "Create account",
+    submitting: "Creating account…",
+    failed: "Account creation failed.",
+    haveAccount: "Already have an account?",
+    signIn: "Sign in",
+  },
+  اردو: {
+    back: "چیک ان پر واپس",
+    eyebrow: "اکاؤنٹ",
+    titleA: "اکاؤنٹ بنائیں",
+    titleB: "تاکہ اپنے نتائج دیکھ سکیں۔",
+    intro: "اپنے جائزے کے نتائج دیکھنے کے لیے اکاؤنٹ ضروری ہے، تاکہ آپ بعد میں انہیں محفوظ طریقے سے دوبارہ دیکھ سکیں۔ ہم آپ کا مجموعی اسکور، درجہ، موضوعات، اور ہر حصے کے خلاصہ اسکور محفوظ کرتے ہیں - کبھی آپ کا متن، آپ کے لکھے الفاظ، یا انفرادی سوالات کے جوابات نہیں۔",
+    email: "ای میل",
+    password: "پاس ورڈ (کم از کم 8 حروف)",
+    required: "*ضروری",
+    fullName: "پورا نام (اختیاری)",
+    fullNamePlaceholder: "آپ کا نام",
+    phone: "فون نمبر (اختیاری)",
+    ageRange: "عمر کی حد (اختیاری)",
+    gender: "جنس (اختیاری)",
+    relationship: "ازدواجی حیثیت (اختیاری)",
+    lifeContext: "زندگی کی صورتحال (اختیاری)",
+    preferredLanguage: "ترجیحی زبان (اختیاری)",
+    preferNot: "بتانا نہیں چاہتے",
+    noPreference: "کوئی ترجیح نہیں",
+    options: { Woman: "خاتون", Man: "مرد", "Non-binary": "نان بائنری", Single: "غیر شادی شدہ", Partnered: "رشتے میں", Married: "شادی شدہ", Student: "طالب علم", Working: "ملازمت پیشہ", Retired: "ریٹائرڈ", "Between roles": "فی الحال بے روزگار", Caregiving: "نگہداشت کرنے والے" },
+    tooShort: "پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے۔",
+    tooLong: "پاس ورڈ بہت لمبا ہے۔ چھوٹا پاس ورڈ استعمال کریں۔",
+    submit: "اکاؤنٹ بنائیں",
+    submitting: "اکاؤنٹ بن رہا ہے…",
+    failed: "اکاؤنٹ نہیں بن سکا۔",
+    haveAccount: "پہلے سے اکاؤنٹ ہے؟",
+    signIn: "سائن ان کریں",
+  },
+};
+
+type OptionKey = keyof typeof copy.English.options;
 
 export default function RegisterClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/dashboard";
+  const nextPath = safeNextPath(searchParams.get("next"));
+  const [language, setLanguage] = useState<"English" | "اردو">("English");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -24,12 +88,19 @@ export default function RegisterClient() {
   const [preferredLanguage, setPreferredLanguage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const text = copy[language];
+  const option = (value: OptionKey) => <option value={value}>{text.options[value]}</option>;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(text.tooShort);
+      return;
+    }
+    // bcrypt's limit is 72 bytes, not characters - an Urdu letter is 2.
+    if (new TextEncoder().encode(password).length > 72) {
+      setError(text.tooLong);
       return;
     }
     setLoading(true);
@@ -47,7 +118,7 @@ export default function RegisterClient() {
       });
       router.push(nextPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Account creation failed.");
+      setError(err instanceof Error ? err.message : text.failed);
     } finally {
       setLoading(false);
     }
@@ -55,35 +126,35 @@ export default function RegisterClient() {
 
   return (
     <>
-    <main className="resource-page">
-      <SiteHeader backLabel="Back to check-in" />
+    <main className="resource-page" dir={language === "اردو" ? "rtl" : "ltr"}>
+      <SiteHeader backLabel={text.back} language={language} onToggleLanguage={() => setLanguage(language === "English" ? "اردو" : "English")} />
       <section className="resource-hero auth-hero">
-        <p className="eyebrow">ACCOUNT</p>
-        <h1>Create an account<br /><em>to see your results.</em></h1>
-        <p>Viewing your check-in results requires an account, so you can safely revisit them later. We only ever save the score, band, and themes - never your transcript or written answers.</p>
+        <p className="eyebrow">{text.eyebrow}</p>
+        <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
+        <p>{text.intro}</p>
       </section>
       <NatureBanner {...naturePhotos.forestPath} priority />
       <form className="auth-form" onSubmit={handleSubmit}>
         <label>
-          <span>Email <em className="required-mark">*required</em></span>
-          <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" />
+          <span>{text.email} <em className="required-mark">{text.required}</em></span>
+          <input type="email" dir="ltr" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" />
         </label>
         <label>
-          <span>Password (min. 8 characters) <em className="required-mark">*required</em></span>
-          <input type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" />
+          <span>{text.password} <em className="required-mark">{text.required}</em></span>
+          <input type="password" dir="ltr" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" />
         </label>
         <label>
-          <span>Full name (optional)</span>
-          <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" placeholder="Your name" />
+          <span>{text.fullName}</span>
+          <input type="text" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" placeholder={text.fullNamePlaceholder} />
         </label>
         <label>
-          <span>Phone number (optional)</span>
-          <input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="+1 555 123 4567" />
+          <span>{text.phone}</span>
+          <input type="tel" dir="ltr" value={phone} onChange={(event) => setPhone(event.target.value)} autoComplete="tel" placeholder="+92 300 1234567" />
         </label>
         <label>
-          <span>Age range (optional)</span>
+          <span>{text.ageRange}</span>
           <select value={ageRange} onChange={(event) => setAgeRange(event.target.value)}>
-            <option value="">Prefer not to say</option>
+            <option value="">{text.preferNot}</option>
             <option>18-24</option>
             <option>25-34</option>
             <option>35-44</option>
@@ -91,48 +162,48 @@ export default function RegisterClient() {
           </select>
         </label>
         <label>
-          <span>Gender (optional)</span>
+          <span>{text.gender}</span>
           <select value={gender} onChange={(event) => setGender(event.target.value)}>
-            <option value="">Prefer not to say</option>
-            <option>Woman</option>
-            <option>Man</option>
-            <option>Non-binary</option>
+            <option value="">{text.preferNot}</option>
+            {option("Woman")}
+            {option("Man")}
+            {option("Non-binary")}
           </select>
         </label>
         <label>
-          <span>Relationship status (optional)</span>
+          <span>{text.relationship}</span>
           <select value={maritalStatus} onChange={(event) => setMaritalStatus(event.target.value)}>
-            <option value="">Prefer not to say</option>
-            <option>Single</option>
-            <option>Partnered</option>
-            <option>Married</option>
+            <option value="">{text.preferNot}</option>
+            {option("Single")}
+            {option("Partnered")}
+            {option("Married")}
           </select>
         </label>
         <label>
-          <span>Life context (optional)</span>
+          <span>{text.lifeContext}</span>
           <select value={lifeContext} onChange={(event) => setLifeContext(event.target.value)}>
-            <option value="">Prefer not to say</option>
-            <option>Student</option>
-            <option>Working</option>
-            <option>Retired</option>
-            <option>Between roles</option>
-            <option>Caregiving</option>
+            <option value="">{text.preferNot}</option>
+            {option("Student")}
+            {option("Working")}
+            {option("Retired")}
+            {option("Between roles")}
+            {option("Caregiving")}
           </select>
         </label>
         <label>
-          <span>Preferred language (optional)</span>
+          <span>{text.preferredLanguage}</span>
           <select value={preferredLanguage} onChange={(event) => setPreferredLanguage(event.target.value)}>
-            <option value="">No preference</option>
+            <option value="">{text.noPreference}</option>
             <option value="en">English</option>
             <option value="ur">اردو (Urdu)</option>
           </select>
         </label>
         {error && <p className="assessment-error auth-error">{error}</p>}
-        <button className="check-in-button" type="submit" disabled={loading}>{loading ? "Creating account…" : "Create account"} <span>→</span></button>
-        <p className="auth-switch">Already have an account? <Link href={`/login${nextPath !== "/dashboard" ? `?next=${encodeURIComponent(nextPath)}` : ""}`}>Sign in</Link></p>
+        <button className="check-in-button" type="submit" disabled={loading}>{loading ? text.submitting : text.submit} <span>→</span></button>
+        <p className="auth-switch">{text.haveAccount} <Link href={`/login${nextPath !== "/dashboard" ? `?next=${encodeURIComponent(nextPath)}` : ""}`}>{text.signIn}</Link></p>
       </form>
     </main>
-    <SiteFooter />
+    <SiteFooter language={language} />
     </>
   );
 }

@@ -61,6 +61,7 @@ def init_db() -> None:
         "preferred_language": "VARCHAR(10)",
         "avatar_data_url": "TEXT",
         "is_admin": "BOOLEAN DEFAULT FALSE",
+        "token_version": "INTEGER NOT NULL DEFAULT 0",
     })
     _ensure_columns("check_ins", {
         "details_json": "TEXT",

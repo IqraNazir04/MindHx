@@ -18,7 +18,7 @@ const CANONICAL_HOST = (() => {
   }
 })();
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   if (CANONICAL_HOST && host === `www.${CANONICAL_HOST}`) {
     const url = new URL(request.url);

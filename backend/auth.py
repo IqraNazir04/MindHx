@@ -37,26 +37,48 @@ PASSWORD_RESET_EXPIRE_MINUTES = int(os.getenv("PASSWORD_RESET_EXPIRE_MINUTES", "
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+# bcrypt only looks at the first 72 *bytes* of a password, and bcrypt 5.x
+# raises ValueError past that instead of silently truncating. Request
+# models cap passwords at 72 characters, but one Urdu letter is 2 bytes in
+# UTF-8 (an emoji is 4), so a character limit alone isn't enough.
+BCRYPT_MAX_PASSWORD_BYTES = 72
+
+
+def password_too_long(password: str) -> bool:
+    return len(password.encode("utf-8")) > BCRYPT_MAX_PASSWORD_BYTES
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if password_too_long(plain_password):
+        return False  # Could never have been set, and bcrypt would raise.
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(user: User) -> str:
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    payload = {"sub": subject, "exp": expires_at}
+    payload = {"sub": user.id, "ver": user.token_version or 0, "exp": expires_at}
     return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
-def decode_access_token(token: str) -> Optional[str]:
+def _user_from_token(token: str, db: Session) -> Optional[User]:
+    """The user a token belongs to, or None if the token is invalid, expired,
+    or was issued before the user's last password change (see
+    User.token_version)."""
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        return payload.get("sub")
     except PyJWTError:
         return None
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    user = db.get(User, user_id)
+    if not user or payload.get("ver", 0) != (user.token_version or 0):
+        return None
+    return user
 
 
 def get_current_user(
@@ -66,10 +88,7 @@ def get_current_user(
     unauthorized = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated", headers={"WWW-Authenticate": "Bearer"})
     if not credentials:
         raise unauthorized
-    user_id = decode_access_token(credentials.credentials)
-    if not user_id:
-        raise unauthorized
-    user = db.get(User, user_id)
+    user = _user_from_token(credentials.credentials, db)
     if not user:
         raise unauthorized
     return user
@@ -114,7 +133,4 @@ def get_optional_current_user(
     still personalizing when a valid token is present."""
     if not credentials:
         return None
-    user_id = decode_access_token(credentials.credentials)
-    if not user_id:
-        return None
-    return db.get(User, user_id)
+    return _user_from_token(credentials.credentials, db)

@@ -105,6 +105,9 @@ export default function AiClient() {
   const [showMoodCheckIn, setShowMoodCheckIn] = useState(true);
   const [helpedMessages, setHelpedMessages] = useState<Set<number>>(new Set());
   const screeningContext = useRef<ScreeningContext | null>(null);
+  // False when this session's check-in flagged a crisis - the backend then
+  // escalates instead of generating support, as the page promises.
+  const riskClear = useRef(true);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -112,6 +115,7 @@ export default function AiClient() {
       const stored = sessionStorage.getItem("mindhx:last-result");
       if (stored) {
         const result = JSON.parse(stored);
+        riskClear.current = !(result.crisis_flag || result.band === "crisis");
         screeningContext.current = {
           band: result.band,
           risk_score: result.risk_score,
@@ -145,13 +149,14 @@ export default function AiClient() {
         body: JSON.stringify({
           message: trimmed,
           language: isUrdu ? "ur" : "en",
-          risk_clear: true,
+          risk_clear: riskClear.current,
           history: nextMessages.slice(-20).map((entry) => ({ role: entry.role, content: entry.content })),
           screening_context: screeningContext.current ?? undefined,
           mood_checkins: getLocalMoods(),
           helpful_practices: getLocalHelpfulPractices(),
         }),
       });
+      if (!response.ok) throw new Error("Chat unavailable");
       const body = await response.json();
       if (body.status === "escalate") {
         setMessages((current) => [...current, { role: "assistant", content: body.message, isEscalation: true }]);

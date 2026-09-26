@@ -427,6 +427,12 @@ textarea::placeholder { color:#9aa6b4; }
 .emergency-hero p:last-child { color:#8b3535; }
 .emergency-notice { position:relative; z-index:1; max-width:900px; margin:22px auto 0; }
 .emergency-steps { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:22px 25px; border:1px solid rgba(233,130,50,.3); border-radius:10px; background:var(--orange-soft); }
+.emergency-numbers { position:relative; z-index:1; max-width:900px; margin:15px auto 0; padding:22px 25px; border:1px solid #efc2bf; border-radius:10px; background:var(--red-soft); }
+.emergency-number-list { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-top:12px; }
+.emergency-number { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border-radius:8px; background:#fff; border:1px solid #efc2bf; color:#8b3535; text-decoration:none; }
+.emergency-number strong { font-size:26px; line-height:1; }
+.emergency-number span { font-size:12px; color:var(--navy); }
+.emergency-number:hover, .emergency-number:focus-visible { border-color:#8b3535; }
 .emergency-steps ol { margin:14px 0 0; padding-inline-start:18px; color:var(--navy); font-size:13px; line-height:1.9; }
 .emergency-actions { position:relative; z-index:1; max-width:900px; margin:26px auto 0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
 
