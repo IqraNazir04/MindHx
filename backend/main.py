@@ -17,6 +17,7 @@ from typing import Any, Literal, Optional
 import httpx
 import numpy as np
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field
@@ -33,11 +34,13 @@ from auth import (
     get_optional_current_user,
     hash_password,
     hash_reset_token,
+    password_too_long,
     verify_password,
 )
 from database import get_db, init_db
 from mailer import send_email
 from models import CheckIn, HelpfulPractice, MoodCheckIn, PageView, PasswordResetToken, Resource, User
+from ratelimit import rate_limit
 
 logger = logging.getLogger("mindhx")
 
@@ -50,20 +53,8 @@ async def lifespan(_app: FastAPI):
 
 WEB_ORIGIN = os.getenv("WEB_ORIGIN", "http://localhost:3000")
 
-# Bootstraps admin access without needing direct database access: any
-# account whose email is in this list gets is_admin set automatically on
-# every register/login. is_admin is otherwise never settable through any
-# request body (RegisterRequest/ProfileUpdateRequest have no such field),
-# so this env var is the only way in or out of admin access.
-ADMIN_EMAILS = {email.strip().lower() for email in os.getenv("ADMIN_EMAILS", "").split(",") if email.strip()}
-
-
-def _sync_admin_flag(user: User, db: Session) -> None:
-    should_be_admin = user.email in ADMIN_EMAILS
-    if user.is_admin != should_be_admin:
-        user.is_admin = should_be_admin
-        db.commit()
-        db.refresh(user)
+# Admin access is granted only with `python backend/manage.py promote <email>`
+# (see manage.py for why it's no longer an ADMIN_EMAILS env var).
 
 app = FastAPI(title="MindHx API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
@@ -74,10 +65,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Deterministic crisis phrases, matched as substrings after lowercasing,
+# collapsing whitespace, and straightening curly apostrophes (see
+# has_crisis_language). This is the only crisis check when no LLM is
+# configured, so it deliberately favours catching indirect phrasings
+# ("no reason to live") over avoiding false positives - a false positive
+# shows someone help they didn't need; a miss hides it from someone who
+# did. Bare words like "die" are left out: they're too common in ordinary
+# text ("I'd die for a holiday") to be useful on their own.
 CRISIS_TERMS = {
-    "kill myself", "killing myself", "suicide", "suicidal", "end my life",
-    "hurt myself", "self harm", "self-harm", "better off dead",
-    "خودکشی", "اپنی جان", "مر جانا", "خود کو نقصان",
+    # English
+    "kill myself", "killing myself", "suicide", "suicidal", "end my life", "ending my life",
+    "take my own life", "take my life", "hurt myself", "hurting myself", "harm myself",
+    "self harm", "self-harm", "cut myself", "cutting myself", "hang myself", "overdose",
+    "better off dead", "better off without me", "want to die", "wanna die", "wish i was dead",
+    "wish i were dead", "want to be dead", "don't want to live", "dont want to live",
+    "don't want to be alive", "dont want to be alive", "no reason to live", "nothing to live for",
+    "not worth living", "end it all", "ending it all", "can't go on", "cant go on",
+    # Roman Urdu
+    "khudkushi", "khud kushi", "khudkashi", "khud kashi", "apni jaan", "marna chahta",
+    "marna chahti", "mar jana chahta", "mar jana chahti", "jeena nahi chahta", "jeena nahi chahti",
+    "jina nahi chahta", "jina nahi chahti", "zindagi khatam",
+    # Urdu
+    "خودکشی", "خود کشی", "اپنی جان", "مر جانا", "مرنا چاہتا", "مرنا چاہتی", "جینا نہیں چاہتا",
+    "جینا نہیں چاہتی", "زندگی ختم", "خود کو نقصان",
 }
 
 
@@ -300,6 +311,9 @@ class CheckInCreateRequest(BaseModel):
 
 
 RESOURCE_TYPES = {"meditation", "therapy", "medication", "general"}
+# A saved check-in's components + support plan serialize to a few KB; this
+# is a backstop against an oversized body from a non-standard client.
+MAX_CHECKIN_DETAILS_CHARS = 100_000
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
@@ -363,7 +377,7 @@ class RiskAssessmentRequest(BaseModel):
 
 
 def has_crisis_language(text: str) -> bool:
-    normalized = " ".join(text.lower().split())
+    normalized = " ".join(text.lower().replace("’", "'").replace("‘", "'").split())
     return any(term in normalized for term in CRISIS_TERMS)
 
 
@@ -499,6 +513,10 @@ THEME_KEYWORDS = {
     "anxiety": ("anx", "worry", "worried", "panic", "نروس", "فکر", "گھبرا"),
     "medical_state": ("in pain", "medical condition", "illness", "chronic pain", "درد", "بیماری", "علاج"),
 }
+
+
+# Every theme classify_themes can return.
+KNOWN_THEMES = set(THEME_KEYWORDS) | {"hardship", "patience"}
 
 
 def classify_themes(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, raw_text: str = "") -> list[str]:
@@ -647,13 +665,18 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
 
     names = ["phq9", "gad7", "k10", "text"] + (["voice"] if voice_signal is not None else [])
     signals = [phq_signal, gad_signal, k10_signal, text_signal] + ([voice_signal] if voice_signal is not None else [])
-    weights = [0.30, 0.22, 0.22, 0.16] + ([0.10] if voice_signal is not None else [])
+    base_weights = [0.30, 0.22, 0.22, 0.16] + ([0.10] if voice_signal is not None else [])
+    # Re-normalize over the signals actually present, so the combined score
+    # spans the full 0..1 range whether or not a voice note was recorded
+    # (the raw weights only sum to 1.0 with voice included, which capped a
+    # no-voice check-in at 0.90).
+    weights = [round(weight / sum(base_weights), 4) for weight in base_weights]
     combined = round(sum(signal * weight for signal, weight in zip(signals, weights)) * 100) / 100
 
-    # combined is a weighted sum with these exact weights (unnormalized, matching the
-    # calculation above), so each term's raw weighted value is its exact contribution to
-    # combined - the Shapley value for an additive payoff with no interaction effects to
-    # split. Contributions below sum to `combined` by construction, not approximately.
+    # combined is a weighted sum with these exact weights, so each term's weighted value is
+    # its exact contribution to combined - the Shapley value for an additive payoff with no
+    # interaction effects to split. Contributions below sum to `combined` (up to rounding)
+    # by construction, not approximately.
     contributions = []
     for name, signal, weight in zip(names, signals, weights):
         label, modality = MODALITY_LABELS[name]
@@ -851,9 +874,19 @@ def _serialize_checkin(check_in: CheckIn) -> dict:
     }
 
 
-@app.post("/auth/register", status_code=201)
+PASSWORD_TOO_LONG = HTTPException(status_code=400, detail="Password is too long. Use a shorter password (about 35 Urdu letters or 72 English letters at most).")
+
+
+def _require_hashable_password(password: str) -> None:
+    if password_too_long(password):
+        raise PASSWORD_TOO_LONG
+
+
+@app.post("/auth/register", status_code=201, dependencies=[Depends(rate_limit("register", 10, 3600))])
 def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
-    """Create an optional account. The core check-in flow never requires one."""
+    """Create an account. Needed to view check-in results and save history;
+    the questionnaires themselves can be filled in without one."""
+    _require_hashable_password(payload.password)
     email = payload.email.lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -871,20 +904,18 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
     db.add(user)
     db.commit()
     db.refresh(user)
-    _sync_admin_flag(user, db)
-    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+    return {"access_token": create_access_token(user), "token_type": "bearer"}
 
 
-@app.post("/auth/login")
+@app.post("/auth/login", dependencies=[Depends(rate_limit("login", 10, 300))])
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    _sync_admin_flag(user, db)
-    return {"access_token": create_access_token(user.id), "token_type": "bearer"}
+    return {"access_token": create_access_token(user), "token_type": "bearer"}
 
 
-@app.post("/auth/forgot-password")
+@app.post("/auth/forgot-password", dependencies=[Depends(rate_limit("forgot-password", 5, 3600))])
 def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)) -> dict:
     """Always returns the same generic message regardless of whether the
     email is registered, so this endpoint can't be used to enumerate which
@@ -931,8 +962,9 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     return generic_response
 
 
-@app.post("/auth/reset-password")
+@app.post("/auth/reset-password", dependencies=[Depends(rate_limit("reset-password", 10, 3600))])
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> dict:
+    _require_hashable_password(payload.new_password)
     token_hash = hash_reset_token(payload.token)
     reset_token = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash).first()
     invalid = HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
@@ -944,6 +976,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         raise invalid
 
     user.hashed_password = hash_password(payload.new_password)
+    user.token_version = (user.token_version or 0) + 1  # Sign out every existing session.
     reset_token.used_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "Your password has been updated. Sign in with your new password."}
@@ -973,9 +1006,13 @@ def change_password(payload: ChangePasswordRequest, current_user: User = Depends
     so it can't be used by someone who's merely stolen a live session."""
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
+    _require_hashable_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
+    # Sign out every other session; hand this one a fresh token so the
+    # person making the change stays signed in.
+    current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
-    return {"message": "Your password has been updated."}
+    return {"message": "Your password has been updated.", "access_token": create_access_token(current_user), "token_type": "bearer"}
 
 
 @app.post("/checkins", status_code=201)
@@ -984,13 +1021,20 @@ def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(g
     still never the raw transcript, typed text, or individual question
     answers, which the frontend never sends here in the first place."""
     details = {"components": payload.components, "support_plan": payload.support_plan}
+    details_json = json.dumps(details) if (payload.components or payload.support_plan) else None
+    if details_json and len(details_json) > MAX_CHECKIN_DETAILS_CHARS:
+        raise HTTPException(status_code=413, detail="Check-in details are too large")
+    # Only themes /risk-assess can actually produce - also keeps the joined
+    # string inside the themes column's 200-character limit, which Postgres
+    # enforces (SQLite silently doesn't).
+    themes = [theme for theme in dict.fromkeys(payload.themes) if theme in KNOWN_THEMES]
     check_in = CheckIn(
         user_id=current_user.id,
         risk_score=payload.risk_score,
         band=payload.band,
         routing_decision=payload.routing_decision,
-        themes=",".join(payload.themes),
-        details_json=json.dumps(details) if (payload.components or payload.support_plan) else None,
+        themes=",".join(themes),
+        details_json=details_json,
     )
     db.add(check_in)
     db.commit()
@@ -1019,11 +1063,18 @@ def _serialize_resource(resource: Resource) -> dict:
     }
 
 
-@app.post("/analytics/pageview", status_code=204)
+PAGEVIEW_PATH_PATTERN = re.compile(r"^/[A-Za-z0-9\-._~/]*$")
+
+
+@app.post("/analytics/pageview", status_code=204, dependencies=[Depends(rate_limit("pageview", 120, 600))])
 def record_pageview(payload: PageViewRequest, db: Session = Depends(get_db)) -> None:
     """Public, fire-and-forget - the frontend calls this on every page load
     (see lib/pageview.ts) without waiting for or checking the response. No
-    auth, no identifier of any kind is recorded (see PageView's docstring)."""
+    auth, no identifier of any kind is recorded (see PageView's docstring).
+    Rate-limited, and only plain site paths are accepted, so the admin
+    dashboard's counts can't be trivially flooded with junk entries."""
+    if not PAGEVIEW_PATH_PATTERN.match(payload.path):
+        raise HTTPException(status_code=400, detail="path must be a plain site path, e.g. /meditation")
     db.add(PageView(path=payload.path[:300]))
     db.commit()
 
@@ -1133,6 +1184,8 @@ def admin_create_resource(payload: ResourceCreateRequest, admin: User = Depends(
         raise HTTPException(status_code=400, detail="slug must be lowercase letters, numbers, and hyphens only")
     if db.query(Resource).filter(Resource.slug == slug).first():
         raise HTTPException(status_code=409, detail="A resource with this slug already exists")
+    if not payload.title.strip():
+        raise HTTPException(status_code=400, detail="title can't be empty")
     resource = Resource(
         resource_type=resource_type,
         slug=slug,
@@ -1155,6 +1208,17 @@ def admin_update_resource(resource_id: str, payload: ResourceUpdateRequest, admi
     if not resource:
         raise HTTPException(status_code=404, detail="Resource not found")
     updates = payload.model_dump(exclude_unset=True)
+    # Explicit nulls are only meaningful for the image (removes it); every
+    # other field is a NOT NULL column.
+    null_fields = sorted(field for field, value in updates.items() if value is None and field != "image_data_url")
+    if null_fields:
+        raise HTTPException(status_code=400, detail=f"These fields can't be empty: {', '.join(null_fields)}")
+    if "title" in updates:
+        updates["title"] = updates["title"].strip()
+        if not updates["title"]:
+            raise HTTPException(status_code=400, detail="title can't be empty")
+    if "summary" in updates:
+        updates["summary"] = updates["summary"].strip()
     if "resource_type" in updates:
         resource_type = updates["resource_type"].strip().lower()
         if resource_type not in RESOURCE_TYPES:
@@ -1193,7 +1257,19 @@ def start_session(payload: SessionStartRequest) -> dict:
     }
 
 
-@app.post("/transcribe")
+MAX_AUDIO_BYTES = 25 * 1024 * 1024
+
+
+async def _read_audio_upload(file: UploadFile) -> bytes:
+    """Reads at most MAX_AUDIO_BYTES + 1, so an oversized upload is rejected
+    without ever being loaded into memory in full."""
+    audio = await file.read(MAX_AUDIO_BYTES + 1)
+    if not audio or len(audio) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio must be between 1 byte and 25 MB")
+    return audio
+
+
+@app.post("/transcribe", dependencies=[Depends(rate_limit("transcribe", 20, 3600))])
 async def transcribe(file: UploadFile = File(...), language: str = Form("auto")) -> dict:
     """Transcribe audio via OpenAI's hosted Whisper API.
 
@@ -1209,9 +1285,7 @@ async def transcribe(file: UploadFile = File(...), language: str = Form("auto"))
     if not api_key:
         raise HTTPException(status_code=503, detail="Speech-to-text is not configured (OPENAI_API_KEY missing)")
 
-    audio = await file.read()
-    if not audio or len(audio) > 25 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Audio must be between 1 byte and 25 MB")
+    audio = await _read_audio_upload(file)
 
     data = {"model": os.getenv("OPENAI_STT_MODEL", "whisper-1"), "response_format": "verbose_json"}
     if language and language != "auto":
@@ -1336,7 +1410,23 @@ def _voice_emotion_scores(features: dict) -> dict:
     }
 
 
-@app.post("/analyze-voice")
+def _analyze_audio_file(av_module, path: str) -> dict:
+    """CPU-bound decode + feature extraction - run off the event loop (see
+    analyze_voice) so one recording doesn't stall every other request."""
+    audio, sample_rate = _decode_audio_mono(av_module, path)
+    if audio.size < sample_rate * 0.5:
+        raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
+    features = _prosodic_features(audio, sample_rate)
+    return {
+        "provider": "local-heuristic",
+        "risk_signal": _prosodic_risk_signal(features),
+        "emotion": _voice_emotion_scores(features),
+        **features,
+        "note": "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker.",
+    }
+
+
+@app.post("/analyze-voice", dependencies=[Depends(rate_limit("analyze-voice", 20, 3600))])
 async def analyze_voice(file: UploadFile = File(...)) -> dict:
     """Extract a heuristic prosodic risk signal directly from audio (pause ratio, loudness
     variability, speaking rate). VOICE_BIOMARKER_PROVIDER selects the provider; only 'local'
@@ -1350,9 +1440,7 @@ async def analyze_voice(file: UploadFile = File(...)) -> dict:
     except ImportError as error:
         raise HTTPException(status_code=503, detail="Audio decoding (PyAV) is not installed") from error
 
-    audio_bytes = await file.read()
-    if not audio_bytes or len(audio_bytes) > 25 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Audio must be between 1 byte and 25 MB")
+    audio_bytes = await _read_audio_upload(file)
 
     suffix = Path(file.filename or "recording.webm").suffix or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
@@ -1360,19 +1448,7 @@ async def analyze_voice(file: UploadFile = File(...)) -> dict:
         temp_path = temp_file.name
 
     try:
-        audio, sample_rate = _decode_audio_mono(av, temp_path)
-        if audio.size < sample_rate * 0.5:
-            raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
-        features = _prosodic_features(audio, sample_rate)
-        risk_signal = _prosodic_risk_signal(features)
-        emotion = _voice_emotion_scores(features)
-        return {
-            "provider": "local-heuristic",
-            "risk_signal": risk_signal,
-            "emotion": emotion,
-            **features,
-            "note": "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker.",
-        }
+        return await run_in_threadpool(_analyze_audio_file, av, temp_path)
     except HTTPException:
         raise
     except Exception as error:
@@ -1381,7 +1457,7 @@ async def analyze_voice(file: UploadFile = File(...)) -> dict:
         Path(temp_path).unlink(missing_ok=True)
 
 
-@app.post("/analyze-text")
+@app.post("/analyze-text", dependencies=[Depends(rate_limit("analyze-text", 60, 600))])
 async def analyze_text(payload: TextAnalysisRequest) -> dict:
     text = payload.text.strip()
     lowered = text.lower()
@@ -1565,14 +1641,20 @@ async def compose_chat_reply(
     return result
 
 
-@app.post("/ai/chat")
+@app.post("/ai/chat", dependencies=[Depends(rate_limit("ai-chat", 30, 600))])
 async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depends(get_optional_current_user), db: Session = Depends(get_db)) -> dict:
     """Return grounded support content only after the caller's risk gate is clear.
     Works fully anonymously; personalizes further (trajectory, remembered helpful
     practices) when a signed-in user's token is presented."""
     lang = "ur" if payload.language == "ur" else "en"
     text = AI_CHAT_COPY[lang]
-    if not payload.risk_clear or has_crisis_language(payload.message):
+    # Earlier user turns count too: once someone has disclosed a crisis in
+    # this conversation, a follow-up like "what should I do?" must not get a
+    # generated reply built on top of that history.
+    crisis_in_conversation = has_crisis_language(payload.message) or any(
+        turn.role == "user" and has_crisis_language(turn.content) for turn in payload.history
+    )
+    if not payload.risk_clear or crisis_in_conversation:
         return {
             "status": "escalate",
             "message": text["escalate"],
@@ -1647,7 +1729,7 @@ def create_helpful_practice(payload: HelpfulPracticeRequest, current_user: User 
     return {"id": entry.id, "practice_name": entry.practice_name, "created_at": entry.created_at.isoformat()}
 
 
-@app.post("/synthesize")
+@app.post("/synthesize", dependencies=[Depends(rate_limit("synthesize", 30, 3600))])
 async def synthesize(payload: SpeechRequest) -> Response:
     """Generate audio with Uplift AI for Urdu text."""
     if payload.language != "ur":
@@ -1708,16 +1790,59 @@ def score_k10_endpoint(payload: QuestionnaireRequest) -> dict:
     return score_k10(payload.answers)
 
 
+def _unit_float(value: Any) -> Optional[float]:
+    """value as a float in [0, 1], or None if it isn't a real number."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return max(0.0, min(1.0, float(value)))
+
+
+def _sanitize_text_analysis(supplied: dict, combined_text: str) -> dict:
+    """Keeps only well-formed fields from a client-supplied /analyze-text
+    result (reused to avoid a second LLM call). Crisis detection is never
+    taken on the client's word: the deterministic check always runs here
+    on the actual text, and can only add a crisis flag, never clear one."""
+    sentiment = supplied.get("sentiment")
+    result: dict = {
+        "sentiment": sentiment if sentiment in {"negative", "neutral", "positive"} else "neutral",
+        "crisis_language": bool(supplied.get("crisis_language") is True or has_crisis_language(combined_text)),
+    }
+    for field in ("anxiety_level", "stress_level", "depression_indicator"):
+        value = _unit_float(supplied.get(field))
+        if value is not None:
+            result[field] = value
+    return result
+
+
+def _sanitize_voice_features(supplied: dict) -> dict:
+    risk_signal = _unit_float(supplied.get("risk_signal"))
+    if risk_signal is None:
+        return {}
+    emotion = supplied.get("emotion")
+    clean_emotion = None
+    if isinstance(emotion, dict):
+        clean_emotion = {key: _unit_float(emotion.get(key)) for key in ("calm", "stress", "anger", "fatigue", "depression_indicator")}
+        clean_emotion = {key: value for key, value in clean_emotion.items() if value is not None} or None
+    return {"risk_signal": risk_signal, "emotion": clean_emotion}
+
+
 @app.post("/risk-assess")
 async def risk_assess(payload: RiskAssessmentRequest) -> dict:
-    phq_result = payload.phq9_result or score_phq9(Phq9Request(answers=payload.phq9_answers))
+    # Always scored here from the raw answers - a client-supplied
+    # phq9_result is ignored (the field is still accepted for backward
+    # compatibility), since trusting it let item 9's crisis flag be dropped.
+    phq_result = score_phq9(Phq9Request(answers=payload.phq9_answers))
     gad_result = score_gad7(payload.gad7_answers)
     k10_result = score_k10(payload.k10_answers)
-    text_result = payload.text_analysis or await analyze_text(TextAnalysisRequest(text=f"{payload.transcript}\n{payload.typed_text}", language=payload.language))
+    combined_text = f"{payload.transcript}\n{payload.typed_text}"
+    if payload.text_analysis:
+        text_result = _sanitize_text_analysis(payload.text_analysis, combined_text)
+    else:
+        text_result = await analyze_text(TextAnalysisRequest(text=combined_text, language=payload.language))
     crisis = bool(phq_result.get("item_9_crisis") or text_result.get("crisis_language"))
     profile_data = payload.profile.model_dump() if payload.profile else {}
-    themes = classify_themes(phq_result, gad_result, k10_result, text_result, f"{payload.transcript}\n{payload.typed_text}")
-    components = evaluate_components(phq_result, gad_result, k10_result, text_result, payload.voice_features)
+    themes = classify_themes(phq_result, gad_result, k10_result, text_result, combined_text)
+    components = evaluate_components(phq_result, gad_result, k10_result, text_result, _sanitize_voice_features(payload.voice_features))
     plan = support_plan(phq_result, gad_result, k10_result, crisis, profile_data, themes)
     if crisis:
         return {
@@ -1736,6 +1861,11 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
 
     risk_score = components["combined_signal"]
     band = "elevated" if risk_score >= 0.40 else "watch" if risk_score >= 0.2 else "low"
+    if plan["route"] == "psychiatric_referral":
+        # A moderate-or-worse result on any single questionnaire already
+        # routes to a professional evaluation; never pair that advice with a
+        # "low" or "watch" label just because the other signals were quiet.
+        band = "elevated"
     return {
         "risk_score": risk_score,
         "band": band,

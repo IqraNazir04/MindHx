@@ -48,8 +48,13 @@ class User(Base):
     avatar_data_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Grants access to /admin (analytics + resource CMS). Never settable via
     # any user-facing endpoint (registration, profile update) - only ever
-    # flipped directly in the database, so signing up can't grant it.
+    # flipped in the database, via `python backend/manage.py promote <email>`,
+    # so signing up (even with an email meant to be an admin's) can't grant it.
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Embedded in every issued JWT and bumped on each password change/reset,
+    # so tokens issued before the change stop working immediately instead of
+    # living out their expiry.
+    token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     check_ins: Mapped[list["CheckIn"]] = relationship(back_populates="user", cascade="all, delete-orphan")

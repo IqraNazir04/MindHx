@@ -121,8 +121,31 @@ export async function login(email: string, password: string): Promise<string> {
   return result.access_token;
 }
 
+// Everything this browser holds about the signed-in person's check-ins -
+// results, the full transcript/answers kept for the PDF, crisis context,
+// an unfinished draft, and local mood/practice notes. Cleared on sign-out
+// so the next person to use this browser (a shared or family device) can't
+// open /results and see the previous person's check-in under their own name.
+const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail", "mindhx:crisis-context", "mindhx:pending-checkin"];
+const PRIVATE_LOCAL_KEYS = ["mindhx:mood-checkins", "mindhx:helpful-practices"];
+
 export function logout(): void {
   clearToken();
+  try {
+    PRIVATE_SESSION_KEYS.forEach((key) => window.sessionStorage.removeItem(key));
+    PRIVATE_LOCAL_KEYS.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // Storage unavailable - nothing was stored there either.
+  }
+}
+
+// The post-sign-in destination from a ?next= parameter, restricted to a
+// path on this site. Anything else (https://..., //host, javascript:, a
+// backslash trick) falls back, so a crafted sign-in link can't bounce
+// someone to a look-alike site right after they enter their password.
+export function safeNextPath(next: string | null, fallback = "/dashboard"): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) return fallback;
+  return next;
 }
 
 export async function requestPasswordReset(email: string): Promise<string> {
@@ -209,7 +232,10 @@ export async function changePassword(currentPassword: string, newPassword: strin
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
-  const result = await response.json() as { message: string };
+  // Changing the password signs out every existing session, including the
+  // token used for this request - the backend hands back a fresh one.
+  const result = await response.json() as { message: string; access_token?: string };
+  if (result.access_token) setToken(result.access_token);
   return result.message;
 }
 

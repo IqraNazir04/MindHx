@@ -12,7 +12,18 @@ export type CrisisContext = {
   language: CrisisLanguage;
 };
 
+// Pakistan's national emergency numbers, shown as tap-to-call links. These
+// are general emergency services, not a mental-health helpline - add a
+// dedicated helpline here only after verifying the number with the
+// organization itself (a wrong number on this page is worse than none).
+export const emergencyNumbers: { number: string; en: string; ur: string }[] = [
+  { number: "1122", en: "Rescue 1122 - ambulance & emergency", ur: "ریسکیو 1122 - ایمبولینس اور ہنگامی مدد" },
+  { number: "115", en: "Edhi ambulance", ur: "ایدھی ایمبولینس" },
+  { number: "15", en: "Police", ur: "پولیس" },
+];
+
 export const crisisCopy: Record<CrisisLanguage, {
+  callNow: string;
   eyebrow: string;
   title: string;
   lede: string;
@@ -24,12 +35,13 @@ export const crisisCopy: Record<CrisisLanguage, {
   talkTherapist: string;
 }> = {
   en: {
+    callNow: "Call now (Pakistan)",
     eyebrow: "IMMEDIATE SUPPORT",
     title: "You do not have to handle this alone.",
     lede: "MindHx detected a safety signal in your check-in. This is not a diagnosis — it is the fastest route to a person who can help right now.",
     stepsTitle: "Right now",
     steps: [
-      "If you are in immediate danger, contact your local emergency number now.",
+      "If you are in immediate danger, call one of the emergency numbers below now (outside Pakistan, your local emergency number).",
       "Reach out to a crisis line or a trusted person and stay with them, in person or on a call.",
       "Remove access to anything you could use to harm yourself, if you can.",
       "If symptoms ease, still bring this check-in to a licensed professional for a full evaluation.",
@@ -40,12 +52,13 @@ export const crisisCopy: Record<CrisisLanguage, {
     talkTherapist: "Talk to a professional",
   },
   ur: {
+    callNow: "ابھی کال کریں (پاکستان)",
     eyebrow: "فوری مدد",
     title: "آپ کو یہ اکیلے نہیں سنبھالنا۔",
     lede: "MindHx نے آپ کے جائزے میں ایک حفاظتی اشارہ محسوس کیا ہے۔ یہ تشخیص نہیں ہے — یہ ابھی کسی مددگار شخص تک پہنچنے کا تیز ترین راستہ ہے۔",
     stepsTitle: "ابھی کریں",
     steps: [
-      "اگر آپ فوری خطرے میں ہیں تو ابھی اپنے مقامی ہنگامی نمبر پر رابطہ کریں۔",
+      "اگر آپ فوری خطرے میں ہیں تو ابھی نیچے دیے گئے کسی ہنگامی نمبر پر کال کریں (پاکستان سے باہر ہوں تو اپنے مقامی ہنگامی نمبر پر)۔",
       "کسی بحرانی ہیلپ لائن یا قابلِ اعتماد شخص سے رابطہ کریں اور ان کے ساتھ رہیں، ذاتی طور پر یا کال پر۔",
       "اگر ممکن ہو تو خود کو نقصان پہنچانے کی کسی بھی چیز تک رسائی ختم کریں۔",
       "علامات کم ہونے پر بھی، اس جائزے کو مکمل تشخیص کے لیے کسی مستند ماہر کے پاس ضرور لے جائیں۔",

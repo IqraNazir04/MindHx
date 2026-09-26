@@ -14,6 +14,10 @@ import tempfile
 _db_fd, _db_path = tempfile.mkstemp(prefix="mindhx-test-", suffix=".db")
 os.close(_db_fd)
 os.environ["DATABASE_URL"] = f"sqlite:///{_db_path}"
+# Every TestClient request comes from the same address, so the per-IP
+# limits would trip across unrelated tests. The rate-limit test turns the
+# limiter back on for itself.
+os.environ["RATE_LIMITS"] = "off"
 
 
 @atexit.register

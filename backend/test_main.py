@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 import main
 from database import init_db
+from manage import set_admin
+from ratelimit import limiter
 from main import RAG_DOCUMENTS, _prosodic_features, _prosodic_risk_signal, _voice_emotion_scores, app, compose_chat_reply, is_urdu_script, summarize_trajectory
 from models import CheckIn
 
@@ -84,13 +86,14 @@ def test_change_password_requires_current_password_and_then_signs_in_with_new_on
     assert new_password_works.status_code == 200
 
 
-def test_admin_bootstrap_via_admin_emails_env_and_resource_crud(monkeypatch) -> None:
-    """ADMIN_EMAILS is read once at import time, so patch the already-imported
-    module attribute directly rather than the environment (which register/
-    login wouldn't see)."""
-    monkeypatch.setattr(main, "ADMIN_EMAILS", {"admin@example.com"})
+def _register_admin(email: str) -> str:
+    token = client.post("/auth/register", json={"email": email, "password": "correct-horse-battery"}).json()["access_token"]
+    assert set_admin(email, True)
+    return token
 
-    admin_token = client.post("/auth/register", json={"email": "admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+
+def test_admin_promotion_via_manage_and_resource_crud() -> None:
+    admin_token = _register_admin("admin@example.com")
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     regular_token = client.post("/auth/register", json={"email": "regular@example.com", "password": "correct-horse-battery"}).json()["access_token"]
     regular_headers = {"Authorization": f"Bearer {regular_token}"}
@@ -152,10 +155,8 @@ def test_admin_bootstrap_via_admin_emails_env_and_resource_crud(monkeypatch) -> 
     assert not any(resource["id"] == resource_id for resource in admin_list_after_delete.json())
 
 
-def test_admin_users_list_shows_checkin_counts_and_requires_admin(monkeypatch) -> None:
-    monkeypatch.setattr(main, "ADMIN_EMAILS", {"users-admin@example.com"})
-
-    admin_token = client.post("/auth/register", json={"email": "users-admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+def test_admin_users_list_shows_checkin_counts_and_requires_admin() -> None:
+    admin_token = _register_admin("users-admin@example.com")
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
     member_token = client.post("/auth/register", json={"email": "users-member@example.com", "password": "correct-horse-battery", "full_name": "Member Person"}).json()["access_token"]
     member_headers = {"Authorization": f"Bearer {member_token}"}
@@ -179,9 +180,8 @@ def test_admin_users_list_shows_checkin_counts_and_requires_admin(monkeypatch) -
     assert "hashed_password" not in by_email["users-member@example.com"]
 
 
-def test_pageview_tracking_is_public_and_shows_up_in_admin_analytics(monkeypatch) -> None:
-    monkeypatch.setattr(main, "ADMIN_EMAILS", {"pageview-admin@example.com"})
-    admin_token = client.post("/auth/register", json={"email": "pageview-admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+def test_pageview_tracking_is_public_and_shows_up_in_admin_analytics() -> None:
+    admin_token = _register_admin("pageview-admin@example.com")
     admin_headers = {"Authorization": f"Bearer {admin_token}"}
 
     # No auth required - the frontend fires this on every page load.
@@ -649,3 +649,158 @@ def test_summarize_trajectory_detects_rising_trend() -> None:
 def test_summarize_trajectory_needs_at_least_two_check_ins() -> None:
     assert summarize_trajectory([]) is None
     assert summarize_trajectory([CheckIn(user_id="u", risk_score=0.1, band="low", routing_decision="no_referral_needed", themes="")]) is None
+
+# --- Regression tests for the QA findings ---
+
+
+def test_registering_an_email_never_grants_admin_by_itself() -> None:
+    token = client.post("/auth/register", json={"email": "would-be-admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.get("/auth/me", headers=headers).json()["is_admin"] is False
+    assert client.get("/admin/users", headers=headers).status_code == 403
+    # A database-granted admin flag survives a later login (nothing re-syncs it away).
+    assert set_admin("would-be-admin@example.com", True)
+    login_token = client.post("/auth/login", json={"email": "would-be-admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    assert client.get("/admin/users", headers={"Authorization": f"Bearer {login_token}"}).status_code == 200
+    assert set_admin("nobody-registered@example.com", True) is False
+
+
+def test_multibyte_passwords_over_72_bytes_are_rejected_cleanly() -> None:
+    too_long_urdu = "پ" * 40  # 40 characters, 80 bytes
+    response = client.post("/auth/register", json={"email": "urdu-pw@example.com", "password": too_long_urdu})
+    assert response.status_code == 400
+    assert "too long" in response.json()["detail"]
+    assert client.post("/auth/register", json={"email": "emoji-pw@example.com", "password": "😀" * 20}).status_code == 400
+
+    # Up to 72 bytes of Urdu is fine, and signs in afterwards.
+    ok_urdu = "پاکستان" * 5  # 35 characters, 70 bytes
+    assert client.post("/auth/register", json={"email": "urdu-pw-ok@example.com", "password": ok_urdu}).status_code == 201
+    assert client.post("/auth/login", json={"email": "urdu-pw-ok@example.com", "password": ok_urdu}).status_code == 200
+    # A too-long attempt at login is just a wrong password, not a 500.
+    assert client.post("/auth/login", json={"email": "urdu-pw-ok@example.com", "password": too_long_urdu}).status_code == 401
+
+
+def test_password_change_signs_out_older_sessions_but_keeps_the_current_one() -> None:
+    client.post("/auth/register", json={"email": "sessions@example.com", "password": "password-one"})
+    other_device = client.post("/auth/login", json={"email": "sessions@example.com", "password": "password-one"}).json()["access_token"]
+    this_device = client.post("/auth/login", json={"email": "sessions@example.com", "password": "password-one"}).json()["access_token"]
+
+    change = client.post("/auth/change-password", json={"current_password": "password-one", "new_password": "password-two"}, headers={"Authorization": f"Bearer {this_device}"})
+    assert change.status_code == 200
+    fresh_token = change.json()["access_token"]
+
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {other_device}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {this_device}"}).status_code == 401
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {fresh_token}"}).status_code == 200
+
+
+def test_password_reset_signs_out_existing_sessions(monkeypatch) -> None:
+    sent_emails = []
+    monkeypatch.setattr(main, "send_email", lambda **kwargs: sent_emails.append(kwargs))
+    token = client.post("/auth/register", json={"email": "reset-sessions@example.com", "password": "original-password"}).json()["access_token"]
+    client.post("/auth/forgot-password", json={"email": "reset-sessions@example.com"})
+    reset_token = sent_emails[-1]["text_body"].split("token=")[1].split()[0]
+    assert client.post("/auth/reset-password", json={"token": reset_token, "new_password": "brand-new-password"}).status_code == 200
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_resource_update_rejects_nulls_for_required_fields() -> None:
+    headers = {"Authorization": f"Bearer {_register_admin('null-admin@example.com')}"}
+    resource_id = client.post("/admin/resources", json={"resource_type": "general", "slug": "null-check", "title": "T", "image_data_url": "data:image/jpeg;base64,AAAA"}, headers=headers).json()["id"]
+    for field in ("title", "resource_type", "slug", "published", "summary", "body"):
+        response = client.put(f"/admin/resources/{resource_id}", json={field: None}, headers=headers)
+        assert response.status_code == 400, field
+    assert client.put(f"/admin/resources/{resource_id}", json={"title": "   "}, headers=headers).status_code == 400
+    # Null is still how the image gets removed.
+    cleared = client.put(f"/admin/resources/{resource_id}", json={"image_data_url": None}, headers=headers)
+    assert cleared.status_code == 200 and cleared.json()["image_data_url"] is None
+
+
+def test_crisis_detection_catches_indirect_and_roman_urdu_phrasing() -> None:
+    for message in [
+        "I want to die", "I don\u2019t want to live anymore", "there's no reason to live", "I'm going to end it all",
+        "khudkushi kar lun ga", "main marna chahta hoon", "میں جینا نہیں چاہتا",
+    ]:
+        assert client.post("/analyze-text", json={"text": message}).json()["crisis_language"] is True, message
+    assert client.post("/analyze-text", json={"text": "Work was stressful but I went for a walk"}).json()["crisis_language"] is False
+
+
+def test_risk_assess_ignores_forged_phq9_result_and_text_analysis() -> None:
+    forged_phq = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 8 + [3], "phq9_result": {"total_score": 0, "severity_band": "minimal", "item_9_crisis": False},
+    }).json()
+    assert forged_phq["crisis_flag"] is True and forged_phq["band"] == "crisis"
+
+    forged_text = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9, "typed_text": "I want to kill myself",
+        "text_analysis": {"sentiment": "positive", "crisis_language": False},
+    }).json()
+    assert forged_text["crisis_flag"] is True and forged_text["band"] == "crisis"
+
+
+def test_risk_assess_tolerates_malformed_client_fields() -> None:
+    response = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9,
+        "text_analysis": {"sentiment": 5, "anxiety_level": "high", "crisis_language": "yes"},
+        "voice_features": {"risk_signal": "x", "emotion": "angry"},
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["components"]["voice"]["available"] is False
+    assert body["components"]["text"]["sentiment"] == "neutral"
+
+
+def test_band_never_says_low_when_the_plan_says_see_a_professional() -> None:
+    for phq, gad in [([2, 2, 2, 2, 2, 2, 0, 0, 0], [0] * 7), ([0] * 9, [3, 3, 3, 3, 3, 0, 0])]:
+        body = client.post("/risk-assess", json={"phq9_answers": phq, "gad7_answers": gad, "typed_text": "ok"}).json()
+        assert body["support_plan"]["route"] == "psychiatric_referral"
+        assert body["band"] == "elevated"
+
+
+def test_combined_score_reaches_full_range_without_a_voice_note() -> None:
+    body = client.post("/risk-assess", json={
+        "phq9_answers": [3] * 8 + [0], "gad7_answers": [3] * 7, "k10_answers": [5] * 10,
+        "text_analysis": {"sentiment": "negative"},
+    }).json()
+    weights = [item["weight"] for item in body["components"]["attribution"]["contributions"]]
+    assert abs(sum(weights) - 1.0) < 0.001
+    assert body["risk_score"] >= 0.9  # was capped around 0.81 for this input before re-normalizing
+
+
+def test_checkin_themes_are_limited_to_known_values() -> None:
+    headers = {"Authorization": f"Bearer {client.post('/auth/register', json={'email': 'themes@example.com', 'password': 'correct-horse-battery'}).json()['access_token']}"}
+    response = client.post("/checkins", json={
+        "risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed",
+        "themes": ["anxiety", "x" * 150, "anxiety", "grief"],
+    }, headers=headers)
+    assert response.status_code == 201
+    assert response.json()["themes"] == ["anxiety", "grief"]
+
+
+def test_pageview_rejects_non_path_values() -> None:
+    assert client.post("/analytics/pageview", json={"path": "<script>junk</script>"}).status_code == 400
+    assert client.post("/analytics/pageview", json={"path": "https://evil.example/"}).status_code == 400
+    assert client.post("/analytics/pageview", json={"path": "/meditation/box-breathing"}).status_code == 204
+
+
+def test_ai_chat_escalates_when_an_earlier_turn_disclosed_a_crisis() -> None:
+    response = client.post("/ai/chat", json={
+        "message": "so what should I do now",
+        "history": [{"role": "user", "content": "honestly I want to die"}, {"role": "assistant", "content": "..."}],
+    })
+    assert response.json()["status"] == "escalate"
+
+
+def test_rate_limits_block_repeated_login_attempts() -> None:
+    limiter.enabled = True
+    limiter.reset()
+    try:
+        statuses = [
+            client.post("/auth/login", json={"email": "nobody@example.com", "password": "guess"}).status_code
+            for _ in range(11)
+        ]
+        assert statuses[:10] == [401] * 10
+        assert statuses[10] == 429
+    finally:
+        limiter.enabled = False
+        limiter.reset()
