@@ -8,12 +8,22 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
-import { changePassword, fetchCheckIns, logout, updateProfile, type CheckInRecord, type CurrentUser } from "../lib/auth";
+import { changePassword, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
 import CheckInResultsBody from "../components/CheckInResultsBody";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
+const SESSION_METHOD_LABEL: Record<string, string> = { login: "Signed in", register: "Account created", password_change: "Signed in after password change" };
+const SESSION_STATUS_LABEL: Record<string, string> = {
+  active: "Active",
+  expired: "Expired",
+  logout: "Signed out",
+  revoked: "Signed out remotely",
+  password_change: "Ended by password change",
+  password_reset: "Ended by password reset",
+};
+const LOGIN_HISTORY_PREVIEW = 5;
 
 export default function DashboardClient() {
   return <ProtectedRoute>{(user) => <DashboardContent initialUser={user} />}</ProtectedRoute>;
@@ -160,10 +170,107 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
           })}
         </div>
       )}
+
+      <LoginHistory />
     </main>
     <SiteFooter />
     {showChangePassword && <ChangePasswordModal onClose={() => setShowChangePassword(false)} />}
     </>
+  );
+}
+
+function LoginHistory() {
+  const [sessions, setSessions] = useState<LoginSessionRecord[] | null>(null);
+  const [error, setError] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  function load() {
+    fetchLoginSessions()
+      .then((result) => {
+        setSessions(result);
+        setError("");
+      })
+      .catch(() => setError("Could not load your login history right now."));
+  }
+
+  useEffect(load, []);
+
+  async function handleRevoke(sessionId: string) {
+    setBusyId(sessionId);
+    try {
+      await revokeLoginSession(sessionId);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign out that device.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRevokeOthers() {
+    setBusyId("others");
+    try {
+      await revokeOtherLoginSessions();
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign out your other devices.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const otherActive = sessions?.filter((session) => session.active && !session.current).length ?? 0;
+  const visible = sessions && (showAll ? sessions : sessions.slice(0, LOGIN_HISTORY_PREVIEW));
+
+  return (
+    <section className="login-history">
+      <div className="login-history-heading">
+        <div>
+          <p className="card-kicker">SECURITY</p>
+          <h2>Login history</h2>
+          <p>Every sign-in to your account from the last 90 days. If you don&apos;t recognise one, sign it out and change your password.</p>
+        </div>
+        {otherActive > 0 && (
+          <button className="login-history-revoke-all" type="button" onClick={handleRevokeOthers} disabled={busyId !== null}>
+            {busyId === "others" ? "Signing out…" : `Sign out ${otherActive} other device${otherActive === 1 ? "" : "s"}`}
+          </button>
+        )}
+      </div>
+      {error && <p className="assessment-error">{error}</p>}
+      {sessions === null && !error && <p className="dashboard-loading">Loading login history…</p>}
+      {visible && visible.length > 0 && (
+        <ul className="login-history-list">
+          {visible.map((session) => (
+            <li key={session.id} className={`login-history-row ${session.active ? "is-active" : ""}`}>
+              <div className="login-history-main">
+                <b>{session.device}</b>
+                {session.current && <span className="login-history-badge">This device</span>}
+                <span className="login-history-meta">
+                  {SESSION_METHOD_LABEL[session.method] ?? "Signed in"} · {new Date(session.created_at).toLocaleString()}
+                  {session.ip_address && <> · IP {session.ip_address}</>}
+                </span>
+                <span className="login-history-meta">
+                  {SESSION_STATUS_LABEL[session.status] ?? session.status}
+                  {session.active && <> · last active {new Date(session.last_seen_at).toLocaleString()}</>}
+                  {session.ended_at && <> · {new Date(session.ended_at).toLocaleString()}</>}
+                </span>
+              </div>
+              {session.active && !session.current && (
+                <button type="button" onClick={() => handleRevoke(session.id)} disabled={busyId !== null}>
+                  {busyId === session.id ? "Signing out…" : "Sign out"}
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {sessions && sessions.length > LOGIN_HISTORY_PREVIEW && (
+        <button className="login-history-more" type="button" onClick={() => setShowAll(!showAll)}>
+          {showAll ? "Show fewer" : `Show all ${sessions.length} sign-ins`}
+        </button>
+      )}
+    </section>
   );
 }
 

@@ -136,7 +136,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
         {users && users.length > 0 && (
           <div className="admin-user-table">
             <div className="admin-user-row admin-user-head">
-              <span>Email</span><span>Name</span><span>Check-ins</span><span>Role</span><span>Joined</span>
+              <span>Email</span><span>Name</span><span>Check-ins</span><span>Role</span><span>Joined</span><span>Last sign-in</span>
             </div>
             {users.map((user) => (
               <div className="admin-user-row" key={user.id}>
@@ -145,6 +145,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
                 <span>{user.checkin_count}</span>
                 <span>{user.is_admin ? <b className="admin-user-badge">Admin</b> : "Member"}</span>
                 <span>{new Date(user.created_at).toLocaleDateString()}</span>
+                <span>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}</span>
               </div>
             ))}
           </div>

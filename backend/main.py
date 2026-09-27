@@ -16,7 +16,7 @@ from typing import Any, Literal, Optional
 
 import httpx
 import numpy as np
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -26,20 +26,24 @@ from sqlalchemy.orm import Session
 
 from auth import (
     PASSWORD_RESET_EXPIRE_MINUTES,
+    AuthContext,
     as_aware_utc,
     create_access_token,
+    end_login_sessions,
     generate_reset_token,
     get_current_admin,
+    get_current_auth,
     get_current_user,
     get_optional_current_user,
     hash_password,
     hash_reset_token,
     password_too_long,
+    start_login_session,
     verify_password,
 )
 from database import get_db, init_db
 from mailer import send_email
-from models import CheckIn, HelpfulPractice, MoodCheckIn, PageView, PasswordResetToken, Resource, User
+from models import CheckIn, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, Resource, User
 from ratelimit import rate_limit
 
 logger = logging.getLogger("mindhx")
@@ -883,7 +887,7 @@ def _require_hashable_password(password: str) -> None:
 
 
 @app.post("/auth/register", status_code=201, dependencies=[Depends(rate_limit("register", 10, 3600))])
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     """Create an account. Needed to view check-in results and save history;
     the questionnaires themselves can be filled in without one."""
     _require_hashable_password(payload.password)
@@ -904,15 +908,116 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"access_token": create_access_token(user), "token_type": "bearer"}
+    return {"access_token": start_login_session(db, user, request, "register"), "token_type": "bearer"}
 
 
 @app.post("/auth/login", dependencies=[Depends(rate_limit("login", 10, 300))])
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> dict:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
-    return {"access_token": create_access_token(user), "token_type": "bearer"}
+    return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer"}
+
+
+@app.post("/auth/logout", status_code=204)
+def logout(auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> None:
+    """Ends this session server-side, so its token stops working even if a
+    copy of it outlives the browser's localStorage."""
+    if auth.session and auth.session.ended_at is None:
+        auth.session.ended_at = datetime.now(timezone.utc)
+        auth.session.end_reason = "logout"
+        db.commit()
+
+
+def describe_device(user_agent: Optional[str]) -> str:
+    """A short "Browser on OS" label for the login-history list. Coarse on
+    purpose - enough to recognise your own devices, not a fingerprint."""
+    if not user_agent:
+        return "Unknown device"
+    ua = user_agent.lower()
+    if "edg/" in ua:
+        browser = "Edge"
+    elif "opr/" in ua or "opera" in ua:
+        browser = "Opera"
+    elif "firefox/" in ua or "fxios/" in ua:
+        browser = "Firefox"
+    elif "chrome/" in ua or "crios/" in ua:
+        browser = "Chrome"
+    elif "safari/" in ua:
+        browser = "Safari"
+    else:
+        browser = "Unknown browser"
+    if "iphone" in ua or "ipad" in ua:
+        os_name = "iOS"
+    elif "android" in ua:
+        os_name = "Android"
+    elif "windows" in ua:
+        os_name = "Windows"
+    elif "mac os x" in ua or "macintosh" in ua:
+        os_name = "macOS"
+    elif "linux" in ua:
+        os_name = "Linux"
+    else:
+        os_name = "an unknown OS"
+    return f"{browser} on {os_name}"
+
+
+def _serialize_login_session(session: LoginSession, current_session_id: Optional[str]) -> dict:
+    now = datetime.now(timezone.utc)
+    active = session.ended_at is None and as_aware_utc(session.expires_at) > now
+    if session.ended_at is not None:
+        status = session.end_reason or "ended"
+    else:
+        status = "active" if active else "expired"
+    return {
+        "id": session.id,
+        "method": session.method,
+        "device": describe_device(session.user_agent),
+        "user_agent": session.user_agent,
+        "ip_address": session.ip_address,
+        "created_at": as_aware_utc(session.created_at).isoformat(),
+        "last_seen_at": as_aware_utc(session.last_seen_at).isoformat(),
+        "ended_at": as_aware_utc(session.ended_at).isoformat() if session.ended_at else None,
+        "status": status,
+        "active": active,
+        "current": session.id == current_session_id,
+    }
+
+
+@app.get("/auth/sessions")
+def list_login_sessions(auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> list[dict]:
+    """This account's login history, newest first - every sign-in within
+    the retention window, whether still active, signed out, or expired."""
+    sessions = (
+        db.query(LoginSession)
+        .filter(LoginSession.user_id == auth.user.id)
+        .order_by(LoginSession.created_at.desc())
+        .limit(100)
+        .all()
+    )
+    current_id = auth.session.id if auth.session else None
+    return [_serialize_login_session(session, current_id) for session in sessions]
+
+
+@app.delete("/auth/sessions/{session_id}", status_code=204)
+def revoke_login_session(session_id: str, auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> None:
+    """Signs out one session ("sign out this device"). 404 rather than 403
+    for another account's session id, so ids can't be probed."""
+    session = db.get(LoginSession, session_id)
+    if not session or session.user_id != auth.user.id:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.ended_at is None:
+        session.ended_at = datetime.now(timezone.utc)
+        session.end_reason = "logout" if auth.session and session.id == auth.session.id else "revoked"
+        db.commit()
+
+
+@app.post("/auth/sessions/revoke-others")
+def revoke_other_login_sessions(auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> dict:
+    """Signs out every session except the one making this request."""
+    ended = end_login_sessions(db, auth.user.id, "revoked", keep_session_id=auth.session.id if auth.session else None)
+    db.commit()
+    return {"ended": ended}
 
 
 @app.post("/auth/forgot-password", dependencies=[Depends(rate_limit("forgot-password", 5, 3600))])
@@ -977,6 +1082,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
 
     user.hashed_password = hash_password(payload.new_password)
     user.token_version = (user.token_version or 0) + 1  # Sign out every existing session.
+    end_login_sessions(db, user.id, "password_reset")
     reset_token.used_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "Your password has been updated. Sign in with your new password."}
@@ -1000,19 +1106,26 @@ def update_current_user(payload: ProfileUpdateRequest, current_user: User = Depe
 
 
 @app.post("/auth/change-password")
-def change_password(payload: ChangePasswordRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def change_password(payload: ChangePasswordRequest, request: Request, auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> dict:
     """Password change for a signed-in user, in place of the email-link
     reset flow (see /auth/forgot-password) - requires the current password
     so it can't be used by someone who's merely stolen a live session."""
+    current_user = auth.user
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     _require_hashable_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
-    # Sign out every other session; hand this one a fresh token so the
-    # person making the change stays signed in.
+    # Sign out every other session; hand this one a fresh token (same login
+    # session, new token_version) so the person making the change stays
+    # signed in.
     current_user.token_version = (current_user.token_version or 0) + 1
+    end_login_sessions(db, current_user.id, "password_change", keep_session_id=auth.session.id if auth.session else None)
     db.commit()
-    return {"message": "Your password has been updated.", "access_token": create_access_token(current_user), "token_type": "bearer"}
+    if auth.session:
+        access_token = create_access_token(current_user, auth.session)
+    else:
+        access_token = start_login_session(db, current_user, request, "password_change")
+    return {"message": "Your password has been updated.", "access_token": access_token, "token_type": "bearer"}
 
 
 @app.post("/checkins", status_code=201)
@@ -1131,9 +1244,10 @@ def admin_analytics(admin: User = Depends(get_current_admin), db: Session = Depe
 @app.get("/admin/users")
 def admin_list_users(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> list[dict]:
     """Read-only account list for the admin panel - email, name, signup
-    date, admin status, and how many check-ins they've saved. Never the
+    date, last sign-in, admin status, and how many check-ins they've saved. Never the
     password hash or anything from a saved check-in itself."""
     checkin_counts = dict(db.query(CheckIn.user_id, func.count(CheckIn.id)).group_by(CheckIn.user_id).all())
+    last_logins = dict(db.query(LoginSession.user_id, func.max(LoginSession.created_at)).group_by(LoginSession.user_id).all())
     users = db.query(User).order_by(User.created_at.desc()).all()
     return [
         {
@@ -1142,6 +1256,7 @@ def admin_list_users(admin: User = Depends(get_current_admin), db: Session = Dep
             "full_name": user.full_name,
             "is_admin": user.is_admin,
             "checkin_count": checkin_counts.get(user.id, 0),
+            "last_login_at": as_aware_utc(last_logins[user.id]).isoformat() if last_logins.get(user.id) else None,
             "created_at": user.created_at.isoformat(),
         }
         for user in users
