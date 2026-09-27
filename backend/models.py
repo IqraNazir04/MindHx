@@ -158,3 +158,29 @@ class PageView(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     path: Mapped[str] = mapped_column(String(300), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+
+
+class LoginSession(Base):
+    """One row per successful sign-in (login or registration) - the
+    account's login history, and the server-side record each JWT is tied
+    to (its "sid" claim), so a session can be signed out from anywhere.
+
+    ip_address and user_agent are kept so a person can recognise their own
+    devices and spot a sign-in that wasn't them. Unlike PageView (which is
+    deliberately anonymous), this is visible only to the account's owner,
+    exists only for people who chose to create an account, is pruned after
+    LOGIN_HISTORY_RETENTION_DAYS, and is deleted with the account."""
+    __tablename__ = "login_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="login")  # "login" | "register" | "password_change"
+    ip_address: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    # Set on sign-out, on "sign out this device" from the history list, or
+    # when a password change/reset signs out other sessions.
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_reason: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # "logout" | "revoked" | "password_change" | "password_reset"

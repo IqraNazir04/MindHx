@@ -130,6 +130,14 @@ const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail"
 const PRIVATE_LOCAL_KEYS = ["mindhx:mood-checkins", "mindhx:helpful-practices"];
 
 export function logout(): void {
+  // End the session server-side too (so the token is dead even if a copy
+  // of it survives somewhere), without making sign-out wait on the network.
+  const token = getToken();
+  if (token) {
+    fetch(`${API_BASE}/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {
+      // Best-effort - the token is cleared locally either way.
+    });
+  }
   clearToken();
   try {
     PRIVATE_SESSION_KEYS.forEach((key) => window.sessionStorage.removeItem(key));
@@ -275,4 +283,36 @@ export async function saveCheckIn(input: SaveCheckInInput): Promise<void> {
   } catch {
     // Best-effort only - never block the check-in flow on this.
   }
+}
+
+export type LoginSessionRecord = {
+  id: string;
+  method: "login" | "register" | "password_change" | string;
+  device: string;
+  user_agent: string | null;
+  ip_address: string | null;
+  created_at: string;
+  last_seen_at: string;
+  ended_at: string | null;
+  status: "active" | "expired" | "logout" | "revoked" | "password_change" | "password_reset" | string;
+  active: boolean;
+  current: boolean;
+};
+
+export async function fetchLoginSessions(): Promise<LoginSessionRecord[]> {
+  const response = await authFetch("/auth/sessions");
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as LoginSessionRecord[];
+}
+
+export async function revokeLoginSession(sessionId: string): Promise<void> {
+  const response = await authFetch(`/auth/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+}
+
+export async function revokeOtherLoginSessions(): Promise<number> {
+  const response = await authFetch("/auth/sessions/revoke-others", { method: "POST" });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  const result = await response.json() as { ended: number };
+  return result.ended;
 }

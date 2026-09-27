@@ -804,3 +804,103 @@ def test_rate_limits_block_repeated_login_attempts() -> None:
     finally:
         limiter.enabled = False
         limiter.reset()
+
+
+# --- Login sessions / login history ---
+
+
+def _auth(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_every_login_creates_a_login_history_entry() -> None:
+    iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    mac_chrome_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    client.post("/auth/register", json={"email": "history@example.com", "password": "correct-horse-battery"}, headers={"User-Agent": mac_chrome_ua})
+    client.post("/auth/login", json={"email": "history@example.com", "password": "correct-horse-battery"}, headers={"User-Agent": iphone_ua, "X-Forwarded-For": "203.0.113.7, 10.0.0.1"})
+    token = client.post("/auth/login", json={"email": "history@example.com", "password": "correct-horse-battery"}, headers={"User-Agent": mac_chrome_ua}).json()["access_token"]
+    # A failed attempt is not a session.
+    client.post("/auth/login", json={"email": "history@example.com", "password": "wrong-password"})
+
+    history = client.get("/auth/sessions", headers=_auth(token)).json()
+    assert len(history) == 3
+    assert [entry["method"] for entry in history] == ["login", "login", "register"]  # newest first
+    assert history[0]["current"] is True and sum(entry["current"] for entry in history) == 1
+    assert all(entry["active"] and entry["status"] == "active" for entry in history)
+    assert history[0]["device"] == "Chrome on macOS"
+    assert history[1]["device"] == "Safari on iOS"
+    assert history[1]["ip_address"] == "203.0.113.7"
+
+    assert client.get("/auth/sessions").status_code == 401
+
+
+def test_logout_ends_the_session_server_side() -> None:
+    token = client.post("/auth/register", json={"email": "logout@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    other = client.post("/auth/login", json={"email": "logout@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+
+    assert client.post("/auth/logout", headers=_auth(token)).status_code == 204
+    assert client.get("/auth/me", headers=_auth(token)).status_code == 401
+
+    history = client.get("/auth/sessions", headers=_auth(other)).json()
+    ended = [entry for entry in history if not entry["current"]]
+    assert ended[0]["status"] == "logout" and ended[0]["active"] is False and ended[0]["ended_at"]
+
+
+def test_signing_out_one_device_or_all_others_from_history() -> None:
+    this_device = client.post("/auth/register", json={"email": "devices@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    laptop = client.post("/auth/login", json={"email": "devices@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    phone = client.post("/auth/login", json={"email": "devices@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+
+    laptop_id = next(entry["id"] for entry in client.get("/auth/sessions", headers=_auth(laptop)).json() if entry["current"])
+    assert client.delete(f"/auth/sessions/{laptop_id}", headers=_auth(this_device)).status_code == 204
+    assert client.get("/auth/me", headers=_auth(laptop)).status_code == 401
+    assert client.get("/auth/me", headers=_auth(phone)).status_code == 200
+
+    assert client.post("/auth/sessions/revoke-others", headers=_auth(this_device)).json()["ended"] == 1
+    assert client.get("/auth/me", headers=_auth(phone)).status_code == 401
+    assert client.get("/auth/me", headers=_auth(this_device)).status_code == 200
+
+    # Someone else's session id is indistinguishable from a missing one.
+    stranger = client.post("/auth/register", json={"email": "stranger@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    this_id = next(entry["id"] for entry in client.get("/auth/sessions", headers=_auth(this_device)).json() if entry["current"])
+    assert client.delete(f"/auth/sessions/{this_id}", headers=_auth(stranger)).status_code == 404
+    assert client.get("/auth/me", headers=_auth(this_device)).status_code == 200
+
+
+def test_password_change_records_why_other_sessions_ended() -> None:
+    client.post("/auth/register", json={"email": "pw-history@example.com", "password": "password-one"})
+    other = client.post("/auth/login", json={"email": "pw-history@example.com", "password": "password-one"}).json()["access_token"]
+    mine = client.post("/auth/login", json={"email": "pw-history@example.com", "password": "password-one"}).json()["access_token"]
+    fresh = client.post("/auth/change-password", json={"current_password": "password-one", "new_password": "password-two"}, headers=_auth(mine)).json()["access_token"]
+
+    assert client.get("/auth/me", headers=_auth(other)).status_code == 401
+    history = client.get("/auth/sessions", headers=_auth(fresh)).json()
+    current = [entry for entry in history if entry["current"]]
+    assert len(current) == 1 and current[0]["active"]  # same session, still active
+    assert {entry["status"] for entry in history if not entry["current"]} == {"password_change"}
+
+
+def test_old_login_history_is_pruned_on_next_login() -> None:
+    from datetime import datetime, timedelta, timezone
+    from database import SessionLocal
+    from models import LoginSession, User
+
+    client.post("/auth/register", json={"email": "prune@example.com", "password": "correct-horse-battery"})
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "prune@example.com").first()
+        old = datetime.now(timezone.utc) - timedelta(days=200)
+        db.add(LoginSession(user_id=user.id, method="login", created_at=old, last_seen_at=old, expires_at=old + timedelta(hours=1)))
+        db.commit()
+    finally:
+        db.close()
+    token = client.post("/auth/login", json={"email": "prune@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    history = client.get("/auth/sessions", headers=_auth(token)).json()
+    assert len(history) == 2  # the registration and this login; the 200-day-old one is gone
+
+
+def test_admin_user_list_includes_last_login() -> None:
+    admin = _register_admin("last-login-admin@example.com")
+    admin = client.post("/auth/login", json={"email": "last-login-admin@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    rows = {row["email"]: row for row in client.get("/admin/users", headers=_auth(admin)).json()}
+    assert rows["last-login-admin@example.com"]["last_login_at"]
