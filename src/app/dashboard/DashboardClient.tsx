@@ -8,7 +8,7 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
-import { changePassword, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
+import { changePassword, deleteCheckInReport, downloadCheckInReport, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
 import CheckInResultsBody from "../components/CheckInResultsBody";
 import { downloadResultsPdf } from "../lib/resultsPdf";
@@ -38,6 +38,8 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [reportBusyId, setReportBusyId] = useState<string | null>(null);
+  const [reportError, setReportError] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     fetchCheckIns()
@@ -70,12 +72,38 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   const displayName = user.full_name || user.email;
   const initial = displayName.trim().charAt(0).toUpperCase() || "A";
 
-  function handleDownloadPdf(entry: CheckInRecord) {
-    // No transcript/typed-text/per-question detail here - that was never
-    // saved for history entries in the first place (see saveCheckIn), so
-    // the PDF's "Full check-in detail" section is simply omitted, same as
-    // it is for a fresh result you haven't set your name on yet.
-    downloadResultsPdf(entry, { name: user.full_name, email: user.email });
+  async function handleDownloadPdf(entry: CheckInRecord) {
+    if (!entry.has_report) {
+      // Check-ins saved before reports were kept (or whose report was
+      // deleted): rebuild a summary PDF from the saved scores - without the
+      // per-question answers, transcript, or written text, which only the
+      // saved report has.
+      downloadResultsPdf(entry, { name: user.full_name, email: user.email });
+      return;
+    }
+    setReportBusyId(entry.id);
+    setReportError(null);
+    try {
+      await downloadCheckInReport(entry.id);
+    } catch {
+      setReportError({ id: entry.id, message: "Could not download this report right now." });
+    } finally {
+      setReportBusyId(null);
+    }
+  }
+
+  async function handleDeleteReport(entry: CheckInRecord) {
+    if (!window.confirm("Delete the saved PDF report for this check-in? Its scores stay in your history, but the full report - your answers and what you wrote or said - is removed for good.")) return;
+    setReportBusyId(entry.id);
+    setReportError(null);
+    try {
+      await deleteCheckInReport(entry.id);
+      setCheckIns((current) => current?.map((item) => item.id === entry.id ? { ...item, has_report: false } : item) ?? null);
+    } catch {
+      setReportError({ id: entry.id, message: "Could not delete this report right now." });
+    } finally {
+      setReportBusyId(null);
+    }
   }
 
   return (
@@ -88,7 +116,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
       <section className="resource-hero">
         <p className="eyebrow">YOUR DASHBOARD</p>
         <h1>Check-in history<br /><em>for {user.email}.</em></h1>
-        <p>Your combined score, signal breakdown, and support plan are saved here for every check-in - never your transcript, typed answers, or individual questionnaire responses.</p>
+        <p>Every check-in you complete is saved here with its full PDF report - your questionnaire answers, what you said and wrote, your scores, and your support plan - so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.</p>
       </section>
       <NatureBanner {...naturePhotos.mountainRange} priority />
 
@@ -156,6 +184,20 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
                   </div>
                   {entry.components && <span className="dashboard-entry-toggle">{isExpanded ? "Hide full results ↑" : "View full results ↓"}</span>}
                 </button>
+                <div className="dashboard-report-row">
+                  {entry.has_report
+                    ? <span>📄 Full report saved - your answers and scores, ready to show your doctor.</span>
+                    : <span>Summary only - the full report for this check-in isn&apos;t saved.</span>}
+                  <div>
+                    <button type="button" onClick={() => handleDownloadPdf(entry)} disabled={reportBusyId === entry.id}>
+                      {reportBusyId === entry.id ? "Working…" : entry.has_report ? "Download report (PDF)" : "Download summary (PDF)"}
+                    </button>
+                    {entry.has_report && (
+                      <button type="button" className="dashboard-report-delete" onClick={() => handleDeleteReport(entry)} disabled={reportBusyId === entry.id}>Delete report</button>
+                    )}
+                  </div>
+                  {reportError?.id === entry.id && <p className="assessment-error">{reportError.message}</p>}
+                </div>
                 {isExpanded && entry.components && (
                   <div className="dashboard-entry-expanded">
                     <CheckInResultsBody
