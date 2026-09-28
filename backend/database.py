@@ -65,6 +65,7 @@ def init_db() -> None:
     })
     _ensure_columns("check_ins", {
         "details_json": "TEXT",
+        "answers_json": "TEXT",
     })
     _ensure_columns("resources", {
         "image_data_url": "TEXT",

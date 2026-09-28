@@ -4,7 +4,7 @@ import DashboardClient from "./DashboardClient";
 
 export const metadata: Metadata = pageMetadata({
   title: "Your Dashboard",
-  description: "Review your saved MindHx check-in history - score, band, and themes only, never a transcript.",
+  description: "Review your saved MindHx check-in history - score, band, and themes - never a transcript.",
   path: "/dashboard",
   noindex: true,
 });

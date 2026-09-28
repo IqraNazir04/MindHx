@@ -11,28 +11,10 @@ import AccountChip from "./components/AccountChip";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
-import { isLoggedIn, saveCheckIn } from "./lib/auth";
+import { fetchCheckInEligibility, isLoggedIn, saveCheckIn, type CheckInEligibility } from "./lib/auth";
 import { API_BASE } from "./lib/api";
+import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, k10QuestionsEn, questions, questionsEn } from "./lib/questionnaires";
 
-const questionsEn = ["Little interest or pleasure in doing things", "Feeling down, depressed, or hopeless", "Trouble falling or staying asleep, or sleeping too much", "Feeling tired or having little energy", "Poor appetite or overeating", "Feeling bad about yourself, or that you are a failure", "Trouble concentrating on things", "Moving or speaking slowly, or being unusually restless", "Thoughts that you would be better off dead or hurting yourself"];
-const gadQuestionsEn = ["Feeling nervous, anxious, or on edge", "Not being able to stop or control worrying", "Worrying too much about different things", "Trouble relaxing", "Being so restless that it is hard to sit still", "Becoming easily annoyed or irritable", "Feeling afraid as if something awful might happen"];
-const k10QuestionsEn = ["Tired out for no good reason", "Nervous", "So nervous that nothing could calm you down", "Hopeless", "Restless or fidgety", "So restless you could not sit still", "Depressed", "Everything was an effort", "So sad that nothing could cheer you up", "Worthless"];
-const answerOptionsEn = ["Not at all", "Several days", "More than half the days", "Nearly every day"];
-const k10OptionsEn = ["None of the time", "A little of the time", "Some of the time", "Most of the time", "All of the time"];
-
-// Draft machine-assisted Urdu translations for demo purposes only. These are NOT a
-// clinically validated instrument (no published psychometric validation for this
-// translation exists) — see the on-screen notice rendered whenever Urdu is active.
-const questionsUr = ["کاموں میں دلچسپی یا خوشی کم ہونا", "اداس، دل شکستہ، یا مایوس محسوس کرنا", "نیند آنے یا برقرار رکھنے میں دشواری، یا ضرورت سے زیادہ سونا", "تھکاوٹ محسوس کرنا یا توانائی کی کمی", "بھوک کم ہونا یا ضرورت سے زیادہ کھانا", "خود کو برا سمجھنا، یا یہ محسوس کرنا کہ آپ ناکام ہیں", "چیزوں پر توجہ مرکوز کرنے میں دشواری", "معمول سے سست حرکت یا گفتگو، یا غیر معمولی بےچینی", "یہ خیال آنا کہ مر جانا بہتر ہوگا یا خود کو نقصان پہنچانے کے خیالات"];
-const gadQuestionsUr = ["گھبراہٹ، پریشانی، یا بےچینی محسوس کرنا", "فکر کو روکنے یا قابو میں رکھنے کے قابل نہ ہونا", "مختلف باتوں کے بارے میں ضرورت سے زیادہ فکر کرنا", "پرسکون ہونے میں دشواری", "اتنی بےچینی کہ ایک جگہ بیٹھنا مشکل ہو", "آسانی سے چڑچڑاپن یا غصہ آنا", "یہ خوف محسوس کرنا کہ کوئی بری بات ہونے والی ہے"];
-const k10QuestionsUr = ["بغیر کسی وجہ کے تھکاوٹ محسوس کرنا", "گھبراہٹ", "اتنی گھبراہٹ کہ کوئی چیز سکون نہ دے سکے", "مایوسی", "بےچینی یا بےقراری", "اتنی بےچینی کہ ایک جگہ بیٹھنا مشکل ہو", "دل شکستگی", "ہر کام مشکل معلوم ہونا", "اتنی اداسی کہ کوئی چیز خوش نہ کر سکے", "بےوقعت محسوس کرنا"];
-const answerOptionsUr = ["بالکل نہیں", "کئی دن", "آدھے سے زیادہ دن", "تقریباً روزانہ"];
-const k10OptionsUr = ["کبھی نہیں", "تھوڑے وقت کے لیے", "کچھ وقت کے لیے", "زیادہ تر وقت", "ہر وقت"];
-const questions = { English: questionsEn, اردو: questionsUr };
-const gadQuestions = { English: gadQuestionsEn, اردو: gadQuestionsUr };
-const k10Questions = { English: k10QuestionsEn, اردو: k10QuestionsUr };
-const answerOptions = { English: answerOptionsEn, اردو: answerOptionsUr };
-const k10Options = { English: k10OptionsEn, اردو: k10OptionsUr };
 const copy = {
   English: {
     eyebrow: "EARLY SIGNALS, HUMAN CARE", title: "Check in with yourself.", intro: "A quiet, private way to notice changes in how you're feeling. MindHx brings together your voice, words, and a short clinical questionnaire.", ready: "Session ready", private: "Private & secure", sound: "How you sound", soundDescription: "Share a short voice note in English or Urdu. We listen for changes in vocal patterns, not the words themselves.", record: "Record a voice note", stop: "Stop recording", listening: "Listening... tap to finish", processing: "Transcribing securely...", recordingHint: "Up to 60 seconds · Nothing is saved", transcriptReady: "Transcript added below", voiceError: "Microphone or transcription unavailable", words: "What you say", wordsDescription: "Write a little about how things have been lately. Be as brief or open as feels right.", placeholder: "I've been feeling...", optional: "Required", speakUrdu: "Hear this in Urdu", speaking: "Generating Urdu voice...", speechError: "Urdu voice generation unavailable", submitText: "Submit", submittingText: "Analyzing...", textSentiment: "Sentiment read", textSubmitHint: "Sent for analysis only - never saved to a database.", clinical: "Clinical check-in", clinicalDescription: "The PHQ-9 is a validated questionnaire used by healthcare professionals. Think about the last two weeks.", question: "QUESTION", back: "Back", next: "Next test", review: "Review answers", estimate: "LIVE ESTIMATE", picture: "Your combined picture", pictureDescription: "Complete your check-in to see how the signals come together.", seeCheckIn: "See my check-in", disclaimer: "MindHx is a screening and triage aid, not a diagnosis. Your results are a starting point for a conversation with a qualified professional.", modalEyebrow: "YOUR PRIVATE CHECK-IN", modalTitle: "Your signals are ready to review.", modalDescription: "MindHx combines the three signals into an explainable estimate. A professional should interpret this result with you.", modalScore: "estimated signal strength", continue: "Continue to results", bannerCaption: "Slow down. Notice the signal.", aboutEyebrow: "ABOUT MINDHX", aboutTitle: "Understanding MindHx",
@@ -93,14 +75,14 @@ const ABOUT_SECTIONS: AboutSection[] = [
       title: "What we never store",
       body: [
         "A screening tool that asks about your inner life only earns trust if it's honest about what happens to what you share. MindHx's default is to keep almost nothing. A voice note is analysed for acoustic features (pause ratio, loudness variability, speaking rate) and then discarded; MindHx never writes the audio to its database and no person listens to it. To turn speech into text and to read the tone of what you write, the audio and text are sent to OpenAI's API for processing - MindHx itself doesn't keep either one.",
-        "Seeing your results needs an account, so they're there when you come back. What's saved to it is each check-in's overall score, risk band, detected themes, and each section's summary scores (for example your PHQ-9 total and band, or the voice and word-choice bars) - never your transcript, your typed words, or your individual questionnaire answers. That distinction is deliberate: a therapist you eventually sit down with should hear your story from you, in your own words and your own time, not have it pre-written by an app before you arrive.",
+        "Seeing your results needs an account, so they're there when you come back. What's saved to it is each check-in's overall score, risk band, detected themes, and each section's summary scores (for example your PHQ-9 total and band, or the voice and word-choice bars), along with your answer to each questionnaire item, which the MindHx team can review. Your transcript and typed words are never saved. That distinction is deliberate: a therapist you eventually sit down with should hear your story from you, in your own words and your own time, not have it pre-written by an app before you arrive.",
       ],
     },
     ur: {
       title: "ہم کبھی کیا محفوظ نہیں کرتے",
       body: [
         "ایک اسکریننگ ذریعہ جو آپ کی اندرونی زندگی کے بارے میں پوچھتا ہے وہ اعتماد تب ہی حاصل کرتا ہے جب وہ اس بارے میں ایماندار ہو کہ آپ کی بتائی گئی باتوں کا کیا ہوتا ہے۔ MindHx کا طریقہ کار تقریباً کچھ بھی محفوظ نہ رکھنا ہے۔ صوتی پیغام کو صوتی خصوصیات (خاموشی کا تناسب، آواز کی بلندی میں تبدیلی، بولنے کی رفتار) کے لیے پراسیس کیا جاتا ہے اور پھر ضائع کر دیا جاتا ہے؛ MindHx آواز کو کبھی اپنے ڈیٹا بیس میں محفوظ نہیں کرتا اور نہ ہی کوئی شخص اسے سنتا ہے۔ آواز کو متن میں بدلنے اور آپ کے لکھے ہوئے کے لہجے کو سمجھنے کے لیے آواز اور متن OpenAI کی API کو پراسیسنگ کے لیے بھیجے جاتے ہیں - MindHx خود ان میں سے کچھ بھی محفوظ نہیں رکھتا۔",
-        "نتائج دیکھنے کے لیے اکاؤنٹ ضروری ہے، تاکہ واپس آنے پر وہ موجود ہوں۔ اس میں ہر چیک ان کا مجموعی اسکور، خطرے کا درجہ، شناخت شدہ موضوعات، اور ہر حصے کے خلاصہ اسکور (مثلاً آپ کا PHQ-9 کل اسکور اور درجہ، یا آواز اور الفاظ کے انتخاب کے خانے) محفوظ ہوتے ہیں - کبھی آپ کا متن، آپ کے لکھے الفاظ، یا آپ کے انفرادی سوالنامے کے جوابات نہیں۔ یہ فرق جان بوجھ کر رکھا گیا ہے: جس معالج سے آپ بالآخر ملیں گے اسے آپ کی کہانی آپ سے، آپ کے اپنے الفاظ اور اپنے وقت میں سننی چاہیے، نہ کہ کسی ایپ کی طرف سے پہلے سے لکھی گئی۔",
+        "نتائج دیکھنے کے لیے اکاؤنٹ ضروری ہے، تاکہ واپس آنے پر وہ موجود ہوں۔ اس میں ہر چیک ان کا مجموعی اسکور، خطرے کا درجہ، شناخت شدہ موضوعات، اور ہر حصے کے خلاصہ اسکور (مثلاً آپ کا PHQ-9 کل اسکور اور درجہ، یا آواز اور الفاظ کے انتخاب کے خانے) محفوظ ہوتے ہیں، اور ساتھ ہی سوالنامے کے ہر سوال کا آپ کا جواب بھی، جسے MindHx کی ٹیم دیکھ سکتی ہے۔ آپ کا متن اور آپ کے لکھے الفاظ کبھی محفوظ نہیں کیے جاتے۔ یہ فرق جان بوجھ کر رکھا گیا ہے: جس معالج سے آپ بالآخر ملیں گے اسے آپ کی کہانی آپ سے، آپ کے اپنے الفاظ اور اپنے وقت میں سننی چاہیے، نہ کہ کسی ایپ کی طرف سے پہلے سے لکھی گئی۔",
       ],
     },
   },
@@ -188,6 +170,16 @@ function combinedLiveEstimate(answers: number[], gadAnswers: number[], k10Answer
 // bouncing someone to /login shouldn't throw away what they just recorded.
 const CHECKIN_DRAFT_KEY = "mindhx:pending-checkin";
 
+function cooldownMessage(eligibility: CheckInEligibility, isUrdu: boolean): string {
+  const days = eligibility.cooldown_days;
+  const opens = eligibility.next_available_at
+    ? new Date(eligibility.next_available_at).toLocaleString(isUrdu ? "ur-PK" : undefined, { dateStyle: "full", timeStyle: "short" })
+    : "";
+  return isUrdu
+    ? `آپ پچھلے ${days} دنوں میں اپنا جائزہ مکمل کر چکے ہیں۔ آپ کا اگلا جائزہ ${opens} کو دستیاب ہوگا۔ اس دوران آپ اپنی پیش رفت ڈیش بورڈ پر دیکھ سکتے ہیں۔`
+    : `You've completed a check-in in the last ${days} days. Your next one opens ${opens}. Meanwhile, you can follow your progress on your dashboard.`;
+}
+
 const MAX_RECORDING_MS = 60_000;
 const MAX_TYPED_TEXT = 500;
 
@@ -231,6 +223,9 @@ export default function HomeClient() {
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
   const [resumeNotice, setResumeNotice] = useState("");
+  // Set while this account is inside its check-in cooldown (one saved
+  // check-in per CHECKIN_COOLDOWN_DAYS, enforced by the backend).
+  const [cooldown, setCooldown] = useState<CheckInEligibility | null>(null);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const recordingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioChunks = useRef<Blob[]>([]);
@@ -261,6 +256,9 @@ export default function HomeClient() {
     const loggedIn = isLoggedIn();
     startTransition(() => setHasAccount(loggedIn));
     if (!loggedIn) return;
+    fetchCheckInEligibility().then((eligibility) => {
+      startTransition(() => setCooldown(eligibility && !eligibility.can_check_in ? eligibility : null));
+    });
     try {
       const raw = sessionStorage.getItem(CHECKIN_DRAFT_KEY);
       if (!raw) return;
@@ -468,6 +466,20 @@ export default function HomeClient() {
       }
     }
 
+    // One saved check-in per cooldown window. Checked fresh (not from state)
+    // in case a check-in was just saved from another tab. A crisis signal
+    // still goes to emergency support rather than stopping here.
+    const eligibility = await fetchCheckInEligibility();
+    if (eligibility && !eligibility.can_check_in) {
+      if (crisisSource) {
+        goToEmergency(crisisSource);
+        return;
+      }
+      setCooldown(eligibility);
+      setAssessmentError(cooldownMessage(eligibility, isUrdu));
+      return;
+    }
+
     setAssessmentLoading(true);
     try {
       // PHQ-9 and the crisis flags are always recomputed by /risk-assess from
@@ -495,6 +507,11 @@ export default function HomeClient() {
         themes: result.themes ?? [],
         components: result.components,
         supportPlan: result.support_plan,
+        // A crisis check-in can reach here with GAD-7/K10 unfinished; only
+        // complete sets are saved (the backend rejects partial ones).
+        answers: isComplete && gadAnswers.every((answer) => answer > -1) && k10Answers.every((answer) => answer > -1)
+          ? { phq9: answers, gad7: gadAnswers, k10: k10Answers.map((answer) => answer + 1) }
+          : undefined,
       });
       router.push("/results");
     } catch {
@@ -531,7 +548,7 @@ export default function HomeClient() {
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div><nav className="topbar-nav" aria-label="MindHx resources"><Link href="/medication">Medication</Link><Link href="/ai">MindHx AI</Link><Link href="/meditation">Meditation</Link><Link href="/therapies">Therapies</Link><Link href="/therapist">Therapist</Link><Link href="/resources">Resources</Link><Link href="/emergency" className="topbar-nav-emergency">Emergency support</Link></nav><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
       <main className="workspace" dir={language === "اردو" ? "rtl" : "ltr"}>
-        <section className="intro"><DoodleCloud className="doodle doodle-blue doodle-float" style={{ top: "-18px", right: "14%" }} /><DoodleWave className="doodle doodle-teal doodle-sway" style={{ bottom: "-6px", right: "8%" }} /><DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "-30px", right: "30%" }} /><div className="hero-copy"><div className="signal-orbit" aria-hidden="true"><span className="orbit-ring ring-1" /><span className="orbit-ring ring-2" /><span className="orbit-ring ring-3" /><span className="orbit-core" /><span className="orbit-dot dot-blue" /><span className="orbit-dot dot-orange" /><span className="orbit-dot dot-green" /></div><div className="hero-copy-text"><p className="eyebrow">{text.eyebrow}</p><h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1><p className="intro-copy">{text.intro}</p><div className="hero-actions"><button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.seeCheckIn} <span>↓</span></button><span className="status-pill"><span className="pulse" /> {text.ready}</span></div></div></div><div className="conversation-preview"><div className="preview-topline"><span>MIN DHX / LIVE CHECK-IN</span><span className="preview-dot" /></div><div className="preview-bubble patient-bubble">I&apos;ve been feeling a little distant lately.</div><div className="preview-bubble mindhx-bubble">Let&apos;s slow down and look at the full picture.</div><div className="preview-signals"><span><i className="signal-blue" /> Voice</span><span><i className="signal-orange" /> Words</span><span><i className="signal-green" /> PHQ-9</span></div></div></section>
+        <section className="intro"><DoodleCloud className="doodle doodle-blue doodle-float" style={{ top: "-18px", right: "14%" }} /><DoodleWave className="doodle doodle-teal doodle-sway" style={{ bottom: "-6px", right: "8%" }} /><DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "-30px", right: "30%" }} /><div className="hero-copy"><div className="signal-orbit" aria-hidden="true"><span className="orbit-ring ring-1" /><span className="orbit-ring ring-2" /><span className="orbit-ring ring-3" /><span className="orbit-core" /><span className="orbit-dot dot-blue" /><span className="orbit-dot dot-orange" /><span className="orbit-dot dot-green" /></div><div className="hero-copy-text"><p className="eyebrow">{text.eyebrow}</p><h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1><p className="intro-copy">{text.intro}</p><div className="hero-actions"><button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.seeCheckIn} <span>↓</span></button><span className="status-pill"><span className="pulse" /> {text.ready}</span></div>{cooldown && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")} <Link href="/dashboard">{language === "اردو" ? "ڈیش بورڈ دیکھیں" : "View your dashboard"} →</Link></p>}</div></div><div className="conversation-preview"><div className="preview-topline"><span>MIN DHX / LIVE CHECK-IN</span><span className="preview-dot" /></div><div className="preview-bubble patient-bubble">I&apos;ve been feeling a little distant lately.</div><div className="preview-bubble mindhx-bubble">Let&apos;s slow down and look at the full picture.</div><div className="preview-signals"><span><i className="signal-blue" /> Voice</span><span><i className="signal-orange" /> Words</span><span><i className="signal-green" /> PHQ-9</span></div></div></section>
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2><p>{text.contextBody}</p></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
         <div className="signal-grid">
@@ -539,7 +556,7 @@ export default function HomeClient() {
           <article className="signal-card"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => setTypedText(event.target.value)} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
           <article className="signal-card phq-card"><ClinicalSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 03 · {completedScales} / 3 COMPLETE</p><h2>{text.clinical}</h2></div><span className="progress-label">{activeAnswers.filter((answer) => answer > -1).length} / {activeQuestions.length}</span></div><p className="card-description">{text.clinicalDescription}</p><div className="scale-tabs"><button className={activeScale === "phq9" ? "active" : ""} onClick={() => setActiveScale("phq9")}>PHQ-9</button><button className={activeScale === "gad7" ? "active" : ""} onClick={() => setActiveScale("gad7")}>GAD-7</button><button className={activeScale === "k10" ? "active" : ""} onClick={() => setActiveScale("k10")}>K10</button></div><div className="question-progress"><span style={{ width: `${(activeAnswers.filter((answer) => answer > -1).length / activeQuestions.length) * 100}%` }} /></div><div className="question-list">{activeQuestions.map((questionText, questionIndex) => <div className="question-block" key={`${activeScale}-${questionIndex}`}><p className="question-number">{activeScale.toUpperCase()} · {questionIndex + 1} / {activeQuestions.length}</p><h3>{questionText}</h3><div className="answer-list">{activeOptions.map((option, optionIndex) => <button key={option} className={activeAnswers[questionIndex] === optionIndex ? "selected" : ""} onClick={() => updateActiveAnswer(questionIndex, optionIndex)}><span className="radio" />{option}</button>)}</div></div>)}</div>{activeScale !== "k10" && <div className="question-actions"><button className="next-button" onClick={goToNextScale}>{text.next}<span>→</span></button></div>}</article>
         </div>
-        <section className="bottom-row"><div className="score-preview"><div className="score-ring"><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{assessmentError && <p className="assessment-error">{assessmentError}</p>}</div></section>
+        <section className="bottom-row"><div className="score-preview"><div className="score-ring"><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}</p>}</div></section>
         <section className="about-mindhx">
           <p className="eyebrow">{text.aboutEyebrow}</p>
           <h2>{text.aboutTitle}</h2>
