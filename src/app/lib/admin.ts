@@ -4,7 +4,8 @@
 // independently (403 for a signed-in non-admin, 401 for signed-out), this
 // layer doesn't gate anything on its own.
 import { API_BASE } from "./api";
-import { authFetch, parseErrorDetail } from "./auth";
+import { authFetch, parseErrorDetail, type QuestionnaireAnswers } from "./auth";
+import type { Result } from "../components/CheckInResultsBody";
 
 export type AdminAnalytics = {
   total_users: number;
@@ -41,6 +42,30 @@ export async function fetchAdminUsers(): Promise<AdminUserSummary[]> {
   const response = await authFetch("/admin/users");
   if (!response.ok) throw new Error(await parseErrorDetail(response));
   return await response.json() as AdminUserSummary[];
+}
+
+export type AdminUserCheckIn = {
+  id: string;
+  risk_score: number;
+  band: string;
+  routing_decision: string;
+  themes: string[];
+  components?: Result["components"] | null;
+  // Null for check-ins saved before answers were recorded, or without all
+  // three questionnaires complete.
+  answers: QuestionnaireAnswers | null;
+  created_at: string;
+};
+
+export type AdminUserCheckIns = {
+  user: { id: string; email: string; full_name: string | null };
+  checkins: AdminUserCheckIn[];
+};
+
+export async function fetchAdminUserCheckIns(userId: string): Promise<AdminUserCheckIns> {
+  const response = await authFetch(`/admin/users/${encodeURIComponent(userId)}/checkins`);
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as AdminUserCheckIns;
 }
 
 export type ResourceType = "meditation" | "therapy" | "medication" | "general";

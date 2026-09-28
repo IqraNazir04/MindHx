@@ -8,9 +8,11 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
-import { changePassword, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
+import { changePassword, fetchCheckInEligibility, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInEligibility, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
 import CheckInResultsBody from "../components/CheckInResultsBody";
+import ProgressCharts from "../components/ProgressCharts";
+import QuestionnaireAnswersList from "../components/QuestionnaireAnswersList";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
@@ -38,11 +40,13 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [eligibility, setEligibility] = useState<CheckInEligibility | null>(null);
 
   useEffect(() => {
     fetchCheckIns()
       .then(setCheckIns)
       .catch(() => setError("Could not load your history right now."));
+    fetchCheckInEligibility().then(setEligibility);
   }, []);
 
   function handleSignOut() {
@@ -71,10 +75,11 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   const initial = displayName.trim().charAt(0).toUpperCase() || "A";
 
   function handleDownloadPdf(entry: CheckInRecord) {
-    // No transcript/typed-text/per-question detail here - that was never
-    // saved for history entries in the first place (see saveCheckIn), so
-    // the PDF's "Full check-in detail" section is simply omitted, same as
-    // it is for a fresh result you haven't set your name on yet.
+    // No transcript/typed-text/per-question detail here - transcript and
+    // typed text are never saved (see saveCheckIn), so the PDF's "Full
+    // check-in detail" section is simply omitted, same as it is for a fresh
+    // result you haven't set your name on yet. The saved answers are shown
+    // on this page instead (QuestionnaireAnswersList).
     downloadResultsPdf(entry, { name: user.full_name, email: user.email });
   }
 
@@ -88,7 +93,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
       <section className="resource-hero">
         <p className="eyebrow">YOUR DASHBOARD</p>
         <h1>Check-in history<br /><em>for {user.email}.</em></h1>
-        <p>Your combined score, signal breakdown, and support plan are saved here for every check-in - never your transcript, typed answers, or individual questionnaire responses.</p>
+        <p>Your combined score, signal breakdown, and support plan are saved here for every check-in, along with your answer to each questionnaire item (which the MindHx team can review) - never your transcript or typed words.</p>
       </section>
       <NatureBanner {...naturePhotos.mountainRange} priority />
 
@@ -120,6 +125,20 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
           <p>No saved check-ins yet.</p>
           <Link className="result-primary" href="/">Start a check-in <span>→</span></Link>
         </div>
+      )}
+      {checkIns && checkIns.length > 0 && (
+        <section className="progress-section">
+          <div className="progress-heading">
+            <div>
+              <p className="card-kicker">YOUR PROGRESS</p>
+              <h2>How your scores have changed</h2>
+            </div>
+            {eligibility && (eligibility.can_check_in
+              ? <Link className="result-primary" href="/">Take this week&apos;s check-in <span>→</span></Link>
+              : <p className="progress-next">Next check-in opens {new Date(eligibility.next_available_at!).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })}.</p>)}
+          </div>
+          <ProgressCharts entries={checkIns} />
+        </section>
       )}
       {checkIns && checkIns.length > 0 && (
         <div className="dashboard-list">
@@ -154,15 +173,23 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
                     )}
                     {entry.support_plan?.next_action && <p className="dashboard-entry-next-action">{entry.support_plan.next_action}</p>}
                   </div>
-                  {entry.components && <span className="dashboard-entry-toggle">{isExpanded ? "Hide full results ↑" : "View full results ↓"}</span>}
+                  {(entry.components || entry.answers) && <span className="dashboard-entry-toggle">{isExpanded ? "Hide full results ↑" : "View full results ↓"}</span>}
                 </button>
-                {isExpanded && entry.components && (
+                {isExpanded && (entry.components || entry.answers) && (
                   <div className="dashboard-entry-expanded">
-                    <CheckInResultsBody
-                      result={entry}
-                      onDownloadPdf={() => handleDownloadPdf(entry)}
-                      onReturnToCheckIn={() => setExpandedId(null)}
-                    />
+                    {entry.answers && (
+                      <div className="dashboard-answers">
+                        <h3>Your answers</h3>
+                        <QuestionnaireAnswersList answers={entry.answers} audience="self" />
+                      </div>
+                    )}
+                    {entry.components && (
+                      <CheckInResultsBody
+                        result={entry}
+                        onDownloadPdf={() => handleDownloadPdf(entry)}
+                        onReturnToCheckIn={() => setExpandedId(null)}
+                      />
+                    )}
                   </div>
                 )}
               </article>

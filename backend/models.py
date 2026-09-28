@@ -3,10 +3,10 @@
 The core check-in flow remains fully anonymous and requires no account -
 these tables only back the opt-in "save my history" feature for signed-in
 users. CheckIn stores every section's structured result (scores, bands,
-sentiment/mood/voice breakdowns, support plan) but deliberately never the
-raw transcript, typed text, or individual question answers, so a saved
-history can't leak someone's actual free-text disclosures even if the
-database were compromised.
+sentiment/mood/voice breakdowns, support plan) and the individual
+questionnaire answers (admin-visible), but deliberately never the raw
+transcript or typed text, so a saved history can't leak someone's actual
+free-text disclosures even if the database were compromised.
 """
 
 import uuid
@@ -78,6 +78,13 @@ class CheckIn(Base):
     # same "no raw free text ever persisted" line the rest of this file's
     # docstring describes.
     details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # The individual PHQ-9/GAD-7/K10 item answers, as JSON
+    # {"phq9": [9 ints 0-3], "gad7": [7 ints 0-3], "k10": [10 ints 1-5]},
+    # readable by admins from the admin panel (GET /admin/users/{id}/checkins)
+    # and disclosed to users on the register/login/dashboard pages. Still
+    # never the transcript or typed text. Null for check-ins saved before
+    # answers were recorded.
+    answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped[User] = relationship(back_populates="check_ins")

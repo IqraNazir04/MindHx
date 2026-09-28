@@ -18,6 +18,9 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_db_path}"
 # limits would trip across unrelated tests. The rate-limit test turns the
 # limiter back on for itself.
 os.environ["RATE_LIMITS"] = "off"
+# Most tests save several check-ins for one account back to back; the
+# cooldown test turns the 7-day limit back on for itself.
+os.environ["CHECKIN_COOLDOWN_DAYS"] = "0"
 
 
 @atexit.register

@@ -12,7 +12,7 @@ import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 
 import httpx
 import numpy as np
@@ -297,6 +297,19 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)
 
 
+FrequencyAnswer = Annotated[int, Field(ge=0, le=3)]
+K10Answer = Annotated[int, Field(ge=1, le=5)]
+
+
+class QuestionnaireAnswers(BaseModel):
+    """The individual item answers, in the same scales /risk-assess takes:
+    PHQ-9/GAD-7 0-3, K10 1-5. Strict (exact lengths and ranges) because,
+    unlike components/support_plan, admins read these item by item."""
+    phq9: list[FrequencyAnswer] = Field(min_length=9, max_length=9)
+    gad7: list[FrequencyAnswer] = Field(min_length=7, max_length=7)
+    k10: list[K10Answer] = Field(min_length=10, max_length=10)
+
+
 class CheckInCreateRequest(BaseModel):
     risk_score: float = Field(ge=0, le=1)
     band: str = Field(max_length=20)
@@ -306,12 +319,14 @@ class CheckInCreateRequest(BaseModel):
     # shape /risk-assess already returns. Deliberately just the two loose
     # dicts rather than a strict nested schema (their shape already varies -
     # e.g. voice.emotion and attribution are only present when available),
-    # and deliberately never a field for transcript/typed_text/individual
-    # question answers - those stay out of every request this app sends to
-    # the backend for the account/history feature, not just validated away
-    # here.
+    # and deliberately never a field for transcript/typed_text - those stay
+    # out of every request this app sends to the backend for the
+    # account/history feature, not just validated away here.
     components: Optional[dict] = None
     support_plan: Optional[dict] = None
+    # Optional so older clients (and check-ins without complete
+    # questionnaires) can still save; visible to admins only.
+    answers: Optional[QuestionnaireAnswers] = None
 
 
 RESOURCE_TYPES = {"meditation", "therapy", "medication", "general"}
@@ -859,14 +874,14 @@ def _serialize_user(user: User) -> dict:
     }
 
 
-def _serialize_checkin(check_in: CheckIn) -> dict:
+def _serialize_checkin(check_in: CheckIn, include_answers: bool = False) -> dict:
     details: dict = {}
     if check_in.details_json:
         try:
             details = json.loads(check_in.details_json)
         except ValueError:
             details = {}
-    return {
+    serialized = {
         "id": check_in.id,
         "risk_score": check_in.risk_score,
         "band": check_in.band,
@@ -876,6 +891,15 @@ def _serialize_checkin(check_in: CheckIn) -> dict:
         "support_plan": details.get("support_plan"),
         "created_at": check_in.created_at.isoformat(),
     }
+    if include_answers:
+        answers = None
+        if check_in.answers_json:
+            try:
+                answers = json.loads(check_in.answers_json)
+            except ValueError:
+                answers = None
+        serialized["answers"] = answers
+    return serialized
 
 
 PASSWORD_TOO_LONG = HTTPException(status_code=400, detail="Password is too long. Use a shorter password (about 35 Urdu letters or 72 English letters at most).")
@@ -1128,11 +1152,52 @@ def change_password(payload: ChangePasswordRequest, request: Request, auth: Auth
     return {"message": "Your password has been updated.", "access_token": access_token, "token_type": "bearer"}
 
 
+def checkin_cooldown() -> timedelta:
+    """Minimum gap between two saved check-ins for one account. Read on each
+    call (not at import) so tests and operators can change it without a
+    restart; CHECKIN_COOLDOWN_DAYS=0 turns the limit off (e.g. local dev)."""
+    try:
+        days = float(os.getenv("CHECKIN_COOLDOWN_DAYS", "7"))
+    except ValueError:
+        days = 7.0
+    return timedelta(days=max(0.0, days))
+
+
+def checkin_eligibility(db: Session, user: User) -> dict:
+    cooldown = checkin_cooldown()
+    last = db.query(func.max(CheckIn.created_at)).filter(CheckIn.user_id == user.id).scalar()
+    last_at = as_aware_utc(last) if last else None
+    next_at = last_at + cooldown if last_at else None
+    can_check_in = next_at is None or datetime.now(timezone.utc) >= next_at
+    return {
+        "can_check_in": can_check_in,
+        "cooldown_days": cooldown.total_seconds() / 86400,
+        "last_checkin_at": last_at.isoformat() if last_at else None,
+        "next_available_at": None if can_check_in else next_at.isoformat(),
+    }
+
+
+@app.get("/checkins/eligibility")
+def get_checkin_eligibility(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """Whether this account can save a new check-in yet, and if not, when -
+    so the check-in page can say so before someone fills everything in."""
+    return checkin_eligibility(db, current_user)
+
+
 @app.post("/checkins", status_code=201)
 def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
-    """Save every section's structured check-in result for a signed-in user -
-    still never the raw transcript, typed text, or individual question
-    answers, which the frontend never sends here in the first place."""
+    """Save every section's structured check-in result, plus the individual
+    questionnaire answers when sent, for a signed-in user - still never the
+    raw transcript or typed text, which the frontend never sends here in the
+    first place. At most one per CHECKIN_COOLDOWN_DAYS per account."""
+    eligibility = checkin_eligibility(db, current_user)
+    if not eligibility["can_check_in"]:
+        retry_after = int((datetime.fromisoformat(eligibility["next_available_at"]) - datetime.now(timezone.utc)).total_seconds()) + 1
+        raise HTTPException(
+            status_code=429,
+            detail=f"You can save a new check-in once every {checkin_cooldown().days} days. Your next one is available after {eligibility['next_available_at']}.",
+            headers={"Retry-After": str(max(1, retry_after))},
+        )
     details = {"components": payload.components, "support_plan": payload.support_plan}
     details_json = json.dumps(details) if (payload.components or payload.support_plan) else None
     if details_json and len(details_json) > MAX_CHECKIN_DETAILS_CHARS:
@@ -1148,17 +1213,19 @@ def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(g
         routing_decision=payload.routing_decision,
         themes=",".join(themes),
         details_json=details_json,
+        answers_json=json.dumps(payload.answers.model_dump()) if payload.answers else None,
     )
     db.add(check_in)
     db.commit()
     db.refresh(check_in)
-    return _serialize_checkin(check_in)
+    return _serialize_checkin(check_in, include_answers=True)
 
 
 @app.get("/checkins")
 def list_checkins(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> list[dict]:
+    """The account's own history, including its own questionnaire answers."""
     check_ins = db.query(CheckIn).filter(CheckIn.user_id == current_user.id).order_by(CheckIn.created_at.desc()).all()
-    return [_serialize_checkin(check_in) for check_in in check_ins]
+    return [_serialize_checkin(check_in, include_answers=True) for check_in in check_ins]
 
 
 def _serialize_resource(resource: Resource) -> dict:
@@ -1261,6 +1328,21 @@ def admin_list_users(admin: User = Depends(get_current_admin), db: Session = Dep
         }
         for user in users
     ]
+
+
+@app.get("/admin/users/{user_id}/checkins")
+def admin_list_user_checkins(user_id: str, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    """One account's saved check-ins, newest first, including the individual
+    questionnaire answers. Still never a transcript or typed text - those are
+    never stored."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    check_ins = db.query(CheckIn).filter(CheckIn.user_id == user.id).order_by(CheckIn.created_at.desc()).all()
+    return {
+        "user": {"id": user.id, "email": user.email, "full_name": user.full_name},
+        "checkins": [_serialize_checkin(check_in, include_answers=True) for check_in in check_ins],
+    }
 
 
 @app.get("/resources")

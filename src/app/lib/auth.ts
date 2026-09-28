@@ -72,6 +72,9 @@ export type CheckInRecord = {
   themes: string[];
   components?: Result["components"];
   support_plan?: Result["support_plan"];
+  // The person's own item answers; null for check-ins saved before answers
+  // were recorded, or without all three questionnaires complete.
+  answers?: QuestionnaireAnswers | null;
   created_at: string;
 };
 
@@ -247,6 +250,27 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return result.message;
 }
 
+export type CheckInEligibility = {
+  can_check_in: boolean;
+  cooldown_days: number;
+  last_checkin_at: string | null;
+  // Set only while can_check_in is false.
+  next_available_at: string | null;
+};
+
+// Whether this account can save a new check-in yet (one per
+// CHECKIN_COOLDOWN_DAYS, enforced by POST /checkins). Null if signed out or
+// the check fails - callers treat that as "allowed" and let the backend decide.
+export async function fetchCheckInEligibility(): Promise<CheckInEligibility | null> {
+  if (!isLoggedIn()) return null;
+  try {
+    const response = await authFetch("/checkins/eligibility");
+    return response.ok ? await response.json() as CheckInEligibility : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchCheckIns(): Promise<CheckInRecord[]> {
   const response = await authFetch("/checkins");
   if (!response.ok) throw new Error(await parseErrorDetail(response));
@@ -259,11 +283,15 @@ export type SaveCheckInInput = {
   routingDecision: string;
   themes: string[];
   // Every section's structured result - deliberately no transcript/typed
-  // text/individual question answers here; those never leave the browser
-  // (see mindhx:last-checkin-detail).
+  // text here; those never leave the browser (see mindhx:last-checkin-detail).
   components?: Result["components"];
   supportPlan?: Result["support_plan"];
+  // Individual item answers (PHQ-9/GAD-7 0-3, K10 1-5), readable by admins.
+  // Omitted unless all three questionnaires are complete.
+  answers?: QuestionnaireAnswers;
 };
+
+export type QuestionnaireAnswers = { phq9: number[]; gad7: number[]; k10: number[] };
 
 export async function saveCheckIn(input: SaveCheckInInput): Promise<void> {
   if (!isLoggedIn()) return;
@@ -278,6 +306,7 @@ export async function saveCheckIn(input: SaveCheckInInput): Promise<void> {
         themes: input.themes,
         components: input.components ?? null,
         support_plan: input.supportPlan ?? null,
+        answers: input.answers ?? null,
       }),
     });
   } catch {
