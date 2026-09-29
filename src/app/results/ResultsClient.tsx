@@ -43,12 +43,15 @@ const saveCopy = {
   },
 };
 
-async function saveWithStatus(result: Result, preparedFor: PreparedFor, detail: CheckInDetail | null, setStatus: (status: SaveStatus) => void) {
+async function saveWithStatus(result: Result, preparedFor: PreparedFor, detail: CheckInDetail | null, setStatus: (status: SaveStatus) => void, setErrorDetail: (detail: string) => void) {
   setStatus("saving");
+  setErrorDetail("");
   try {
     await saveResultToHistory(result, preparedFor, detail ?? undefined);
     setStatus("saved");
-  } catch {
+  } catch (err) {
+    // e.g. the once-per-CHECKIN_COOLDOWN_DAYS limit - show the server's reason.
+    setErrorDetail(err instanceof Error && err.message !== "Something went wrong." ? err.message : "");
     setStatus("error");
   }
 }
@@ -59,6 +62,7 @@ export default function ResultsClient() {
   const [detail, setDetail] = useState<CheckInDetail | null>(null);
   const [preparedFor, setPreparedFor] = useState<PreparedFor>({});
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveErrorDetail, setSaveErrorDetail] = useState("");
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -83,7 +87,7 @@ export default function ResultsClient() {
       // history, once - a reload finds it already saved.
       if (!storedResult) return;
       if (isSavedToHistory()) startTransition(() => setSaveStatus("saved"));
-      else saveWithStatus(storedResult, prepared, storedDetail, setSaveStatus);
+      else saveWithStatus(storedResult, prepared, storedDetail, setSaveStatus, setSaveErrorDetail);
     });
   }, [router]);
 
@@ -131,8 +135,8 @@ export default function ResultsClient() {
           {saveStatus === "saved" && <><span>✓ {saveText.saved}</span><Link href="/dashboard">{saveText.openHistory} →</Link></>}
           {saveStatus === "error" && (
             <>
-              <span>{saveText.error}</span>
-              <button type="button" onClick={() => saveWithStatus(result, preparedFor, detail, setSaveStatus)}>{saveText.retry}</button>
+              <span>{saveText.error}{saveErrorDetail && <> {saveErrorDetail}</>}</span>
+              <button type="button" onClick={() => saveWithStatus(result, preparedFor, detail, setSaveStatus, setSaveErrorDetail)}>{saveText.retry}</button>
             </>
           )}
         </div>

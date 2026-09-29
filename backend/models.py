@@ -1,13 +1,14 @@
 """SQLAlchemy models for the account/dashboard feature.
 
 CheckIn stores every section's structured result (scores, bands,
-sentiment/mood/voice breakdowns, support plan). The full check-in -
-question-by-question answers and, for English check-ins, the voice
-transcript and written reflection - is stored only inside the PDF report
-(CheckInReport) generated after each check-in, so the person can show it to
-their doctor later. That makes a leaked database more sensitive than scores
-alone would be; the report can be deleted by its owner at any time and is
-deleted with the check-in or account.
+sentiment/mood/voice breakdowns, support plan) and the individual
+questionnaire answers (answers_json, which admins can also read). The
+voice transcript and written reflection are stored only inside the PDF
+report (CheckInReport) generated after each check-in, so the person can
+show it to their doctor later; that report is visible only to its owner,
+can be deleted by them at any time, and is deleted with the check-in or
+account. This makes a leaked database more sensitive than scores alone
+would be.
 """
 
 import uuid
@@ -76,6 +77,13 @@ class CheckIn(Base):
     # here - they're only in the PDF report (CheckInReport), which the
     # owner can delete on its own.
     details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # The individual PHQ-9/GAD-7/K10 item answers, as JSON
+    # {"phq9": [9 ints 0-3], "gad7": [7 ints 0-3], "k10": [10 ints 1-5]},
+    # readable by admins from the admin panel (GET /admin/users/{id}/checkins)
+    # and disclosed to users on the register/login/dashboard pages. Still
+    # never the transcript or typed text. Null for check-ins saved before
+    # answers were recorded.
+    answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped[User] = relationship(back_populates="check_ins")

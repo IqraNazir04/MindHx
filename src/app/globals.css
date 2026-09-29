@@ -349,6 +349,18 @@ textarea::placeholder { color:#9aa6b4; }
 .resource-header { max-width:1120px; height:78px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:20px; }
 .resource-header-right { display:flex; align-items:center; gap:16px; flex:0 0 auto; }
 .resource-back { color:var(--blue); font:10px 'DM Mono',monospace; white-space:nowrap; text-decoration:none; }
+/* Narrow screens: the header's full-bleed margins must match the page's
+   20px gutter (.resource-page/.results-page below 800px), and the right-hand
+   cluster (sign out, admin, account, language, back link) has to be allowed
+   to shrink and wrap - as a fixed-width row it pushed past the viewport and
+   made every page scroll sideways. The account chip keeps its avatar (still
+   a link to the dashboard) and drops the name. */
+@media (max-width:800px) {
+  .site-header-sticky { margin:0 -20px; padding:0 20px; }
+  .resource-header { height:auto; min-height:64px; padding:10px 0; gap:12px; }
+  .resource-header-right { flex:1 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end; gap:8px 14px; }
+  .resource-header .account-chip-name { display:none; }
+}
 .resource-hero { position:relative; z-index:1; max-width:900px; margin:0 auto; padding:82px 0 53px; }
 .resource-hero h1 { margin:0 0 20px; color:var(--navy); font:600 clamp(38px,6vw,62px)/1.1 'Playfair Display',serif; letter-spacing:-1.5px; }
 .resource-hero h1 em { color:var(--teal); font-weight:500; font-style:italic; }
@@ -381,7 +393,7 @@ textarea::placeholder { color:#9aa6b4; }
 .crisis-resource p { color:#8b3535; font-size:12px; }
 .resource-page .results-footer { max-width:1120px; margin:50px auto 0; position:relative; z-index:1; }
 .resource-page .results-footer a { color:var(--blue); font:9px 'DM Mono',monospace; }
-@media (max-width:800px) { .resource-page { padding:0 20px 35px; }.resource-hero { padding:55px 0 38px; }.reference-grid,.ai-steps,.therapist-contact { grid-template-columns:1fr; }.resource-header { height:70px; }.resource-back { font-size:9px; } }
+@media (max-width:800px) { .resource-page { padding:0 20px 35px; }.resource-hero { padding:55px 0 38px; }.reference-grid,.ai-steps,.therapist-contact { grid-template-columns:1fr; }.resource-back { font-size:9px; } }
 
 .ai-chat { position:relative; z-index:1; max-width:900px; margin:0 auto 28px; padding:22px; border:1px solid var(--line); border-radius:11px; background:var(--surface); }
 .chat-label { color:var(--blue); font:9px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:12px; }
@@ -606,6 +618,54 @@ textarea::placeholder { color:#9aa6b4; }
 .admin-user-row:last-child { border-bottom:0; }
 .admin-user-head { background:var(--surface-soft); color:var(--navy); font:600 10px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.5px; }
 .admin-user-badge { color:var(--orange); font-weight:600; }
+.admin-user-responses { border:1px solid var(--line); background:var(--surface-soft); color:var(--navy); border-radius:6px; padding:4px 8px; font:600 11px 'DM Mono',monospace; cursor:pointer; white-space:nowrap; }
+.admin-user-responses:hover { border-color:var(--navy); }
+.modal.admin-responses-modal { max-width:760px; width:100%; max-height:85vh; overflow-y:auto; }
+.admin-response-checkin { border-top:1px solid var(--line); padding:16px 0; }
+.admin-response-checkin header { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; color:var(--navy); }
+.admin-response-checkin header span { color:var(--muted); font:11px 'DM Mono',monospace; }
+/* Item-by-item questionnaire answers (admin panel + the person's own dashboard). */
+.answers-list details { border:1px solid var(--line); border-radius:8px; margin:8px 0; background:var(--surface); }
+.answers-list summary { cursor:pointer; padding:10px 14px; font:600 12px 'DM Mono',monospace; color:var(--navy); }
+.answers-list ol { margin:0; padding:0 14px 12px 34px; }
+.answers-list li { display:flex; justify-content:space-between; gap:16px; padding:6px 0; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); }
+.answers-list li:last-child { border-bottom:0; }
+.answers-list li b { color:var(--navy); font-weight:600; text-align:end; flex-shrink:0; }
+.answers-list li.answers-flag, .answers-list li.answers-flag b { color:var(--orange); }
+.answers-list p.answers-alert { color:var(--orange); font-weight:600; font-size:13px; line-height:1.5; margin:6px 0 10px; }
+.answers-list p.answers-alert a { color:inherit; }
+.dashboard-answers { margin-bottom:22px; }
+.dashboard-answers h3 { font:600 15px 'DM Sans',sans-serif; color:var(--navy); margin:0 0 6px; }
+
+/* Progress over time - small multiples, one per measure (ProgressCharts). */
+.progress-section { margin:28px 0; padding:24px; background:var(--surface); border:1px solid var(--line); border-radius:12px; }
+.progress-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:6px; }
+.progress-heading h2 { font:600 24px/1.2 'Playfair Display',serif; color:var(--navy); margin:4px 0 0; }
+.progress-next { color:var(--muted); font-size:13px; margin:0; }
+.progress-charts { margin-top:8px; }
+.progress-note { color:var(--muted); font-size:12px; margin:0 0 12px; }
+.progress-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+.progress-card { margin:0; padding:12px 12px 6px; border:1px solid var(--line); border-radius:10px; background:var(--surface); min-width:0; }
+.progress-card figcaption { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--navy); }
+.progress-latest { font-weight:600; font-size:15px; margin-inline-start:auto; }
+.progress-change { font:11px 'DM Mono',monospace; color:var(--muted); width:100%; text-align:end; }
+.progress-change.is-better { color:var(--teal); }
+.progress-change.is-worse { color:var(--red); }
+.progress-empty { color:var(--muted); font-size:12px; }
+.progress-plot { position:relative; }
+.progress-plot svg { display:block; width:100%; height:auto; overflow:visible; touch-action:pan-y; }
+.progress-plot svg:focus-visible { outline:2px solid var(--blue); outline-offset:2px; border-radius:4px; }
+.progress-grid-line { stroke:var(--line); stroke-width:1; }
+.progress-axis { fill:var(--muted); font:10px 'DM Mono',monospace; }
+.progress-crosshair { stroke:var(--muted); stroke-width:1; }
+.progress-line { fill:none; stroke:var(--blue); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.progress-dot { fill:var(--blue); stroke:var(--surface); stroke-width:2; }
+.progress-tooltip { position:absolute; transform:translate(-50%,calc(-100% - 12px)); pointer-events:none; background:var(--navy); color:#fff; border-radius:6px; padding:6px 9px; font-size:11px; line-height:1.35; white-space:nowrap; display:flex; flex-direction:column; box-shadow:0 6px 18px rgba(36,52,74,.18); z-index:2; }
+.progress-tooltip strong { font-size:13px; }
+.progress-tooltip span { opacity:.8; text-transform:capitalize; }
+.modal.admin-responses-modal .progress-charts { margin:6px 0 18px; }
+.checkin-cooldown-note { margin:12px 0 0; padding:10px 14px; border-radius:8px; background:var(--blue-soft); color:var(--blue-deep); font-size:13px; line-height:1.5; }
+.checkin-cooldown-note a { color:inherit; font-weight:600; }
 .admin-resource-list { display:flex; flex-direction:column; gap:10px; }
 .admin-resource-row { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:16px 18px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
 .admin-resource-thumb { width:56px; height:56px; border-radius:8px; object-fit:cover; flex:0 0 56px; }
@@ -624,7 +684,7 @@ textarea::placeholder { color:#9aa6b4; }
 .resource-body p { margin:0 0 16px; }
 .resource-hero-image { max-width:720px; width:100%; margin:0 auto 24px; display:block; border-radius:12px; max-height:360px; object-fit:cover; }
 @media (max-width:900px) { .admin-stat-grid { grid-template-columns:repeat(3,1fr); } .admin-columns { grid-template-columns:1fr; } }
-@media (max-width:640px) { .admin-stat-grid { grid-template-columns:repeat(2,1fr); } .admin-resource-row { flex-direction:column; align-items:flex-start; } .admin-user-row { grid-template-columns:1fr 1fr; } .admin-user-row span:nth-child(3),.admin-user-row span:nth-child(5),.admin-user-row span:nth-child(6) { display:none; } }
+@media (max-width:640px) { .admin-stat-grid { grid-template-columns:repeat(2,1fr); } .admin-resource-row { flex-direction:column; align-items:flex-start; } .admin-user-row { grid-template-columns:1.4fr .8fr .6fr; } .admin-user-row span:nth-child(2),.admin-user-row span:nth-child(5),.admin-user-row span:nth-child(6) { display:none; } }
 
 /* ---------- Nature photography banners (Unsplash) ---------- */
 .nature-banner { position:relative; z-index:1; max-width:1120px; margin:0 auto 40px; border-radius:16px; overflow:hidden; box-shadow:0 18px 45px var(--shadow); }

@@ -271,8 +271,8 @@ def test_checkins_require_auth_and_round_trip() -> None:
         "voice": {"available": True, "signal": 0.4, "note": "some pausing"},
     }
     support_plan = {"title": "A gentle next step", "next_action": "Try box breathing tonight."}
-    # transcript/typed_text/individual question answers are never part of
-    # this request shape at all - CheckInCreateRequest has no such fields,
+    # transcript/typed_text are never part of this request shape at all -
+    # CheckInCreateRequest has no such fields,
     # so sending them is simply ignored by FastAPI/Pydantic rather than
     # something that needs its own rejection path.
     create_response = client.post(
@@ -962,3 +962,100 @@ def test_checkin_report_rejects_non_pdf_and_oversized_uploads() -> None:
     assert not_pdf.status_code == 400
     too_big = client.put(f"/checkins/{check_in_id}/report", files={"file": ("x.pdf", b"%PDF-" + b"0" * (main.MAX_REPORT_BYTES + 1), "application/pdf")}, headers=_auth(token))
     assert too_big.status_code == 413
+
+
+VALID_ANSWERS = {"phq9": [1, 2, 0, 3, 1, 0, 2, 1, 0], "gad7": [2, 2, 1, 0, 1, 3, 0], "k10": [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]}
+
+
+def test_checkin_answers_are_saved_and_only_admins_can_read_them() -> None:
+    admin_headers = _auth(_register_admin("answers-admin@example.com"))
+    member_token = client.post("/auth/register", json={"email": "answers-member@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    member_headers = _auth(member_token)
+
+    with_answers = client.post("/checkins", json={"risk_score": 0.4, "band": "elevated", "routing_decision": "refer", "answers": VALID_ANSWERS}, headers=member_headers)
+    assert with_answers.status_code == 201
+    # The member sees their own answers in their own history.
+    assert with_answers.json()["answers"] == VALID_ANSWERS
+    assert client.get("/checkins", headers=member_headers).json()[0]["answers"] == VALID_ANSWERS
+    # A check-in saved without answers (older client, or incomplete questionnaires) still saves.
+    assert client.post("/checkins", json={"risk_score": 0.1, "band": "low", "routing_decision": "no_referral_needed"}, headers=member_headers).status_code == 201
+
+    member_id = client.get("/auth/me", headers=member_headers).json()["id"]
+    assert client.get(f"/admin/users/{member_id}/checkins").status_code == 401
+    assert client.get(f"/admin/users/{member_id}/checkins", headers=member_headers).status_code == 403
+    assert client.get("/admin/users/no-such-user/checkins", headers=admin_headers).status_code == 404
+
+    response = client.get(f"/admin/users/{member_id}/checkins", headers=admin_headers)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["user"]["email"] == "answers-member@example.com"
+    assert len(body["checkins"]) == 2
+    answers_by_band = {item["band"]: item["answers"] for item in body["checkins"]}
+    assert answers_by_band["elevated"] == VALID_ANSWERS
+    assert answers_by_band["low"] is None
+
+
+def test_checkin_answers_are_validated_item_by_item() -> None:
+    headers = _auth(client.post("/auth/register", json={"email": "answers-validation@example.com", "password": "correct-horse-battery"}).json()["access_token"])
+    base = {"risk_score": 0.4, "band": "watch", "routing_decision": "no_referral_needed"}
+    invalid = [
+        {**VALID_ANSWERS, "phq9": VALID_ANSWERS["phq9"][:8]},  # wrong length
+        {**VALID_ANSWERS, "gad7": [4, 0, 0, 0, 0, 0, 0]},  # above the 0-3 scale
+        {**VALID_ANSWERS, "k10": [0, 1, 1, 1, 1, 1, 1, 1, 1, 1]},  # below the 1-5 scale
+        {"phq9": VALID_ANSWERS["phq9"], "gad7": VALID_ANSWERS["gad7"]},  # missing a questionnaire
+    ]
+    for answers in invalid:
+        assert client.post("/checkins", json={**base, "answers": answers}, headers=headers).status_code == 422
+
+
+def test_checkins_are_limited_to_one_per_cooldown_window(monkeypatch) -> None:
+    monkeypatch.setenv("CHECKIN_COOLDOWN_DAYS", "7")
+    headers = _auth(client.post("/auth/register", json={"email": "cooldown-user@example.com", "password": "correct-horse-battery"}).json()["access_token"])
+    body = {"risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed"}
+
+    assert client.get("/checkins/eligibility").status_code == 401
+    fresh = client.get("/checkins/eligibility", headers=headers).json()
+    assert fresh["can_check_in"] is True and fresh["next_available_at"] is None and fresh["cooldown_days"] == 7
+
+    assert client.post("/checkins", json=body, headers=headers).status_code == 201
+    blocked = client.post("/checkins", json=body, headers=headers)
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) > 6 * 86400
+    waiting = client.get("/checkins/eligibility", headers=headers).json()
+    assert waiting["can_check_in"] is False and waiting["next_available_at"] is not None
+    assert len(client.get("/checkins", headers=headers).json()) == 1
+
+    # Once the last check-in is 7+ days old, a new one is allowed again.
+    from datetime import datetime, timedelta, timezone
+    from database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        user_id = client.get("/auth/me", headers=headers).json()["id"]
+        check_in = db.query(CheckIn).filter(CheckIn.user_id == user_id).one()
+        check_in.created_at = datetime.now(timezone.utc) - timedelta(days=7, minutes=1)
+        db.commit()
+    finally:
+        db.close()
+    assert client.get("/checkins/eligibility", headers=headers).json()["can_check_in"] is True
+    assert client.post("/checkins", json=body, headers=headers).status_code == 201
+
+    # Other accounts aren't affected by this one's cooldown.
+    other = _auth(client.post("/auth/register", json={"email": "cooldown-other@example.com", "password": "correct-horse-battery"}).json()["access_token"])
+    assert client.post("/checkins", json=body, headers=other).status_code == 201
+
+
+def test_checkin_keeps_both_its_answers_and_its_report() -> None:
+    token = client.post("/auth/register", json={"email": "answers-and-report@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    check_in_id = client.post("/checkins", json={
+        "risk_score": 0.4, "band": "elevated", "routing_decision": "refer", "answers": VALID_ANSWERS,
+    }, headers=_auth(token)).json()["id"]
+    client.put(f"/checkins/{check_in_id}/report", files={"file": ("r.pdf", FAKE_PDF, "application/pdf")}, headers=_auth(token))
+
+    entry = client.get("/checkins", headers=_auth(token)).json()[0]
+    assert entry["answers"] == VALID_ANSWERS
+    assert entry["has_report"] is True
+    # Deleting the report keeps the answers.
+    client.delete(f"/checkins/{check_in_id}/report", headers=_auth(token))
+    entry = client.get("/checkins", headers=_auth(token)).json()[0]
+    assert entry["answers"] == VALID_ANSWERS and entry["has_report"] is False

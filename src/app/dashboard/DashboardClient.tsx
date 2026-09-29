@@ -8,9 +8,11 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
-import { changePassword, deleteCheckInReport, downloadCheckInReport, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
+import { changePassword, deleteCheckInReport, downloadCheckInReport, fetchCheckInEligibility, fetchCheckIns, fetchLoginSessions, logout, revokeLoginSession, revokeOtherLoginSessions, updateProfile, type CheckInEligibility, type CheckInRecord, type CurrentUser, type LoginSessionRecord } from "../lib/auth";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
 import CheckInResultsBody from "../components/CheckInResultsBody";
+import ProgressCharts from "../components/ProgressCharts";
+import QuestionnaireAnswersList from "../components/QuestionnaireAnswersList";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
@@ -40,11 +42,13 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reportBusyId, setReportBusyId] = useState<string | null>(null);
   const [reportError, setReportError] = useState<{ id: string; message: string } | null>(null);
+  const [eligibility, setEligibility] = useState<CheckInEligibility | null>(null);
 
   useEffect(() => {
     fetchCheckIns()
       .then(setCheckIns)
       .catch(() => setError("Could not load your history right now."));
+    fetchCheckInEligibility().then(setEligibility);
   }, []);
 
   function handleSignOut() {
@@ -75,9 +79,9 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
   async function handleDownloadPdf(entry: CheckInRecord) {
     if (!entry.has_report) {
       // Check-ins saved before reports were kept (or whose report was
-      // deleted): rebuild a summary PDF from the saved scores - without the
-      // per-question answers, transcript, or written text, which only the
-      // saved report has.
+      // deleted): rebuild a summary PDF from the saved scores. It has no
+      // transcript or written text - only the saved report does; saved item
+      // answers are shown on this page instead (QuestionnaireAnswersList).
       downloadResultsPdf(entry, { name: user.full_name, email: user.email });
       return;
     }
@@ -116,7 +120,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
       <section className="resource-hero">
         <p className="eyebrow">YOUR DASHBOARD</p>
         <h1>Check-in history<br /><em>for {user.email}.</em></h1>
-        <p>Every check-in you complete is saved here with its full PDF report - your questionnaire answers, what you said and wrote, your scores, and your support plan - so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.</p>
+        <p>Every check-in is saved here: your combined score, signal breakdown, support plan, and your answer to each questionnaire item (which the MindHx team can review). Its full PDF report - including what you said and wrote - is saved too, visible only to you, so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.</p>
       </section>
       <NatureBanner {...naturePhotos.mountainRange} priority />
 
@@ -148,6 +152,20 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
           <p>No saved check-ins yet.</p>
           <Link className="result-primary" href="/">Start a check-in <span>→</span></Link>
         </div>
+      )}
+      {checkIns && checkIns.length > 0 && (
+        <section className="progress-section">
+          <div className="progress-heading">
+            <div>
+              <p className="card-kicker">YOUR PROGRESS</p>
+              <h2>How your scores have changed</h2>
+            </div>
+            {eligibility && (eligibility.can_check_in
+              ? <Link className="result-primary" href="/">Take this week&apos;s check-in <span>→</span></Link>
+              : <p className="progress-next">Next check-in opens {new Date(eligibility.next_available_at!).toLocaleString(undefined, { dateStyle: "full", timeStyle: "short" })}.</p>)}
+          </div>
+          <ProgressCharts entries={checkIns} />
+        </section>
       )}
       {checkIns && checkIns.length > 0 && (
         <div className="dashboard-list">
@@ -182,7 +200,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
                     )}
                     {entry.support_plan?.next_action && <p className="dashboard-entry-next-action">{entry.support_plan.next_action}</p>}
                   </div>
-                  {entry.components && <span className="dashboard-entry-toggle">{isExpanded ? "Hide full results ↑" : "View full results ↓"}</span>}
+                  {(entry.components || entry.answers) && <span className="dashboard-entry-toggle">{isExpanded ? "Hide full results ↑" : "View full results ↓"}</span>}
                 </button>
                 <div className="dashboard-report-row">
                   {entry.has_report
@@ -198,13 +216,21 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
                   </div>
                   {reportError?.id === entry.id && <p className="assessment-error">{reportError.message}</p>}
                 </div>
-                {isExpanded && entry.components && (
+                {isExpanded && (entry.components || entry.answers) && (
                   <div className="dashboard-entry-expanded">
-                    <CheckInResultsBody
-                      result={entry}
-                      onDownloadPdf={() => handleDownloadPdf(entry)}
-                      onReturnToCheckIn={() => setExpandedId(null)}
-                    />
+                    {entry.answers && (
+                      <div className="dashboard-answers">
+                        <h3>Your answers</h3>
+                        <QuestionnaireAnswersList answers={entry.answers} audience="self" />
+                      </div>
+                    )}
+                    {entry.components && (
+                      <CheckInResultsBody
+                        result={entry}
+                        onDownloadPdf={() => handleDownloadPdf(entry)}
+                        onReturnToCheckIn={() => setExpandedId(null)}
+                      />
+                    )}
                   </div>
                 )}
               </article>

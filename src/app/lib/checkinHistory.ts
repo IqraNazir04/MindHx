@@ -1,5 +1,5 @@
 // Saves a completed check-in to the signed-in user's history: first its
-// scores (POST /checkins), then the same PDF report the results page
+// scores and questionnaire answers (POST /checkins), then the same PDF report the results page
 // offers for download (PUT /checkins/{id}/report), so they can download it
 // again from their dashboard - e.g. to show a doctor.
 //
@@ -8,10 +8,11 @@
 // only redoes the step that failed.
 
 import type { Result } from "../components/CheckInResultsBody";
-import { saveCheckIn, uploadCheckInReport } from "./auth";
+import { saveCheckIn, uploadCheckInReport, type QuestionnaireAnswers } from "./auth";
 import { resultsPdfBlob, type CheckInDetailForPdf, type PreparedFor } from "./resultsPdf";
 
 const SAVED_KEY = "mindhx:last-result-saved";
+const ANSWERS_KEY = "mindhx:last-checkin-answers";
 
 type SaveProgress = { checkInId: string; reportSaved: boolean };
 
@@ -42,6 +43,27 @@ export function resetSaveProgress(): void {
   }
 }
 
+// The raw item answers (PHQ-9/GAD-7 0-3, K10 1-5) for the result about to
+// be shown, set by HomeClient; null when the questionnaires weren't all
+// completed (e.g. a crisis check-in), in which case none are saved.
+export function setPendingAnswers(answers: QuestionnaireAnswers | null): void {
+  try {
+    if (answers) sessionStorage.setItem(ANSWERS_KEY, JSON.stringify(answers));
+    else sessionStorage.removeItem(ANSWERS_KEY);
+  } catch {
+    // Storage unavailable - the check-in is saved without item answers.
+  }
+}
+
+function readPendingAnswers(): QuestionnaireAnswers | undefined {
+  try {
+    const raw = sessionStorage.getItem(ANSWERS_KEY);
+    return raw ? JSON.parse(raw) as QuestionnaireAnswers : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function isSavedToHistory(): boolean {
   return Boolean(readProgress()?.reportSaved);
 }
@@ -65,8 +87,8 @@ async function runSave(result: Result, preparedFor: PreparedFor, detail?: CheckI
   if (progress?.reportSaved) return;
 
   if (!progress) {
-    // The scores and support plan the backend computed - the per-question
-    // detail, transcript, and written text go only into the PDF below.
+    // Scores, support plan, and item answers - the transcript and written
+    // text go only into the PDF below.
     const checkInId = await saveCheckIn({
       riskScore: result.risk_score,
       band: result.band,
@@ -74,6 +96,7 @@ async function runSave(result: Result, preparedFor: PreparedFor, detail?: CheckI
       themes: result.themes ?? [],
       components: result.components,
       supportPlan: result.support_plan,
+      answers: readPendingAnswers(),
     });
     progress = { checkInId, reportSaved: false };
     writeProgress(progress);

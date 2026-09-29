@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminGate from "../components/AdminGate";
+import ProgressCharts from "../components/ProgressCharts";
+import QuestionnaireAnswersList from "../components/QuestionnaireAnswersList";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
 import {
-  createResource, deleteResource, fetchAdminAnalytics, fetchAdminResources, fetchAdminUsers, updateResource,
-  type AdminAnalytics, type AdminUserSummary, type ResourceInput, type ResourceRecord, type ResourceType,
+  createResource, deleteResource, fetchAdminAnalytics, fetchAdminResources, fetchAdminUserCheckIns, fetchAdminUsers, updateResource,
+  type AdminAnalytics, type AdminUserCheckIns, type AdminUserSummary, type ResourceInput, type ResourceRecord, type ResourceType,
 } from "../lib/admin";
 import { logout, type CurrentUser } from "../lib/auth";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
@@ -29,6 +31,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
   const [resourcesError, setResourcesError] = useState("");
   const [editing, setEditing] = useState<ResourceRecord | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [viewingUser, setViewingUser] = useState<AdminUserSummary | null>(null);
 
   function loadResources() {
     fetchAdminResources()
@@ -129,7 +132,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
 
       <section className="admin-section">
         <h2>Users</h2>
-        <p className="admin-section-note">Every registered account - read-only here. Never the password, transcript, or typed answers from any check-in.</p>
+        <p className="admin-section-note">Every registered account - read-only here. Select a check-in count to see that person&apos;s questionnaire answers. Never the password, transcript, or written reflection from any check-in.</p>
         {usersError && <p className="assessment-error">{usersError}</p>}
         {users === null && !usersError && <p className="dashboard-loading">Loading users…</p>}
         {users?.length === 0 && <p className="dashboard-loading">No accounts yet.</p>}
@@ -142,7 +145,11 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
               <div className="admin-user-row" key={user.id}>
                 <span>{user.email}</span>
                 <span>{user.full_name || "—"}</span>
-                <span>{user.checkin_count}</span>
+                <span>
+                  {user.checkin_count > 0
+                    ? <button className="admin-user-responses" type="button" onClick={() => setViewingUser(user)}>{user.checkin_count} · View</button>
+                    : 0}
+                </span>
                 <span>{user.is_admin ? <b className="admin-user-badge">Admin</b> : "Member"}</span>
                 <span>{new Date(user.created_at).toLocaleDateString()}</span>
                 <span>{user.last_login_at ? new Date(user.last_login_at).toLocaleString() : "—"}</span>
@@ -189,7 +196,44 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
         onSaved={() => { setShowForm(false); loadResources(); }}
       />
     )}
+    {viewingUser && <UserResponsesModal user={viewingUser} onClose={() => setViewingUser(null)} />}
     </>
+  );
+}
+
+function UserResponsesModal({ user, onClose }: { user: AdminUserSummary; onClose: () => void }) {
+  const [data, setData] = useState<AdminUserCheckIns | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchAdminUserCheckIns(user.id)
+      .then(setData)
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load this person's check-ins."));
+  }, [user.id]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal admin-responses-modal" onClick={(event) => event.stopPropagation()}>
+        <button className="close" onClick={onClose} aria-label="Close" type="button">×</button>
+        <p className="eyebrow">ADMIN · QUESTIONNAIRE RESPONSES</p>
+        <h2>{user.full_name || user.email}</h2>
+        {user.full_name && <p>{user.email}</p>}
+        {error && <p className="assessment-error">{error}</p>}
+        {!data && !error && <p className="dashboard-loading">Loading check-ins…</p>}
+        {data && data.checkins.length > 0 && <ProgressCharts entries={data.checkins} />}
+        {data?.checkins.map((checkIn) => (
+          <article className="admin-response-checkin" key={checkIn.id}>
+            <header>
+              <b>{new Date(checkIn.created_at).toLocaleString()}</b>
+              <span>{BAND_LABEL[checkIn.band] ?? checkIn.band} · combined {Math.round(checkIn.risk_score * 100)}%</span>
+            </header>
+            {checkIn.answers
+              ? <QuestionnaireAnswersList answers={checkIn.answers} audience="admin" />
+              : <p className="dashboard-loading">No individual answers saved for this check-in (saved before answers were recorded, or questionnaires incomplete).</p>}
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -73,6 +73,9 @@ export type CheckInRecord = {
   components?: Result["components"];
   support_plan?: Result["support_plan"];
   has_report?: boolean;
+  // The person's own item answers; null for check-ins saved before answers
+  // were recorded, or without all three questionnaires complete.
+  answers?: QuestionnaireAnswers | null;
   created_at: string;
 };
 
@@ -127,7 +130,7 @@ export async function login(email: string, password: string): Promise<string> {
 // an unfinished draft, and local mood/practice notes. Cleared on sign-out
 // so the next person to use this browser (a shared or family device) can't
 // open /results and see the previous person's check-in under their own name.
-const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail", "mindhx:last-result-saved", "mindhx:crisis-context", "mindhx:pending-checkin"];
+const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail", "mindhx:last-result-saved", "mindhx:last-checkin-answers", "mindhx:crisis-context", "mindhx:pending-checkin"];
 const PRIVATE_LOCAL_KEYS = ["mindhx:mood-checkins", "mindhx:helpful-practices"];
 
 export function logout(): void {
@@ -248,6 +251,27 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return result.message;
 }
 
+export type CheckInEligibility = {
+  can_check_in: boolean;
+  cooldown_days: number;
+  last_checkin_at: string | null;
+  // Set only while can_check_in is false.
+  next_available_at: string | null;
+};
+
+// Whether this account can save a new check-in yet (one per
+// CHECKIN_COOLDOWN_DAYS, enforced by POST /checkins). Null if signed out or
+// the check fails - callers treat that as "allowed" and let the backend decide.
+export async function fetchCheckInEligibility(): Promise<CheckInEligibility | null> {
+  if (!isLoggedIn()) return null;
+  try {
+    const response = await authFetch("/checkins/eligibility");
+    return response.ok ? await response.json() as CheckInEligibility : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchCheckIns(): Promise<CheckInRecord[]> {
   const response = await authFetch("/checkins");
   if (!response.ok) throw new Error(await parseErrorDetail(response));
@@ -259,9 +283,16 @@ export type SaveCheckInInput = {
   band: string;
   routingDecision: string;
   themes: string[];
+  // Every section's structured result - the transcript and written text
+  // aren't sent here; they go only into the PDF report (uploadCheckInReport).
   components?: Result["components"];
   supportPlan?: Result["support_plan"];
+  // Individual item answers (PHQ-9/GAD-7 0-3, K10 1-5), readable by admins.
+  // Omitted unless all three questionnaires are complete.
+  answers?: QuestionnaireAnswers;
 };
+
+export type QuestionnaireAnswers = { phq9: number[]; gad7: number[]; k10: number[] };
 
 // Saves a check-in's scores to the signed-in user's history and returns
 // its id (for attaching the PDF report - see lib/checkinHistory.ts).
@@ -277,6 +308,7 @@ export async function saveCheckIn(input: SaveCheckInInput): Promise<string> {
       themes: input.themes,
       components: input.components ?? null,
       support_plan: input.supportPlan ?? null,
+      answers: input.answers ?? null,
     }),
   });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
