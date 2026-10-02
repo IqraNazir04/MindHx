@@ -9,6 +9,8 @@ import { naturePhotos } from "./components/naturePhotos";
 import SiteFooter from "./components/SiteFooter";
 import AccountChip from "./components/AccountChip";
 import MegaNav from "./components/MegaNav";
+import FeatureCarousel from "./components/FeatureCarousel";
+import InnovationGrid from "./components/InnovationGrid";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
@@ -558,6 +560,8 @@ export default function HomeClient() {
           <article className="signal-card phq-card"><ClinicalSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 03 · {completedScales} / 3 COMPLETE</p><h2>{text.clinical}</h2></div><span className="progress-label">{activeAnswers.filter((answer) => answer > -1).length} / {activeQuestions.length}</span></div><p className="card-description">{text.clinicalDescription}</p><div className="scale-tabs"><button className={activeScale === "phq9" ? "active" : ""} onClick={() => setActiveScale("phq9")}>PHQ-9</button><button className={activeScale === "gad7" ? "active" : ""} onClick={() => setActiveScale("gad7")}>GAD-7</button><button className={activeScale === "k10" ? "active" : ""} onClick={() => setActiveScale("k10")}>K10</button></div><div className="question-progress"><span style={{ width: `${(activeAnswers.filter((answer) => answer > -1).length / activeQuestions.length) * 100}%` }} /></div><div className="question-list">{activeQuestions.map((questionText, questionIndex) => <div className="question-block" key={`${activeScale}-${questionIndex}`}><p className="question-number">{activeScale.toUpperCase()} · {questionIndex + 1} / {activeQuestions.length}</p><h3>{questionText}</h3><div className="answer-list">{activeOptions.map((option, optionIndex) => <button key={option} className={activeAnswers[questionIndex] === optionIndex ? "selected" : ""} onClick={() => updateActiveAnswer(questionIndex, optionIndex)}><span className="radio" />{option}</button>)}</div></div>)}</div>{activeScale !== "k10" && <div className="question-actions"><button className="next-button" onClick={goToNextScale}>{text.next}<span>→</span></button></div>}</article>
         </div>
         <section className="bottom-row"><div className="score-preview"><div className="score-ring"><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}</p>}</div></section>
+        <FeatureCarousel isUrdu={language === "اردو"} />
+        <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-mindhx">
           <p className="eyebrow">{text.aboutEyebrow}</p>
           <h2>{text.aboutTitle}</h2>

@@ -151,6 +151,8 @@ button { cursor:pointer; }
 .signal-graphic { display:block; margin:0 0 16px; position:relative; }
 .signal-graphic svg { display:block; overflow:visible; filter:drop-shadow(0 14px 22px rgba(36,52,74,.16)); }
 @media (max-width:720px) { .signal-graphic { width:72px !important; height:72px !important; margin-bottom:12px; } }
+.carousel-graphic { display:block; margin:0 auto; position:relative; }
+.carousel-graphic svg { display:block; overflow:visible; filter:drop-shadow(0 12px 20px rgba(36,52,74,.16)); }
 .ready-label,.progress-label { margin-left:auto; color:var(--teal); font:10px 'DM Mono',monospace; text-transform:uppercase; }
 .progress-label { color:var(--muted); }
 .card-description { color:var(--muted); font-size:13px; line-height:1.55; max-width:490px; margin:18px 0 20px; }
@@ -211,6 +213,32 @@ textarea::placeholder { color:#9aa6b4; }
 .score-preview p:last-child { margin:7px 0 0; color:var(--muted); font-size:12px; }
 .disclaimer { border-top:1px solid var(--line); margin:36px 0 0; padding-top:17px; text-align:center; color:var(--muted); font-size:11px; }
 .disclaimer span { color:var(--blue); margin-right:6px; }
+
+/* ---------- Home / feature carousel ---------- */
+.feature-carousel { margin:56px 0 0; padding-top:40px; border-top:1px solid var(--line); }
+.feature-carousel h2 { font:600 clamp(26px,3.6vw,36px)/1.15 'Playfair Display',serif; color:var(--navy); margin:0 0 32px; }
+.feature-carousel-track { position:relative; min-height:230px; max-width:620px; margin:0 auto; }
+.feature-slide { display:none; flex-direction:column; align-items:center; text-align:center; gap:10px; }
+.feature-slide-active { display:flex; animation:feature-fade .45s ease; }
+@keyframes feature-fade { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+.feature-slide h3 { margin:6px 0 0; font:600 20px 'Playfair Display',serif; color:var(--navy); }
+.feature-slide p { margin:0; max-width:460px; color:var(--muted); font-size:13.5px; line-height:1.6; }
+.feature-slide-cta { margin-top:6px; color:var(--blue); font:600 12.5px 'DM Mono',monospace; text-decoration:none; }
+.feature-slide-cta:hover { text-decoration:underline; }
+.feature-carousel-dots { display:flex; justify-content:center; gap:8px; margin-top:24px; }
+.feature-carousel-dot { width:8px; height:8px; padding:0; border-radius:50%; border:0; background:var(--line-cool); }
+.feature-carousel-dot.active { background:var(--blue); width:22px; border-radius:5px; transition:width .2s ease; }
+
+/* ---------- Home / innovation grid ---------- */
+.innovation-grid-section { margin:56px 0 0; padding-top:40px; border-top:1px solid var(--line); }
+.innovation-grid-section h2 { font:600 clamp(26px,3.6vw,36px)/1.15 'Playfair Display',serif; color:var(--navy); margin:0 0 32px; }
+.innovation-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+.innovation-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px 20px; box-shadow:0 10px 24px var(--shadow); }
+.innovation-num { display:inline-block; color:var(--teal); font:700 11px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:10px; }
+.innovation-card h3 { margin:0 0 8px; font:600 15px 'Playfair Display',serif; color:var(--navy); }
+.innovation-card p { margin:0; color:var(--muted); font-size:12px; line-height:1.55; }
+@media (max-width:900px) { .innovation-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:600px) { .innovation-grid { grid-template-columns:1fr; } }
 
 /* ---------- Home / long-form "About MindHx" section ---------- */
 .about-mindhx { margin:56px 0 40px; padding-top:40px; border-top:1px solid var(--line); }
