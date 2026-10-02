@@ -226,10 +226,16 @@ textarea::placeholder { color:#9aa6b4; }
 @media (max-width:900px) { .innovation-grid { grid-template-columns:1fr 1fr; } }
 @media (max-width:600px) { .innovation-grid { grid-template-columns:1fr; } }
 
-/* ---------- Home / long-form "About MindHx" section ---------- */
+/* ---------- Home / "About MindHx" teaser (full content lives at /about) ---------- */
+.about-teaser { margin:56px 0 40px; padding:40px 0; border-top:1px solid var(--line); text-align:center; max-width:640px; margin-left:auto; margin-right:auto; }
+.about-teaser > h2 { font:600 clamp(26px,3.6vw,34px)/1.2 'Playfair Display',serif; color:var(--navy); margin:0 0 14px; }
+.about-teaser > p { color:var(--muted); font-size:14.5px; line-height:1.6; margin:0 0 20px; }
+
+/* ---------- /about page long-form sections ---------- */
 .about-mindhx { margin:56px 0 40px; padding-top:40px; border-top:1px solid var(--line); }
 .about-mindhx > .eyebrow { text-align:center; }
 .about-mindhx > h2 { text-align:center; font:600 clamp(28px,4vw,40px)/1.15 'Playfair Display',serif; color:var(--navy); margin:0 0 44px; }
+.about-mindhx-page { margin-top:12px; padding-top:0; border-top:0; }
 .about-block { display:flex; align-items:center; gap:52px; margin-bottom:56px; }
 .about-block:last-child { margin-bottom:0; }
 .about-block-reverse { flex-direction:row-reverse; }

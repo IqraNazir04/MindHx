@@ -6,6 +6,7 @@ import { therapies } from "./therapies/data";
 export default function sitemap(): MetadataRoute.Sitemap {
   const staticRoutes = [
     { path: "/", priority: 1 },
+    { path: "/about", priority: 0.7 },
     { path: "/medication", priority: 0.7 },
     { path: "/ai", priority: 0.8 },
     { path: "/meditation", priority: 0.8 },
