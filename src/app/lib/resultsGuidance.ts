@@ -90,3 +90,107 @@ export function buildRecommendation(result: RecommendationInput): Recommendation
     ],
   };
 }
+
+export type StageResult = {
+  number: 1 | 2 | 3 | 4 | 5;
+  label: string;
+  summary: string;
+  recommendations: string[];
+  primary: { label: string; href: string };
+  showEmergencyButton: boolean;
+  therapies: { label: string; href: string; note: string }[];
+  meditations: { label: string; href: string; note: string }[];
+};
+
+const MEDITATION_OPTIONS = {
+  box: { label: "Box breathing", href: "/meditation/box-breathing", note: "A four-count breathing pattern that steadies the body when stress rises." },
+  grounding: { label: "Grounding 5-4-3-2-1", href: "/meditation/grounding-5-4-3-2-1", note: "Notice five things you see, four you feel, three you hear, two you smell, one you taste." },
+  bodyScan: { label: "Body scan", href: "/meditation/body-scan", note: "A slow pass through the body that releases tension you may not have noticed." },
+};
+
+const BAND_SEVERITY: Record<string, number> = {
+  minimal: 1, low: 1, mild: 2, moderate: 3, moderately_severe: 4, severe: 4,
+};
+
+// The stage is the worst band across the three questionnaires, overridden to
+// crisis whenever a crisis signal was detected.
+export function stageFor(result: RecommendationInput & { components?: { phq9: { band: string }; gad7: { band: string }; k10: { band: string } } }): StageResult {
+  const crisis = Boolean(result.crisis_flag) || result.band === "crisis" || result.support_plan?.route === "crisis";
+  const bands = [result.components?.phq9.band, result.components?.gad7.band, result.components?.k10.band];
+  const worst = Math.max(1, ...bands.map((band) => (band ? BAND_SEVERITY[band] ?? 1 : 1)));
+  const number = crisis ? 5 : (worst as 1 | 2 | 3 | 4);
+
+  if (number === 5) {
+    return {
+      number, label: "Stage 5 · Crisis",
+      summary: "A crisis signal was detected. Please reach out for emergency help now, before anything else.",
+      recommendations: [
+        "Contact local emergency services or a crisis line now.",
+        "Stay with someone you trust, or move to a safe place, if you can.",
+        "Remove or put away anything you could use to hurt yourself.",
+      ],
+      primary: { label: "Go to emergency support", href: "/emergency" },
+      showEmergencyButton: true,
+      therapies: [],
+      meditations: [MEDITATION_OPTIONS.box],
+    };
+  }
+  if (number === 4) {
+    return {
+      number, label: "Stage 4 · Moderately severe to severe",
+      summary: "Your answers point to moderately severe or severe symptoms. A professional evaluation should happen soon, and urgent help is available if things get worse.",
+      recommendations: [
+        "Book an appointment with a licensed psychiatrist or clinician as soon as you can.",
+        "Start a talking therapy alongside any medical review.",
+        "If your safety changes or you feel unable to cope, use emergency support right away.",
+      ],
+      primary: { label: "Find a therapist", href: "/therapist" },
+      showEmergencyButton: true,
+      therapies: [THERAPY_OPTIONS.cbt, THERAPY_OPTIONS.dbt, THERAPY_OPTIONS.exposure],
+      meditations: [MEDITATION_OPTIONS.grounding, MEDITATION_OPTIONS.box],
+    };
+  }
+  if (number === 3) {
+    return {
+      number, label: "Stage 3 · Moderate",
+      summary: "Your answers point to moderate symptoms. A professional evaluation is recommended, and talking therapies are well supported at this level.",
+      recommendations: [
+        "Arrange a professional evaluation in the next few weeks.",
+        "Begin structured therapy such as CBT or DBT.",
+        "Keep a daily mood note and bring it to your appointment.",
+      ],
+      primary: { label: "Find a therapist", href: "/therapist" },
+      showEmergencyButton: false,
+      therapies: [THERAPY_OPTIONS.cbt, THERAPY_OPTIONS.dbt, THERAPY_OPTIONS.exposure],
+      meditations: [MEDITATION_OPTIONS.box, MEDITATION_OPTIONS.bodyScan],
+    };
+  }
+  if (number === 2) {
+    return {
+      number, label: "Stage 2 · Mild",
+      summary: "Your answers point to mild symptoms. Self-care, therapy skills, and regular practice often help a lot at this stage.",
+      recommendations: [
+        "Practise a daily grounding or breathing exercise.",
+        "Learn the basics of CBT and notice the link between thoughts and mood.",
+        "Re-check in after a few weeks to see how things are changing.",
+      ],
+      primary: { label: "Try a breathing practice", href: "/meditation/box-breathing" },
+      showEmergencyButton: false,
+      therapies: [THERAPY_OPTIONS.cbt, THERAPY_OPTIONS.dbt],
+      meditations: [MEDITATION_OPTIONS.box, MEDITATION_OPTIONS.grounding, MEDITATION_OPTIONS.bodyScan],
+    };
+  }
+  return {
+    number: 1, label: "Stage 1 · Minimal",
+    summary: "Your answers show little or no symptoms right now. Keeping up good habits, with occasional practice, is the main thing.",
+    recommendations: [
+      "Keep up regular sleep, movement, and time with people you trust.",
+      "Use a short meditation when you notice stress building.",
+      "Come back to a check-in if anything changes.",
+    ],
+    primary: { label: "Explore meditation", href: "/meditation" },
+    showEmergencyButton: false,
+    therapies: [THERAPY_OPTIONS.cbt],
+    meditations: [MEDITATION_OPTIONS.box, MEDITATION_OPTIONS.bodyScan],
+  };
+}

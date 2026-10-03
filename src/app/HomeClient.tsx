@@ -417,7 +417,7 @@ export default function HomeClient() {
           ? { phq9: answers, gad7: gadAnswers, k10: k10Answers.map((answer) => answer + 1) }
           : undefined,
       });
-      router.push("/results");
+      router.push("/recommendations");
     } catch {
       if (crisisSource) {
         // Never leave a crisis check-in on an error message.

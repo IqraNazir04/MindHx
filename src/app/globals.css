@@ -788,3 +788,19 @@ textarea::placeholder { color:#9aa6b4; }
 .recommend-also a { color:var(--blue); font-size:13px; text-decoration:none; }
 .recommend-also a:hover { text-decoration:underline; }
 @media (max-width:720px) { .detail-rows { grid-template-columns:1fr; } .recommend-card { padding:22px 20px; } }
+
+/* Stage page (after See my check-in) */
+.stage-ladder { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; max-width:1120px; margin:0 auto 26px; }
+.stage-step { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--muted); }
+.stage-step span { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; border:1px solid var(--line-cool); font:600 12px 'DM Mono',monospace; }
+.stage-step b { font-size:12px; font-weight:600; }
+.stage-step.passed { color:var(--teal); border-color:rgba(47,143,110,.35); }
+.stage-step.passed span { background:var(--teal-soft); border-color:var(--teal); color:var(--teal); }
+.stage-step.current { color:var(--navy); border-color:var(--blue); box-shadow:0 10px 24px rgba(44,111,186,.15); }
+.stage-step.current span { background:var(--blue); border-color:var(--blue); color:#fff; }
+.stage-scores { max-width:1120px; margin:0 auto; }
+.stage-recommendations { margin:0 0 6px; padding-left:20px; color:var(--navy); font-size:14px; line-height:1.75; }
+.stage-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:22px; }
+@media (max-width:720px) { .stage-ladder { grid-template-columns:repeat(5,1fr); gap:6px; } .stage-step b { font-size:10px; } }
+.stage-safety-note { margin:18px 0 0; color:var(--muted); font-size:12.5px; }
+.stage-safety-note a { color:var(--red); }
