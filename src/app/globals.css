@@ -50,9 +50,6 @@ button { cursor:pointer; }
 @media (max-width:960px) { .topbar-nav { display:none; } }
 @media (max-width:720px) { .topbar { padding:0 20px; }.privacy { display:none; } }
 .workspace { max-width:1240px; margin:0 auto; padding:56px 30px 44px; position:relative; }
-.intro { display:flex; min-height:340px; align-items:center; gap:80px; margin-bottom:34px; position:relative; }
-.hero-copy { flex:1; position:relative; }
-.hero-copy-text { position:relative; z-index:1; }
 .eyebrow,.card-kicker,.question-number { color:var(--blue); font:500 10px 'DM Mono',monospace; letter-spacing:1.6px; margin:0 0 12px; }
 .intro h1 { color:var(--navy); font:600 clamp(40px,6vw,68px)/1.08 'Playfair Display',serif; letter-spacing:-2px; margin:0 0 16px; }
 .intro h1 em { color:var(--teal); font-family:'Playfair Display',serif; font-weight:500; font-style:italic; }
@@ -61,22 +58,6 @@ button { cursor:pointer; }
 .hero-action { box-shadow:0 12px 26px rgba(44,111,186,.18); }
 .status-pill { color:var(--blue); font-size:12px; padding:10px 14px; border:1px solid var(--line-cool); border-radius:20px; background:var(--surface); }
 .status-pill .pulse { margin-right:7px; }
-@media (max-width:720px) { .intro { display:block; min-height:0; gap:34px; margin-bottom:30px; }.status-pill { display:inline-block; margin-top:22px; }.intro h1 { font-size:42px; }.hero-actions { align-items:flex-start; flex-direction:column; gap:13px; } }
-
-/* Decorative signal-orbit graphic (behind hero heading) */
-.signal-orbit { position:absolute; z-index:0; top:-16px; right:-16px; width:150px; height:150px; pointer-events:none; }
-.orbit-ring { position:absolute; top:50%; left:50%; width:34px; height:34px; margin:-17px; border:1.5px solid rgba(47,143,110,.4); border-radius:50%; animation:orbitPulse 4.5s ease-out infinite; }
-.orbit-ring.ring-2 { border-color:rgba(44,111,186,.35); animation-delay:1.5s; }
-.orbit-ring.ring-3 { border-color:rgba(233,130,50,.35); animation-delay:3s; }
-.orbit-core { position:absolute; top:50%; left:50%; width:10px; height:10px; margin:-5px; border-radius:50%; background:radial-gradient(circle,var(--blue),rgba(44,111,186,.1)); animation:orbitCore 3s ease-in-out infinite; }
-.orbit-dot { position:absolute; top:50%; left:50%; width:7px; height:7px; margin:-3.5px; border-radius:50%; animation-name:orbitSpin; animation-timing-function:linear; animation-iteration-count:infinite; }
-.orbit-dot.dot-blue { background:var(--blue); box-shadow:0 0 8px rgba(44,111,186,.5); --radius:38px; animation-duration:11s; }
-.orbit-dot.dot-orange { background:var(--orange); box-shadow:0 0 8px rgba(233,130,50,.5); --radius:54px; animation-duration:16s; animation-direction:reverse; }
-.orbit-dot.dot-green { background:var(--teal); box-shadow:0 0 8px rgba(47,143,110,.5); --radius:26px; animation-duration:8s; }
-@keyframes orbitPulse { 0% { transform:scale(1); opacity:.85; } 100% { transform:scale(2.2); opacity:0; } }
-@keyframes orbitCore { 0%,100% { transform:scale(1); opacity:.9; } 50% { transform:scale(1.35); opacity:.6; } }
-@keyframes orbitSpin { from { transform:rotate(0deg) translateX(var(--radius)) rotate(0deg); } to { transform:rotate(360deg) translateX(var(--radius)) rotate(-360deg); } }
-@media (max-width:900px) { .signal-orbit { display:none; } }
 
 /* Doodle illustrations (shared across all pages) */
 .doodle { position:absolute; pointer-events:none; color:var(--navy); opacity:.5; z-index:0; }
@@ -88,16 +69,29 @@ button { cursor:pointer; }
 .doodle-sway { animation:doodleSway 7s ease-in-out infinite; }
 @keyframes doodleFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-10px) rotate(-3deg); } }
 @keyframes doodleSway { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
-@media (prefers-reduced-motion:reduce) { .signal-orbit *,.doodle,.waveform i { animation:none !important; } }
+@media (prefers-reduced-motion:reduce) { .doodle,.waveform i { animation:none !important; } }
 
-/* Hero side column: now just the tree widget, sized to balance the heading */
-.hero-visuals { display:flex; flex-direction:column; gap:18px; flex:0 0 480px; z-index:1; }
-
-/* Ambient 3D tree companion (roots/trunk/crown - the same metaphor as the
-   voice/words/clinical signals below) sitting under the chat preview card */
-.tree-scene { position:relative; min-height:360px; aspect-ratio:480/460; border:1px solid var(--line-cool); border-radius:18px; overflow:hidden; box-shadow:0 22px 55px var(--shadow); background:linear-gradient(180deg,#6aa3d8,#f1e8d2); }
-.tree-scene canvas { display:block; width:100%; height:100%; cursor:grab; touch-action:pan-y; }
-@media (max-width:720px) { .tree-scene { aspect-ratio:1/1; } }
+/* Hero banner: the 3D tree fills the full width, the heading sits over it
+   bottom-left (peachweb.io-style full-bleed hero with overlaid copy) */
+.intro-banner { position:relative; min-height:460px; height:68vh; max-height:620px; margin-bottom:34px; border-radius:24px; overflow:hidden; box-shadow:0 26px 60px var(--shadow); }
+.intro-tree-bg { position:absolute; inset:0; width:100%; height:100%; min-height:0; aspect-ratio:auto; border:0; border-radius:0; box-shadow:none; background:linear-gradient(180deg,#f3dcc3,var(--background)); }
+.intro-tree-bg canvas { display:block; width:100%; height:100%; cursor:grab; touch-action:pan-y; }
+.intro-overlay { position:relative; z-index:1; height:100%; display:flex; align-items:flex-end; padding:0 48px 42px; pointer-events:none; }
+.intro-overlay:before { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(251,243,230,.92) 0%,rgba(251,243,230,.55) 40%,rgba(251,243,230,0) 74%); pointer-events:none; }
+.intro-overlay .hero-copy-text { position:relative; z-index:1; max-width:620px; pointer-events:auto; }
+/* Mobile: there isn't enough height to keep the tree and overlaid text from
+   colliding, so stack them instead - image on top, copy below, both still
+   inside the same rounded frame. */
+@media (max-width:720px) {
+  .intro-banner { height:auto; min-height:0; max-height:none; display:block; margin-bottom:30px; }
+  .intro-tree-bg { position:relative; inset:auto; height:260px; }
+  .intro-overlay { position:static; height:auto; display:block; padding:22px 22px 26px; }
+  .intro-overlay:before { display:none; }
+  .intro-overlay .hero-copy-text { max-width:none; }
+  .intro h1 { font-size:34px; }
+  .hero-actions { align-items:flex-start; flex-direction:column; gap:13px; }
+  .status-pill { display:inline-block; }
+}
 @media (max-width:720px) { .hero-visuals { flex:1 1 auto; width:100%; } }
 
 .profile-strip { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:18px 22px; margin-bottom:17px; border:1px solid var(--line); border-radius:11px; background:var(--surface-soft); }

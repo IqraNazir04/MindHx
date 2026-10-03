@@ -56,6 +56,20 @@ export const SEASONS = {
     skyTop: '#060a1c', skyBottom: '#2e3470', fog: '#20254d', ground: '#181c3a', soil: '#0e1024',
     bark: '#7d7a96', sun: '#a9bcff', hemiSky: '#8ea4ff', hemiGround: '#14142a', accent: '#8fe9ff', bloomGlow: 0.55,
   },
+  // Tuned to blend into MindHx's own warm cream page background (--background
+  // #fbf3e6) and brand accents (--orange #e98232, --teal #2f8f6e) rather than
+  // a realistic blue sky, so the boxed scene reads as part of the page.
+  mindhx: {
+    name: 'MindHx',
+    leaves: ['#6fae6f', '#8fc48a', '#5f9d6a', '#a8d4a0', '#2f8f6e', '#7fae4a'],
+    litter: ['#9a8a5a', '#8a7a4c', '#7e6a3a'],
+    flowers: ['#ffe2c2', '#ffd3a6', '#fff0e3', '#ffdca0'],
+    meadow: ['#e98232', '#fbf3e6', '#2f8f6e', '#ffd3a6'],
+    grass: ['#7fa050', '#8fb35a', '#6a9c3e', '#a0c468'],
+    hover: ['#ffe45c', '#2f8f6e'],
+    skyTop: '#f3dcc3', skyBottom: '#fbf3e6', fog: '#e9ddc8', ground: '#7a8a52', soil: '#3a2a1e',
+    bark: '#b49c86', sun: '#fff1d6', hemiSky: '#f6ead2', hemiGround: '#5e6c3c', accent: '#e98232', bloomGlow: 0.14,
+  },
 };
 
 /** Default copy for the three parts of the tree. Override with options.zoneCopy (e.g. for Urdu). */

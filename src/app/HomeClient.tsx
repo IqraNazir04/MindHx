@@ -3,7 +3,6 @@
 import { startTransition, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { DoodleCloud, DoodleSun } from "./components/Doodles";
 import NatureBanner from "./components/NatureBanner";
 import { naturePhotos } from "./components/naturePhotos";
 import SiteFooter from "./components/SiteFooter";
@@ -443,7 +442,21 @@ export default function HomeClient() {
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div><nav className="topbar-nav" aria-label="MindHx resources"><Link href="/medication">Medication</Link><Link href="/ai">MindHx AI</Link><Link href="/meditation">Meditation</Link><Link href="/therapies">Therapies</Link><Link href="/therapist">Therapist</Link><Link href="/resources">Resources</Link><Link href="/emergency" className="topbar-nav-emergency">Emergency support</Link></nav><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
       <main className="workspace" dir={language === "اردو" ? "rtl" : "ltr"}>
-        <section className="intro"><DoodleCloud className="doodle doodle-blue doodle-float" style={{ top: "-18px", right: "14%" }} /><DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "-30px", right: "30%" }} /><div className="hero-copy"><div className="signal-orbit" aria-hidden="true"><span className="orbit-ring ring-1" /><span className="orbit-ring ring-2" /><span className="orbit-ring ring-3" /><span className="orbit-core" /><span className="orbit-dot dot-blue" /><span className="orbit-dot dot-orange" /><span className="orbit-dot dot-green" /></div><div className="hero-copy-text"><p className="eyebrow">{text.eyebrow}</p><h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1><p className="intro-copy">{text.intro}</p><div className="hero-actions"><button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.seeCheckIn} <span>↓</span></button><span className="status-pill"><span className="pulse" /> {text.ready}</span></div>{cooldown && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")} <Link href="/dashboard">{language === "اردو" ? "ڈیش بورڈ دیکھیں" : "View your dashboard"} →</Link></p>}</div></div><div className="hero-visuals"><TreeScene /></div></section>
+        <section className="intro intro-banner">
+          <TreeScene className="intro-tree-bg" />
+          <div className="intro-overlay">
+            <div className="hero-copy-text">
+              <p className="eyebrow">{text.eyebrow}</p>
+              <h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1>
+              <p className="intro-copy">{text.intro}</p>
+              <div className="hero-actions">
+                <button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.seeCheckIn} <span>↓</span></button>
+                <span className="status-pill"><span className="pulse" /> {text.ready}</span>
+              </div>
+              {cooldown && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")} <Link href="/dashboard">{language === "اردو" ? "ڈیش بورڈ دیکھیں" : "View your dashboard"} →</Link></p>}
+            </div>
+          </div>
+        </section>
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2><p>{text.contextBody}</p></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
         <div className="signal-grid">
