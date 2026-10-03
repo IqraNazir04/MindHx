@@ -8,6 +8,7 @@ import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
 import { CITIES, getDirectoryLinks, getProvidersForCity, type City } from "./providers";
+import { useLanguage } from "../lib/language";
 
 const TYPE_LABELS: Record<string, { en: string; ur: string }> = {
   "Public hospital": { en: "Public hospital", ur: "سرکاری ہسپتال" },
@@ -73,7 +74,7 @@ const copy = {
 };
 
 export default function TherapistClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const [city, setCity] = useState<City>("Karachi");
   const text = copy[language];
   const isUrdu = language === "اردو";

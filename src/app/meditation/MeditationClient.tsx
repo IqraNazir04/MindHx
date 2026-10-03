@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf, DoodleSun, DoodleWave } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import { useLanguage } from "../lib/language";
 import { techniques } from "./data";
 
 const copy = {
@@ -29,7 +29,7 @@ const copy = {
 };
 
 export default function MeditationClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
 

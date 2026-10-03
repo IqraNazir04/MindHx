@@ -15,6 +15,7 @@ import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBa
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, isLoggedIn, saveCheckIn, type CheckInEligibility } from "./lib/auth";
 import { loadQuestionnaireDraft } from "./lib/questionnaireDraft";
+import { useLanguage } from "./lib/language";
 import { API_BASE } from "./lib/api";
 import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, k10QuestionsEn, questions, questionsEn } from "./lib/questionnaires";
 
@@ -102,7 +103,7 @@ export default function HomeClient() {
   const [sessionToken, setSessionToken] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [hasAccount, setHasAccount] = useState(false);
-  const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useLanguage();
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -177,7 +178,9 @@ export default function HomeClient() {
     } catch {
       // Corrupt or unavailable draft - nothing to restore, no harm done.
     }
-  }, []);
+    // setLanguage (from useLanguage) is listed because it's a real dependency
+    // ESLint can see; it's useCallback-memoized so this still only runs once.
+  }, [setLanguage]);
 
   async function handleSubmitText() {
     if (!typedText.trim()) return;

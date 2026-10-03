@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf, DoodleSun } from "../components/Doodles";
 import SiteFooter from "../components/SiteFooter";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
+import { useLanguage } from "../lib/language";
 
 type AboutSection = { image: keyof typeof naturePhotos; en: { title: string; body: string[] }; ur: { title: string; body: string[] } };
 
@@ -132,7 +132,7 @@ const ABOUT_SECTIONS: AboutSection[] = [
 ];
 
 export default function AboutClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
 

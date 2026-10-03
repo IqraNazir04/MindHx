@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
 import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
 import SiteFooter from "../../components/SiteFooter";
 import { StepIcon } from "../../components/StepIcons";
+import { useLanguage } from "../../lib/language";
 import type { Therapy } from "../data";
 
 const copy = {
@@ -16,7 +16,7 @@ const copy = {
 };
 
 export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const isUrdu = language === "اردو";
   const text = copy[language];
   const content = therapy[isUrdu ? "ur" : "en"];

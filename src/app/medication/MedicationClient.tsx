@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart, DoodleLeaf } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import { useLanguage } from "../lib/language";
 
 const entries = [
   {
@@ -46,7 +46,7 @@ const copy = {
 };
 
 export default function MedicationClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
 

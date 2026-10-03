@@ -8,6 +8,7 @@ import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import ExerciseStepper from "../components/ExerciseStepper";
 import MoodCheckIn from "../components/MoodCheckIn";
+import { useLanguage } from "../lib/language";
 import { getLocalHelpfulPractices, getLocalMoods, recordHelpfulPractice, recordMood } from "../lib/wellbeing";
 import { API_BASE } from "../lib/api";
 import SiteFooter from "../components/SiteFooter";
@@ -96,7 +97,7 @@ const copy = {
 };
 
 export default function AiClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
   const [input, setInput] = useState("");

@@ -7,6 +7,7 @@ import SiteFooter from "../components/SiteFooter";
 import { ClinicalSignalGraphic } from "../components/SignalGraphics";
 import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, k10QuestionsEn, questions, questionsEn } from "../lib/questionnaires";
 import { loadQuestionnaireDraft, saveQuestionnaireDraft } from "../lib/questionnaireDraft";
+import { useLanguage } from "../lib/language";
 
 const copy = {
   English: {
@@ -32,7 +33,7 @@ const copy = {
 };
 
 export default function QuestionnaireClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const isUrdu = language === "اردو";
   const text = copy[language];
   const languageKey = language as keyof typeof questions;
