@@ -117,12 +117,14 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
         backLabel="New check-in"
         right={<button className="dashboard-signout" onClick={handleSignOut} type="button">Sign out</button>}
       />
-      <section className="resource-hero">
-        <p className="eyebrow">YOUR DASHBOARD</p>
-        <h1>Check-in history<br /><em>for {user.email}.</em></h1>
-        <p>Every check-in is saved here: your combined score, signal breakdown, support plan, and your answer to each questionnaire item (which the MindHx team can review). Its full PDF report - including what you said and wrote - is saved too, visible only to you, so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.</p>
-      </section>
-      <NatureBanner {...naturePhotos.mountainRange} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.mountainRange} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">YOUR DASHBOARD</p>
+          <h1>Check-in history<br /><em>for {user.email}.</em></h1>
+          <p>Every check-in is saved here: your combined score, signal breakdown, support plan, and your answer to each questionnaire item (which the MindHx team can review). Its full PDF report - including what you said and wrote - is saved too, visible only to you, so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.</p>
+        </section>
+      </div>
 
       <section className="profile-panel">
         <div className="profile-avatar-wrap">

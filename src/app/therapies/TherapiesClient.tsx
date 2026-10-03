@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
-import { DoodleHeart, DoodleSpeechBubble } from "../components/Doodles";
+import { DoodleHeart } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import { useLanguage } from "../lib/language";
 import { therapies } from "./data";
 
 const copy = {
@@ -31,22 +31,23 @@ const copy = {
 };
 
 export default function TherapiesClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
 
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "100px", right: "5%" }} />
       <DoodleHeart className="doodle doodle-orange doodle-sway" style={{ top: "55%", left: "2%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.forestPath} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.forestPath} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       <section className="reference-grid therapy-reference">
         {therapies.map((therapy) => {
           const content = therapy[isUrdu ? "ur" : "en"];

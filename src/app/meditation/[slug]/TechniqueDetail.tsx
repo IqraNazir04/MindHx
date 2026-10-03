@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import SiteHeader from "../../components/SiteHeader";
-import { DoodleLeaf, DoodleSun } from "../../components/Doodles";
+import { DoodleLeaf } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
 import SiteFooter from "../../components/SiteFooter";
 import { StepIcon } from "../../components/StepIcons";
+import { useLanguage } from "../../lib/language";
 import type { Technique } from "../data";
 
 const copy = {
@@ -16,7 +16,7 @@ const copy = {
 };
 
 export default function TechniqueDetail({ technique }: { technique: Technique }) {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const isUrdu = language === "اردو";
   const text = copy[language];
   const content = technique[isUrdu ? "ur" : "en"];
@@ -24,15 +24,16 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "95px", right: "5%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "50%", left: "2%", width: "26px", height: "auto" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backHref="/meditation" backLabel={text.back} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{content.name}</h1>
-        <p>{content.summary}</p>
-      </section>
-      <NatureBanner {...naturePhotos[technique.image]} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos[technique.image]} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{content.name}</h1>
+          <p>{content.summary}</p>
+        </section>
+      </div>
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.how}</p>

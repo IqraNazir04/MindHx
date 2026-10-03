@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
-import { DoodleHeart, DoodleLeaf } from "../components/Doodles";
+import { DoodleLeaf } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import { useLanguage } from "../lib/language";
 
 const entries = [
   {
@@ -46,22 +46,23 @@ const copy = {
 };
 
 export default function MedicationClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
 
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleHeart className="doodle doodle-orange doodle-float" style={{ top: "100px", right: "5%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%", width: "28px", height: "auto" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.balancedStones} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.balancedStones} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       <section className="reference-grid">
         {entries.map((entry) => {
           const content = entry[isUrdu ? "ur" : "en"];

@@ -8,6 +8,7 @@ import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
 import { register, safeNextPath } from "../lib/auth";
+import { useLanguage } from "../lib/language";
 
 // Option values stay in English (they're what the backend stores); only
 // the visible labels are translated.
@@ -76,7 +77,7 @@ export default function RegisterClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");

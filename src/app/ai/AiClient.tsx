@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
-import { DoodleSpeechBubble, DoodleWave } from "../components/Doodles";
+import { DoodleWave } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import ExerciseStepper from "../components/ExerciseStepper";
 import MoodCheckIn from "../components/MoodCheckIn";
+import { useLanguage } from "../lib/language";
 import { getLocalHelpfulPractices, getLocalMoods, recordHelpfulPractice, recordMood } from "../lib/wellbeing";
 import { API_BASE } from "../lib/api";
 import SiteFooter from "../components/SiteFooter";
@@ -96,7 +97,7 @@ const copy = {
 };
 
 export default function AiClient() {
-  const [language, setLanguage] = useState<"English" | "اردو">("English");
+  const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
   const [input, setInput] = useState("");
@@ -184,15 +185,16 @@ export default function AiClient() {
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "100px", right: "5%" }} />
       <DoodleWave className="doodle doodle-teal doodle-sway" style={{ top: "58%", left: "2%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={isUrdu ? "چیک ان پر واپس" : "Back to check-in"} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.oceanSunrise} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.oceanSunrise} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       {showMoodCheckIn && <MoodCheckIn prompt={text.moodPrompt} thanks={text.moodThanks} onSelect={handleMoodSelect} />}
       <section className="ai-chat">
         <div className="chat-label">{text.chatLabel}</div>

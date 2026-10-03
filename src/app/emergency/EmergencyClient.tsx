@@ -13,6 +13,7 @@ import SiteFooter from "../components/SiteFooter";
 import { fetchCurrentUser } from "../lib/auth";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 import { crisisCopy, type CrisisContext } from "../lib/crisisCopy";
+import { getStoredLanguage, setStoredLanguage } from "../lib/language";
 
 type CheckInDetail = {
   language: string;
@@ -59,6 +60,13 @@ export default function EmergencyClient() {
         // Corrupt/unavailable - the PDF just won't have the full detail section.
       }
     }
+    // No specific check-in to match (landed here directly, not from a crisis
+    // flow) - fall back to the site-wide language preference instead of
+    // defaulting to English.
+    if (!stored && !storedResult) {
+      const globalPreference = getStoredLanguage();
+      if (globalPreference === "اردو") startTransition(() => setManualLanguage("ur"));
+    }
     fetchCurrentUser().then((user) => {
       if (user) startTransition(() => setPreparedFor({ name: user.full_name, email: user.email }));
     });
@@ -80,7 +88,11 @@ export default function EmergencyClient() {
       <DoodleCloud className="doodle doodle-blue doodle-float-slow" style={{ top: "95px", right: "6%", opacity: 0.3 }} />
       <SiteHeader
         language={language === "ur" ? "اردو" : "English"}
-        onToggleLanguage={() => setManualLanguage(language === "ur" ? "en" : "ur")}
+        onToggleLanguage={() => {
+          const next = language === "ur" ? "en" : "ur";
+          setManualLanguage(next);
+          setStoredLanguage(next === "ur" ? "اردو" : "English");
+        }}
         backLabel={backHomeLabel[language]}
       />
       <section className="resource-hero emergency-hero">
