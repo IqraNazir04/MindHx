@@ -760,3 +760,31 @@ textarea::placeholder { color:#9aa6b4; }
 .site-footer-emergency { color:#f0989c !important; }
 .site-footer-bottom { max-width:1120px; margin:0 auto; padding:20px 6vw 30px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; color:#6f8399; font-size:11px; }
 @media (max-width:800px) { .site-footer-inner { flex-direction:column; gap:34px; } .site-footer-columns { gap:34px; } .site-footer-bottom { flex-direction:column; gap:6px; } }
+
+/* Detailed results + proposed next steps (results page and crisis view) */
+.detail-rows { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:20px; }
+.detail-row { padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.detail-row-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:8px; }
+.detail-row-head b { color:var(--navy); font-size:14px; }
+.detail-value { color:var(--blue-deep); font:600 13px 'DM Mono',monospace; }
+.detail-band { margin-left:auto; color:var(--teal); font:600 9.5px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.6px; background:var(--teal-soft); padding:4px 9px; border-radius:20px; }
+.detail-row p { margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+.detail-notes { margin:16px 0 0; padding-left:18px; color:var(--muted); font-size:12.5px; line-height:1.7; }
+.recommend-card { margin:28px 0; padding:28px 30px; border-radius:16px; border:1px solid var(--line-cool); background:var(--surface); box-shadow:0 14px 34px var(--shadow); }
+.recommend-card h2 { color:var(--navy); font-size:24px; margin:4px 0 10px; }
+.recommend-card > p:not(.eyebrow) { color:var(--muted); font-size:14px; line-height:1.65; max-width:680px; margin:0 0 18px; }
+.recommend-card h3 { color:var(--navy); font-size:15px; margin:22px 0 10px; }
+.recommend-emergency { border-color:rgba(200,79,79,.4); background:var(--red-soft); }
+.recommend-emergency .eyebrow { color:var(--red); }
+.recommend-professional { border-color:rgba(233,130,50,.35); background:var(--orange-soft); }
+.recommend-professional .eyebrow { color:#b5611f; }
+.recommend-self .eyebrow { color:var(--teal); }
+.therapy-options { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.therapy-options li { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.therapy-options a { color:var(--blue-deep); font-size:14px; font-weight:600; text-decoration:none; }
+.therapy-options a:hover { text-decoration:underline; }
+.therapy-options span { display:block; margin-top:4px; color:var(--muted); font-size:12.5px; line-height:1.5; }
+.recommend-also { display:flex; flex-wrap:wrap; gap:14px 22px; margin-top:20px; }
+.recommend-also a { color:var(--blue); font-size:13px; text-decoration:none; }
+.recommend-also a:hover { text-decoration:underline; }
+@media (max-width:720px) { .detail-rows { grid-template-columns:1fr; } .recommend-card { padding:22px 20px; } }

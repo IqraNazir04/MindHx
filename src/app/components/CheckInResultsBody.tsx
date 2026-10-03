@@ -1,4 +1,6 @@
+import Link from "next/link";
 import TextMoodBars from "./TextMoodBars";
+import { buildRecommendation, scaleExplanation } from "../lib/resultsGuidance";
 import VoiceEmotionBars, { type VoiceEmotion } from "./VoiceEmotionBars";
 
 export type Result = {
@@ -25,6 +27,7 @@ export type Result = {
     };
   };
   support_plan?: {
+    route?: string;
     title: string;
     next_action: string;
     professional_contact?: { recommended: boolean; action: string; what_to_say: string };
@@ -52,10 +55,31 @@ export default function CheckInResultsBody({
   const score = Math.round(result.risk_score * 100);
   const components = result.components;
   const contact = result.support_plan?.professional_contact;
+  const recommendation = buildRecommendation(result);
 
   return (
     <>
       <section className="results-hero"><div><p className="eyebrow">YOUR MINDHX CHECK-IN</p><h1>A clearer picture<br /><em>to take forward.</em></h1><p className="results-lede">These signals are a starting point for a conversation, not a diagnosis. You remain in control of what happens next.</p><button className="result-primary" type="button" onClick={onDownloadPdf}>Download PDF <span>↓</span></button><p className="results-pdf-hint">Bring this to a doctor or therapist if it&apos;s helpful - generated on your device, never stored on our servers.</p></div><div className="result-score-card"><p className="card-kicker">COMBINED SIGNAL</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{result.band.replaceAll("_", " ")}</b><small>{result.routing_decision.replaceAll("_", " ")}</small></div></section>
+
+      <section className="result-section detail-results"><div className="result-section-heading"><p className="eyebrow">DETAILED RESULTS</p><h2>Your numbers, explained</h2><p>Each questionnaire is scored against its published range. Words and voice are combined with them into the overall signal.</p></div>
+        <div className="detail-rows">
+          <DetailRow name="PHQ-9 (low mood)" value={`${components?.phq9.score ?? 0} / 27`} band={components?.phq9.band} explanation={scaleExplanation("phq9", components?.phq9.band)} />
+          <DetailRow name="GAD-7 (anxiety)" value={`${components?.gad7.score ?? 0} / 21`} band={components?.gad7.band} explanation={scaleExplanation("gad7", components?.gad7.band)} />
+          <DetailRow name="K10 (overall distress)" value={`${components?.k10.score ?? 0} / 50`} band={components?.k10.band} explanation={scaleExplanation("k10", components?.k10.band)} />
+          <DetailRow name="Words (what you wrote)" value={components?.text.signal ? `${Math.round(components.text.signal * 100)}% text signal` : "No text signal"} band={components?.text.sentiment} explanation={`Sentiment read as ${components?.text.sentiment ?? "neutral"}. This adds to the overall signal alongside the questionnaires.`} />
+          <DetailRow name="Voice (how you sounded)" value={components?.voice.available ? `${Math.round((components.voice.signal ?? 0) * 100)}% voice signal` : "Not recorded"} explanation={components?.voice.note ?? "No voice features for this check-in."} />
+        </div>
+        {result.explanation && result.explanation.length > 0 && <ul className="detail-notes">{result.explanation.map((line) => <li key={line}>{line}</li>)}</ul>}
+      </section>
+
+      <section className={`recommend-card recommend-${recommendation.level}`}>
+        <p className="eyebrow">PROPOSED NEXT STEPS</p>
+        <h2>{recommendation.headline}</h2>
+        <p>{recommendation.body}</p>
+        <div className="recommend-primary"><Link className="result-primary" href={recommendation.primary.href}>{recommendation.primary.label} <span>→</span></Link></div>
+        {recommendation.therapies.length > 0 && <><h3>Therapies to consider</h3><ul className="therapy-options">{recommendation.therapies.map((therapy) => <li key={therapy.href}><Link href={therapy.href}>{therapy.label} ↗</Link><span>{therapy.note}</span></li>)}</ul></>}
+        <div className="recommend-also">{recommendation.alsoHelpful.map((item) => <Link key={item.href} href={item.href}>{item.label} ↗</Link>)}</div>
+      </section>
 
       <section className="result-section"><div className="result-section-heading"><p className="eyebrow">01 / THE SIGNALS</p><h2>What contributed to this picture</h2><p>Each measure is shown separately so the combined estimate stays explainable.</p></div><div className="result-signal-grid">
         <Signal name="PHQ-9" score={components?.phq9.score ?? 0} max={27} band={components?.phq9.band ?? "not available"} color="orange" />
@@ -79,4 +103,8 @@ function Signal({ name, score, max, band, color }: { name: string; score: number
 
 function SupportList({ title, items }: { title: string; items: string[] }) {
   return <div className="support-list"><h3>{title}</h3>{items.slice(0, 3).map((item) => <p key={item}><span>+</span>{item}</p>)}</div>;
+}
+
+function DetailRow({ name, value, band, explanation }: { name: string; value: string; band?: string; explanation: string }) {
+  return <div className="detail-row"><div className="detail-row-head"><b>{name}</b><span className="detail-value">{value}</span>{band && <span className="detail-band">{band.replaceAll("_", " ")}</span>}</div><p>{explanation}</p></div>;
 }
