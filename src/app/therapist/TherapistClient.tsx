@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import SiteHeader from "../components/SiteHeader";
-import { DoodleHeart, DoodleSun } from "../components/Doodles";
+import { DoodleHeart } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
@@ -42,7 +42,6 @@ const copy = {
     psychologists: "Psychologists",
     visit: "Visit",
     findDisclaimer: "MindHx does not verify real-time availability, fees, or credentials for any listing above. Confirm details directly with the provider before booking.",
-    bannerCaption: "Take the next step.",
   },
   اردو: {
     eyebrow: "05 / پیشہ ورانہ ریفرل",
@@ -69,7 +68,6 @@ const copy = {
     psychologists: "ماہرینِ نفسیات",
     visit: "دیکھیں",
     findDisclaimer: "MindHx مذکورہ بالا کسی بھی فہرست کی حقیقی وقت کی دستیابی، فیس، یا اسناد کی تصدیق نہیں کرتا۔ بکنگ سے پہلے تفصیلات براہ راست فراہم کنندہ سے تصدیق کریں۔",
-    bannerCaption: "اگلا قدم اٹھائیں۔",
   },
 };
 
@@ -84,15 +82,16 @@ export default function TherapistClient() {
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "100px", right: "5%" }} />
       <DoodleHeart className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backHref="/results" backLabel={isUrdu ? "نتائج پر واپس" : "Back to results"} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.forestBridge} caption={text.bannerCaption} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.forestBridge} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleLine1}<br /><em>{text.titleLine2}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       <section className="therapist-contact">
         <div>
           <p className="card-kicker">{text.whatToSay}</p>

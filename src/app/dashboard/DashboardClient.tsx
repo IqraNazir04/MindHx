@@ -90,12 +90,14 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
         backLabel="New check-in"
         right={<button className="dashboard-signout" onClick={handleSignOut} type="button">Sign out</button>}
       />
-      <section className="resource-hero">
-        <p className="eyebrow">YOUR DASHBOARD</p>
-        <h1>Check-in history<br /><em>for {user.email}.</em></h1>
-        <p>Your combined score, signal breakdown, and support plan are saved here for every check-in, along with your answer to each questionnaire item (which the MindHx team can review) - never your transcript or typed words.</p>
-      </section>
-      <NatureBanner {...naturePhotos.mountainRange} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.mountainRange} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">YOUR DASHBOARD</p>
+          <h1>Check-in history<br /><em>for {user.email}.</em></h1>
+          <p>Your combined score, signal breakdown, and support plan are saved here for every check-in, along with your answer to each questionnaire item (which the MindHx team can review) - never your transcript or typed words.</p>
+        </section>
+      </div>
 
       <section className="profile-panel">
         <div className="profile-avatar-wrap">

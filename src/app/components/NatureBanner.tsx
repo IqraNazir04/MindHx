@@ -10,19 +10,16 @@ type Props = {
 };
 
 // Photos are real, verified-free Unsplash images (not Unsplash+), served via
-// Unsplash's own CDN per their guidelines, with visible attribution as their
-// license requests.
-export default function NatureBanner({ src, alt, photographerName, photographerUrl, caption, priority }: Props) {
+// Unsplash's own CDN per their guidelines. The Unsplash License doesn't
+// require attribution (it's appreciated, not mandated), and the on-image
+// credit links were dropped so nothing clickable sits on top of the photo -
+// photographerName/photographerUrl are kept on the type in case a plain-text
+// credit is wanted somewhere later.
+export default function NatureBanner({ src, alt, caption, priority }: Props) {
   return (
     <figure className="nature-banner">
       <Image src={src} alt={alt} width={1600} height={560} sizes="(max-width: 800px) 100vw, 1120px" priority={priority} loading={priority ? undefined : "lazy"} />
       {caption && <figcaption className="nature-banner-caption">{caption}</figcaption>}
-      <div className="nature-banner-credit">
-        Photo by{" "}
-        <a href={`${photographerUrl}?utm_source=mindhx&utm_medium=referral`} target="_blank" rel="noopener noreferrer">{photographerName}</a>
-        {" "}on{" "}
-        <a href="https://unsplash.com/?utm_source=mindhx&utm_medium=referral" target="_blank" rel="noopener noreferrer">Unsplash</a>
-      </div>
     </figure>
   );
 }

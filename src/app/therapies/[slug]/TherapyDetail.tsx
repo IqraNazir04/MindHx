@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
-import { DoodleHeart, DoodleSpeechBubble } from "../../components/Doodles";
+import { DoodleHeart } from "../../components/Doodles";
 import NatureBanner from "../../components/NatureBanner";
 import { naturePhotos } from "../../components/naturePhotos";
 import SiteFooter from "../../components/SiteFooter";
@@ -24,15 +24,16 @@ export default function TherapyDetail({ therapy }: { therapy: Therapy }) {
   return (
     <>
     <main className="resource-page" dir={isUrdu ? "rtl" : "ltr"}>
-      <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "95px", right: "5%" }} />
       <DoodleHeart className="doodle doodle-orange doodle-sway" style={{ top: "50%", left: "2%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backHref="/therapies" backLabel={text.back} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{content.name}</h1>
-        <p>{content.summary}</p>
-      </section>
-      <NatureBanner {...naturePhotos[therapy.image]} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos[therapy.image]} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{content.name}</h1>
+          <p>{content.summary}</p>
+        </section>
+      </div>
       <section className="technique-detail">
         <div>
           <p className="card-kicker">{text.whatToExpect}</p>
