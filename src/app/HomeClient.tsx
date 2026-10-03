@@ -124,6 +124,7 @@ export default function HomeClient() {
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
   const [resumeNotice, setResumeNotice] = useState("");
+  const [latestStageAvailable, setLatestStageAvailable] = useState(false);
   // Set while this account is inside its check-in cooldown (one saved
   // check-in per CHECKIN_COOLDOWN_DAYS, enforced by the backend).
   const [cooldown, setCooldown] = useState<CheckInEligibility | null>(null);
@@ -381,6 +382,11 @@ export default function HomeClient() {
       }
       setCooldown(eligibility);
       setAssessmentError(cooldownMessage(eligibility, isUrdu));
+      try {
+        setLatestStageAvailable(Boolean(sessionStorage.getItem("mindhx:last-result")));
+      } catch {
+        setLatestStageAvailable(false);
+      }
       return;
     }
 
@@ -486,7 +492,7 @@ export default function HomeClient() {
             </div>
           </article>
         </div>
-        <section className="bottom-row"><div className="score-preview"><div className="score-ring"><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}</p>}</div></section>
+        <section className="bottom-row"><div className="score-preview"><div className="score-ring"><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}{latestStageAvailable && <> <Link href="/recommendations">{language === "اردو" ? "آپ کا تازہ ترین مرحلہ دیکھیں" : "View your latest stage and next steps"} →</Link></>}</p>}</div></section>
         <FeatureCarousel isUrdu={language === "اردو"} />
         <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-teaser">
