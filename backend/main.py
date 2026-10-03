@@ -675,29 +675,46 @@ MODALITY_LABELS = {
 }
 
 
-def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, voice_features: dict) -> dict:
-    phq_signal = round(int(phq_result.get("total_score", 0)) / 27, 2)
-    gad_signal = round(int(gad_result.get("total_score", 0)) / 21, 2)
-    k10_signal = round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
-    text_signal = 1.0 if text_result.get("crisis_language") else 0.65 if text_result.get("sentiment") == "negative" else 0.25 if text_result.get("sentiment") == "neutral" else 0.0
-    voice_signal = round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2) if voice_features else None
+BASE_SIGNAL_WEIGHTS = {"phq9": 0.30, "gad7": 0.22, "k10": 0.22, "text": 0.16, "voice": 0.10}
 
-    names = ["phq9", "gad7", "k10", "text"] + (["voice"] if voice_signal is not None else [])
-    signals = [phq_signal, gad_signal, k10_signal, text_signal] + ([voice_signal] if voice_signal is not None else [])
-    base_weights = [0.30, 0.22, 0.22, 0.16] + ([0.10] if voice_signal is not None else [])
-    # Re-normalize over the signals actually present, so the combined score
-    # spans the full 0..1 range whether or not a voice note was recorded
-    # (the raw weights only sum to 1.0 with voice included, which capped a
-    # no-voice check-in at 0.90).
-    weights = [round(weight / sum(base_weights), 4) for weight in base_weights]
-    combined = round(sum(signal * weight for signal, weight in zip(signals, weights)) * 100) / 100
 
-    # combined is a weighted sum with these exact weights, so each term's weighted value is
-    # its exact contribution to combined - the Shapley value for an additive payoff with no
-    # interaction effects to split. Contributions below sum to `combined` (up to rounding)
-    # by construction, not approximately.
+def _phq9_signal(phq_result: dict) -> float:
+    return round(int(phq_result.get("total_score", 0)) / 27, 2)
+
+
+def _gad7_signal(gad_result: dict) -> float:
+    return round(int(gad_result.get("total_score", 0)) / 21, 2)
+
+
+def _k10_signal(k10_result: dict) -> float:
+    return round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
+
+
+def _text_signal(text_result: dict) -> float:
+    return 1.0 if text_result.get("crisis_language") else 0.65 if text_result.get("sentiment") == "negative" else 0.25 if text_result.get("sentiment") == "neutral" else 0.0
+
+
+def _voice_signal(voice_features: dict) -> Optional[float]:
+    if not voice_features:
+        return None
+    return round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2)
+
+
+def _combine_signals(entries: list[tuple[str, float, float]]) -> tuple[float, list[dict]]:
+    """Weighted sum over the signals actually present, as (name, signal, base_weight).
+
+    Weights are re-normalized over those present, so the combined score spans the full
+    0..1 range whether or not a voice note or a text reflection was provided. combined is
+    a weighted sum with these exact weights, so each term's weighted value is its exact
+    contribution to combined - the Shapley value for an additive payoff with no
+    interaction effects to split. Contributions sum to `combined` (up to rounding) by
+    construction, not approximately.
+    """
+    total_base = sum(base for _, _, base in entries)
+    weights = [round(base / total_base, 4) for _, _, base in entries]
+    combined = round(sum(signal * weight for (_, signal, _), weight in zip(entries, weights)) * 100) / 100
     contributions = []
-    for name, signal, weight in zip(names, signals, weights):
+    for (name, signal, _), weight in zip(entries, weights):
         label, modality = MODALITY_LABELS[name]
         value = round(signal * weight, 4)
         contributions.append({
@@ -709,6 +726,25 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
             "contribution": value,
             "share_pct": round((value / combined) * 100, 1) if combined else 0.0,
         })
+    return combined, contributions
+
+
+def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, voice_features: dict) -> dict:
+    phq_signal = _phq9_signal(phq_result)
+    gad_signal = _gad7_signal(gad_result)
+    k10_signal = _k10_signal(k10_result)
+    text_signal = _text_signal(text_result)
+    voice_signal = _voice_signal(voice_features)
+
+    entries = [
+        ("phq9", phq_signal, BASE_SIGNAL_WEIGHTS["phq9"]),
+        ("gad7", gad_signal, BASE_SIGNAL_WEIGHTS["gad7"]),
+        ("k10", k10_signal, BASE_SIGNAL_WEIGHTS["k10"]),
+        ("text", text_signal, BASE_SIGNAL_WEIGHTS["text"]),
+    ]
+    if voice_signal is not None:
+        entries.append(("voice", voice_signal, BASE_SIGNAL_WEIGHTS["voice"]))
+    combined, contributions = _combine_signals(entries)
 
     return {
         "phq9": {"signal": phq_signal, "score": phq_result.get("total_score", 0), "band": phq_result.get("severity_band")},
@@ -2076,3 +2112,41 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
         "k10": k10_result,
         "support_plan": plan,
     }
+
+
+class LiveEstimateRequest(BaseModel):
+    # A scale is only counted once it's fully answered, matching /risk-assess.
+    phq9_answers: Optional[list[int]] = Field(default=None, min_length=9, max_length=9)
+    gad7_answers: Optional[list[int]] = Field(default=None, min_length=7, max_length=7)
+    k10_answers: Optional[list[int]] = Field(default=None, min_length=10, max_length=10)
+    text_analysis: dict = Field(default_factory=dict)
+    voice_features: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/combined-estimate")
+def combined_estimate(payload: LiveEstimateRequest) -> dict:
+    """Live preview of the combined signal from whichever inputs are present so far.
+
+    Uses the same signal definitions and weighting as /risk-assess (via the shared
+    helpers), so the number shown while a check-in is in progress matches what the final
+    assessment will compute from the same inputs. Crisis handling stays in /risk-assess.
+    """
+    entries: list[tuple[str, float, float]] = []
+    if payload.phq9_answers is not None:
+        phq_result = score_phq9(Phq9Request(answers=payload.phq9_answers))
+        entries.append(("phq9", _phq9_signal(phq_result), BASE_SIGNAL_WEIGHTS["phq9"]))
+    if payload.gad7_answers is not None:
+        entries.append(("gad7", _gad7_signal(score_gad7(payload.gad7_answers)), BASE_SIGNAL_WEIGHTS["gad7"]))
+    if payload.k10_answers is not None:
+        entries.append(("k10", _k10_signal(score_k10(payload.k10_answers)), BASE_SIGNAL_WEIGHTS["k10"]))
+    if payload.text_analysis:
+        text_result = _sanitize_text_analysis(payload.text_analysis, "")
+        entries.append(("text", _text_signal(text_result), BASE_SIGNAL_WEIGHTS["text"]))
+    voice_signal = _voice_signal(_sanitize_voice_features(payload.voice_features))
+    if voice_signal is not None:
+        entries.append(("voice", voice_signal, BASE_SIGNAL_WEIGHTS["voice"]))
+
+    if not entries:
+        return {"combined_signal": 0.0, "contributions": []}
+    combined, contributions = _combine_signals(entries)
+    return {"combined_signal": combined, "contributions": contributions}

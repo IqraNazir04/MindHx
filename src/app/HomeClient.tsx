@@ -36,30 +36,6 @@ const copy = {
   }
 };
 
-// Live pre-submission estimate only: combines whichever of PHQ-9/GAD-7/K10 are answered
-// so far, weighted the same way the backend weights them in the final risk assessment
-// (proportionally re-normalized over just the scales answered). Text and voice signals
-// are not folded in here since they aren't available until the check-in is submitted;
-// the real combined_signal from /risk-assess (which does include them) replaces this
-// once the assessment completes.
-function combinedLiveEstimate(answers: number[], gadAnswers: number[], k10Answers: number[]) {
-  const scales = [
-    { values: answers, weight: 0.3, maxIndex: 3 },
-    { values: gadAnswers, weight: 0.22, maxIndex: 3 },
-    { values: k10Answers, weight: 0.22, maxIndex: 4 },
-  ];
-  let weightedSum = 0;
-  let weightTotal = 0;
-  for (const { values, weight, maxIndex } of scales) {
-    const answered = values.filter((value) => value > -1);
-    if (!answered.length) continue;
-    const signal = answered.reduce((sum, value) => sum + value, 0) / (answered.length * maxIndex);
-    weightedSum += signal * weight;
-    weightTotal += weight;
-  }
-  return weightTotal ? Math.round((weightedSum / weightTotal) * 100) : 0;
-}
-
 // Holds the in-progress check-in (recording, answers, profile) across the
 // redirect to sign in - viewing results now requires an account, but
 // bouncing someone to /login shouldn't throw away what they just recorded.
@@ -114,6 +90,37 @@ export default function HomeClient() {
   const [textSubmitting, setTextSubmitting] = useState(false);
   const [textSubmitError, setTextSubmitError] = useState("");
   const [textSubmitResult, setTextSubmitResult] = useState<({ sentiment: string } & TextMoodScores) | null>(null);
+  // Live "Your combined picture" estimate: asked of the backend (same signal
+  // definitions and weights as the final /risk-assess), so text and voice count
+  // here too. A scale only counts once fully answered, and text only once it's
+  // been analysed (editing the text clears that analysis).
+  const [liveCombined, setLiveCombined] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      const isDone = (values: number[]) => values.every((value) => value > -1);
+      fetch(`${API_BASE}/combined-estimate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phq9_answers: isDone(answers) ? answers : null,
+          gad7_answers: isDone(gadAnswers) ? gadAnswers : null,
+          k10_answers: isDone(k10Answers) ? k10Answers.map((answer) => answer + 1) : null,
+          text_analysis: textSubmitResult ? { sentiment: textSubmitResult.sentiment, anxiety_level: textSubmitResult.anxiety_level, stress_level: textSubmitResult.stress_level, depression_indicator: textSubmitResult.depression_indicator } : {},
+          voice_features: voiceFeatures,
+        }),
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((data: { combined_signal: number } | null) => {
+          if (!cancelled && data) setLiveCombined(Math.round(data.combined_signal * 100));
+        })
+        .catch(() => {});
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [answers, gadAnswers, k10Answers, textSubmitResult, voiceFeatures]);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
   const [resumeNotice, setResumeNotice] = useState("");
@@ -125,7 +132,7 @@ export default function HomeClient() {
   const audioChunks = useRef<Blob[]>([]);
   const answered = answers.filter((answer) => answer > -1).length;
   const isComplete = answered === questionsEn.length;
-  const score = combinedLiveEstimate(answers, gadAnswers, k10Answers);
+  const score = liveCombined;
   const liveScores = { phq9: answers.reduce((sum, answer) => sum + Math.max(0, answer), 0), gad7: gadAnswers.reduce((sum, answer) => sum + Math.max(0, answer), 0), k10: k10Answers.reduce((sum, answer) => sum + (answer > -1 ? answer + 1 : 0), 0) };
   const text = copy[language as keyof typeof copy];
   const profileOption = (value: keyof typeof copy.English.options) => <option value={value}>{text.options[value]}</option>;
@@ -464,7 +471,7 @@ export default function HomeClient() {
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
         <div className="signal-grid">
           <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 01</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button><span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{voiceFeatures.emotion && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}</article>
-          <article className="signal-card signal-card-words"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => setTypedText(event.target.value)} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
+          <article className="signal-card signal-card-words"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => { setTypedText(event.target.value); setTextSubmitResult(null); }} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
           <article className="signal-card signal-card-clinical">
             <div className="clinical-card-body">
               <ClinicalSignalGraphic size={72} />

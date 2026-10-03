@@ -985,3 +985,32 @@ def test_checkins_are_limited_to_one_per_cooldown_window(monkeypatch) -> None:
     # Other accounts aren't affected by this one's cooldown.
     other = _auth(client.post("/auth/register", json={"email": "cooldown-other@example.com", "password": "correct-horse-battery"}).json()["access_token"])
     assert client.post("/checkins", json=body, headers=other).status_code == 201
+
+
+def test_combined_estimate_matches_final_risk_assessment_and_ignores_incomplete_scales() -> None:
+    phq9 = [1, 1, 1, 1, 1, 1, 1, 1, 0]
+    gad7 = [1] * 7
+    k10 = [3] * 10
+    text_analysis = {"sentiment": "negative"}
+
+    final = client.post(
+        "/risk-assess",
+        json={
+            "typed_text": "I have been feeling hopeless and alone lately.",
+            "phq9_answers": phq9,
+            "gad7_answers": gad7,
+            "k10_answers": k10,
+            "text_analysis": text_analysis,
+        },
+    ).json()
+    live = client.post(
+        "/combined-estimate",
+        json={"phq9_answers": phq9, "gad7_answers": gad7, "k10_answers": k10, "text_analysis": text_analysis},
+    ).json()
+    assert live["combined_signal"] == final["risk_score"]
+
+    partial = client.post("/combined-estimate", json={"phq9_answers": phq9, "gad7_answers": None, "k10_answers": None}).json()
+    assert [item["name"] for item in partial["contributions"]] == ["phq9"]
+    assert partial["combined_signal"] == round(sum(phq9) / 27 * 100) / 100
+
+    assert client.post("/combined-estimate", json={}).json() == {"combined_signal": 0.0, "contributions": []}
