@@ -423,11 +423,12 @@ RAG_INTENT_KEYWORDS = {
     "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
     "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
 }
-UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS)
-UPLOAD_CONTENT_CHARS_IN_PROMPT = 1500
+UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS) | {"general"}
+UPLOAD_CHUNK_CHARS = 900
+UPLOAD_CHUNKS_PER_REPLY = 3
 UPLOAD_MAX_BYTES = 2_000_000
-UPLOAD_MAX_TEXT_CHARS = 60_000
-UPLOAD_MAX_ACTIVE_FOR_CHAT = 20
+UPLOAD_MAX_TEXT_CHARS = 120_000
+UPLOAD_MAX_ACTIVE_FOR_CHAT = 30
 
 
 def matched_intents(message: str) -> set[str]:
@@ -438,21 +439,79 @@ def matched_intents(message: str) -> set[str]:
 def retrieve_rag_documents(message: str, uploaded: Optional[list[dict]] = None) -> list[dict]:
     matched = matched_intents(message)
     static = [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
-    admin_matched = [document for document in (uploaded or []) if document["intent"] in matched]
-    return admin_matched[:2] + static
+    return (uploaded or []) + static
 
 
-def active_reference_documents(db: Session) -> list[dict]:
-    """Active admin uploads, shaped like the built-in RAG documents so the same
-    prompt and source-citation code handles both. Each carries its source name
-    so the chat can say where a statement came from."""
+_TERM_PATTERN = re.compile(r"[a-z\u0600-\u06FF]{3,}")
+
+
+RETRIEVAL_STOPWORDS = frozenset({
+    "about", "above", "after", "again", "against", "all", "also", "and", "any", "are", "because", "been", "before", "being",
+    "between", "both", "but", "can", "could", "did", "does", "doing", "down", "during", "each", "few", "for", "from", "further",
+    "had", "has", "have", "having", "her", "here", "hers", "him", "his", "how", "into", "its", "just", "like", "more", "most",
+    "much", "not", "now", "off", "once", "only", "other", "our", "out", "over", "own", "same", "she", "should", "some", "such",
+    "tell", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through", "too", "under",
+    "until", "very", "was", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would",
+    "you", "your", "yours", "tomorrow", "today", "know", "think", "want", "need", "feel", "feeling", "help",
+})
+
+
+def _terms(text: str) -> set[str]:
+    return {word for word in _TERM_PATTERN.findall(text.lower()) if word not in RETRIEVAL_STOPWORDS}
+
+
+def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
+    """Splits a document into passages of roughly `size` characters, on paragraph
+    boundaries where possible, so a long PDF is searchable end to end rather than
+    only its first few hundred words."""
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
+    chunks: list[str] = []
+    current = ""
+    for paragraph in paragraphs:
+        while len(paragraph) > size:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(paragraph[:size])
+            paragraph = paragraph[size:]
+        if current and len(current) + len(paragraph) + 2 > size:
+            chunks.append(current)
+            current = paragraph
+        else:
+            current = f"{current}\n\n{paragraph}" if current else paragraph
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
+    """The most relevant passages from active admin uploads for this message.
+
+    A passage scores for each distinct word it shares with the message, and an
+    upload whose topic matches the message gets a boost. Passages with no overlap
+    and no topic match are never used. Shaped like the built-in RAG documents, so
+    the same prompt and source-citation code handles both."""
+    query_terms = _terms(message)
+    topics = matched_intents(message)
     rows = db.query(ReferenceDocument).filter(ReferenceDocument.active.is_(True)).order_by(ReferenceDocument.created_at.desc()).limit(UPLOAD_MAX_ACTIVE_FOR_CHAT).all()
+    scored: list[tuple[int, int, ReferenceDocument, int, str]] = []
+    for row_index, row in enumerate(rows):
+        topic_boost = 2 if row.intent in topics else 0
+        for chunk_index, chunk in enumerate(chunk_document_text(row.content)):
+            overlap = len(query_terms & _terms(chunk))
+            score = overlap + topic_boost
+            if score > 0:
+                scored.append((score, -row_index, row, chunk_index, chunk))
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+
     documents = []
-    for row in rows:
-        excerpt = row.content[:UPLOAD_CONTENT_CHARS_IN_PROMPT]
-        label = f"{row.title} ({row.source_name})" if row.source_name else row.title
-        locale = {"title": label, "content": excerpt}
-        documents.append({"id": f"upload-{row.id}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
+    for score, _, row, chunk_index, chunk in scored[:UPLOAD_CHUNKS_PER_REPLY]:
+        part = f" (part {chunk_index + 1})"
+        label = f"{row.title}{part}"
+        if row.source_name:
+            label = f"{row.title}{part} - {row.source_name}"
+        locale = {"title": label, "content": chunk}
+        documents.append({"id": f"upload-{row.id}-{chunk_index}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
     return documents
 
 
@@ -1922,7 +1981,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
 
-    documents = retrieve_rag_documents(payload.message, active_reference_documents(db))
+    documents = retrieve_rag_documents(payload.message, retrieve_reference_chunks(db, payload.message))
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None

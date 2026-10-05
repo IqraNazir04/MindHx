@@ -1071,3 +1071,28 @@ def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> Non
     body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
     assert all(source["source"] != "admin_upload" for source in body["sources"])
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_deep_passage_in_long_pdf_style_document_is_cited_for_matching_question() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('deep-doc-admin@example.com')}"}
+    filler = "\n\n".join(f"Section {number}: general background about daily routines and rest, unrelated to the question." for number in range(60))
+    deep = "The orchard lantern protocol is a three-step evening routine: dim the lights, write one worry down, and breathe slowly for two minutes."
+    body = f"{filler}\n\n{deep}\n\n{filler}"
+    assert len(body) > 5000
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("long-guide.txt", body.encode("utf-8"), "text/plain")},
+        data={"title": "Long guide", "intent": "general", "source_name": "Program manual"},
+        headers=admin_headers,
+    ).json()
+
+    body_out = client.post("/ai/chat", json={"message": "What is the orchard lantern protocol?", "risk_clear": True}).json()
+    uploaded = [source for source in body_out["sources"] if source["source"] == "admin_upload"]
+    assert uploaded, body_out
+    assert any("orchard lantern protocol" in source["content"] for source in uploaded)
+    assert all("Long guide" in source["title"] and "Program manual" in source["title"] for source in uploaded)
+
+    unrelated = client.post("/ai/chat", json={"message": "Tell me about the weather tomorrow", "risk_clear": True}).json()
+    assert all(source["source"] != "admin_upload" for source in unrelated["sources"])
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)

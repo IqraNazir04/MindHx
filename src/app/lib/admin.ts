@@ -155,7 +155,7 @@ export async function deleteResource(id: string): Promise<void> {
   if (!response.ok) throw new Error(await parseErrorDetail(response));
 }
 
-export const REFERENCE_INTENTS = ["anxiety", "depression", "therapy", "medication", "family_stigma", "exam_pressure"] as const;
+export const REFERENCE_INTENTS = ["general", "anxiety", "depression", "therapy", "medication", "family_stigma", "exam_pressure"] as const;
 export type ReferenceIntent = typeof REFERENCE_INTENTS[number];
 
 export type ReferenceDocument = {

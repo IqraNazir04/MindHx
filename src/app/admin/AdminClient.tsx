@@ -401,16 +401,16 @@ function ReferenceDocumentsSection() {
       <div className="admin-section-heading">
         <h2>Reference documents</h2>
       </div>
-      <p className="admin-section-note">Upload approved guidance (.txt, .md or .pdf, up to 2 MB). While a document is active, the MindHx chat can draw on it for questions about its topic and cites it by title and source. Only the extracted text is stored.</p>
+      <p className="admin-section-note">Upload approved guidance as a PDF (or .txt / .md, up to 2 MB) to train the MindHx chat. The text is split into passages, and for each question the chat uses the passages that best match it, citing the title and source. Choose "any topic" for general material; other topics also make the passages more likely to be used for that subject. Only the extracted text is stored, and deactivating a document stops the chat using it.</p>
       {error && <p className="assessment-error">{error}</p>}
       <form className="admin-upload-form" onSubmit={handleUpload}>
-        <input type="file" accept=".txt,.md,.markdown,.pdf,text/plain,text/markdown,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} aria-label="Document file" />
+        <input type="file" accept=".txt,.md,.markdown,.pdf,text/plain,text/markdown,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} aria-label="PDF or text file" />
         <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title (shown to the chat as the source)" maxLength={200} aria-label="Title" />
         <input type="text" value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Source (e.g. clinic handout, guideline name)" maxLength={200} aria-label="Source name" />
         <select value={intent} onChange={(event) => setIntent(event.target.value as ReferenceIntent)} aria-label="Topic">
-          {REFERENCE_INTENTS.map((item) => <option key={item} value={item}>{item.replaceAll("_", " ")}</option>)}
+          {REFERENCE_INTENTS.map((item) => <option key={item} value={item}>{item === "general" ? "any topic" : item.replaceAll("_", " ")}</option>)}
         </select>
-        <button className="check-in-button" type="submit" disabled={!file || !title.trim() || uploading}>{uploading ? "Uploading…" : "Upload document"} <span>→</span></button>
+        <button className="check-in-button" type="submit" disabled={!file || !title.trim() || uploading}>{uploading ? "Uploading and indexing…" : "Upload PDF to train chatbot"} <span>→</span></button>
       </form>
       {documents === null && !error && <p className="dashboard-loading">Loading documents…</p>}
       {documents?.length === 0 && <p className="dashboard-loading">No reference documents yet.</p>}
