@@ -7,7 +7,7 @@ import { fetchCurrentUser, type CurrentUser } from "../lib/auth";
 type Status = "checking" | "authorized" | "unauthorized";
 
 // Like ProtectedRoute, but also requires is_admin - redirects signed-out
-// visitors to /login and signed-in non-admins to / (not a 404/403 page:
+// visitors to the separate admin sign-in (/admin/login) and signed-in non-admins to / (not a 404/403 page:
 // there's no reason to reveal that /admin exists to someone it doesn't
 // apply to). The backend enforces this independently on every /admin/*
 // call regardless of what this component does.
@@ -22,7 +22,7 @@ export default function AdminGate({ children }: { children: (user: CurrentUser) 
       if (cancelled) return;
       if (!currentUser) {
         setStatus("unauthorized");
-        router.replace("/login?next=%2Fadmin");
+        router.replace("/admin/login");
         return;
       }
       if (!currentUser.is_admin) {

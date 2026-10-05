@@ -1186,6 +1186,19 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer"}
 
 
+@app.post("/admin/login", dependencies=[Depends(rate_limit("admin-login", 10, 300))])
+def admin_login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Sign-in for the separate admin panel. Only admin accounts get a session -
+    a valid non-admin login is refused here without creating one, so the admin
+    sign-in can't be used as an ordinary account login."""
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="This account does not have admin access.")
+    return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer", "email": user.email}
+
+
 @app.post("/auth/logout", status_code=204)
 def logout(auth: AuthContext = Depends(get_current_auth), db: Session = Depends(get_db)) -> None:
     """Ends this session server-side, so its token stops working even if a

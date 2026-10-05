@@ -1146,3 +1146,20 @@ def test_embeddings_rank_passages_by_meaning_not_shared_words(monkeypatch) -> No
     assert "steadies" in cited[0]["content"]
 
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_admin_login_is_separate_and_refuses_non_admin_accounts() -> None:
+    _register_admin("panel-admin@example.com")
+    client.post("/auth/register", json={"email": "panel-regular@example.com", "password": "correct-horse-battery"})
+
+    refused = client.post("/admin/login", json={"email": "panel-regular@example.com", "password": "correct-horse-battery"})
+    assert refused.status_code == 403
+    assert "access_token" not in refused.json()
+
+    wrong = client.post("/admin/login", json={"email": "panel-admin@example.com", "password": "not-the-password"})
+    assert wrong.status_code == 401
+
+    accepted = client.post("/admin/login", json={"email": "panel-admin@example.com", "password": "correct-horse-battery"})
+    assert accepted.status_code == 200
+    token = accepted.json()["access_token"]
+    assert client.get("/admin/documents", headers={"Authorization": f"Bearer {token}"}).status_code == 200

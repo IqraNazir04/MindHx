@@ -345,3 +345,14 @@ export async function revokeOtherLoginSessions(): Promise<number> {
   const result = await response.json() as { ended: number };
   return result.ended;
 }
+
+export async function adminLogin(email: string, password: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  const result = await response.json() as { access_token: string };
+  setToken(result.access_token);
+}
