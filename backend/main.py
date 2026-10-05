@@ -6,6 +6,7 @@ to save their check-in history across visits."""
 import io
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -44,7 +45,7 @@ from auth import (
 )
 from database import get_db, init_db
 from mailer import send_email
-from models import CheckIn, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, ReferenceDocument, Resource, User
+from models import CheckIn, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, ReferenceChunk, ReferenceDocument, Resource, User
 from ratelimit import rate_limit
 
 logger = logging.getLogger("mindhx")
@@ -442,8 +443,7 @@ def retrieve_rag_documents(message: str, uploaded: Optional[list[dict]] = None) 
     return (uploaded or []) + static
 
 
-_TERM_PATTERN = re.compile(r"[a-z\u0600-\u06FF]{3,}")
-
+_TERM_PATTERN = re.compile(r"[a-z؀-ۿ]{3,}")
 
 RETRIEVAL_STOPWORDS = frozenset({
     "about", "above", "after", "again", "against", "all", "also", "and", "any", "are", "because", "been", "before", "being",
@@ -452,12 +452,35 @@ RETRIEVAL_STOPWORDS = frozenset({
     "much", "not", "now", "off", "once", "only", "other", "our", "out", "over", "own", "same", "she", "should", "some", "such",
     "tell", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through", "too", "under",
     "until", "very", "was", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would",
-    "you", "your", "yours", "tomorrow", "today", "know", "think", "want", "need", "feel", "feeling", "help",
+    "you", "your", "yours", "tomorrow", "today", "know", "think", "want", "need", "help", "lately", "really", "always",
 })
+
+# Words that mean the same thing in everyday language and in clinical guidance,
+# so a question in one vocabulary can find a document written in the other.
+# Used for word matching; the embeddings path doesn't need it.
+SYNONYM_GROUPS = [
+    {"anxiety", "anxious", "worry", "worried", "worrying", "stress", "stressed", "stressful", "overwhelm", "overwhelmed", "panic", "nervous", "tense", "tension", "pressure", "racing"},
+    {"depression", "depressed", "sad", "sadness", "hopeless", "hopelessness", "empty", "unmotivated", "motivation", "low", "withdrawn", "lonely", "alone"},
+    {"sleep", "insomnia", "tired", "tiredness", "fatigue", "exhausted", "bedtime", "rest", "nightmares"},
+    {"therapy", "therapist", "counsellor", "counselor", "counselling", "counseling", "clinician", "psychologist", "psychiatrist", "professional"},
+    {"medicine", "medication", "medicines", "medications", "tablet", "tablets", "pill", "pills", "drug", "drugs", "prescription"},
+    {"family", "relatives", "parents", "stigma", "shame", "ashamed", "embarrassed", "judgement", "judgment"},
+    {"exam", "exams", "examination", "study", "studies", "university", "deadline", "assignment", "coursework"},
+    {"breathe", "breathing", "breath", "grounding", "calm", "calming", "relax", "relaxation", "unwind", "meditation", "mindfulness"},
+]
 
 
 def _terms(text: str) -> set[str]:
     return {word for word in _TERM_PATTERN.findall(text.lower()) if word not in RETRIEVAL_STOPWORDS}
+
+
+def _expanded_terms(text: str) -> set[str]:
+    terms = _terms(text)
+    expanded = set(terms)
+    for group in SYNONYM_GROUPS:
+        if terms & group:
+            expanded |= group
+    return expanded
 
 
 def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
@@ -484,34 +507,107 @@ def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
     return chunks
 
 
-def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
+EMBEDDING_BATCH_SIZE = 256
+SEMANTIC_MIN_SIMILARITY = float(os.getenv("REFERENCE_MIN_SIMILARITY", "0.30"))
+
+
+def _embedding_model() -> str:
+    return os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+
+async def embed_texts(texts: list[str]) -> Optional[list[list[float]]]:
+    """Embedding vectors for each text, in order, from OpenAI's embeddings API.
+    Returns None when no key is configured or the call fails, so callers fall
+    back to word matching instead of failing the request."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or not texts:
+        return None
+    vectors: list[list[float]] = []
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+                batch = texts[start:start + EMBEDDING_BATCH_SIZE]
+                response = await client.post("https://api.openai.com/v1/embeddings", headers=headers, json={"model": _embedding_model(), "input": batch})
+                response.raise_for_status()
+                items = sorted(response.json()["data"], key=lambda item: item["index"])
+                vectors.extend(item["embedding"] for item in items)
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
+        logger.error("OpenAI embeddings request failed: %r", error)
+        return None
+    return vectors if len(vectors) == len(texts) else None
+
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+
+
+async def index_reference_document(db: Session, document: ReferenceDocument) -> None:
+    """Splits a document into passages and stores them, embedding each one when
+    the embeddings service is available."""
+    pieces = chunk_document_text(document.content)
+    vectors = await embed_texts(pieces)
+    model = _embedding_model() if vectors else None
+    for position, piece in enumerate(pieces):
+        db.add(ReferenceChunk(
+            document_id=document.id,
+            position=position,
+            text=piece,
+            embedding=json.dumps(vectors[position]) if vectors else None,
+            embedding_model=model,
+        ))
+    db.commit()
+
+
+async def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
     """The most relevant passages from active admin uploads for this message.
 
-    A passage scores for each distinct word it shares with the message, and an
-    upload whose topic matches the message gets a boost. Passages with no overlap
-    and no topic match are never used. Shaped like the built-in RAG documents, so
-    the same prompt and source-citation code handles both."""
-    query_terms = _terms(message)
-    topics = matched_intents(message)
+    With embeddings, passages are ranked by cosine similarity to the message. Word
+    matching (with synonyms) adds to the score and covers passages that have no
+    embedding. A passage is only used when it's similar, shares a meaningful word,
+    or belongs to a document whose topic matches the message. Shaped like the
+    built-in RAG documents, so the same prompt and citation code handles both."""
     rows = db.query(ReferenceDocument).filter(ReferenceDocument.active.is_(True)).order_by(ReferenceDocument.created_at.desc()).limit(UPLOAD_MAX_ACTIVE_FOR_CHAT).all()
-    scored: list[tuple[int, int, ReferenceDocument, int, str]] = []
-    for row_index, row in enumerate(rows):
-        topic_boost = 2 if row.intent in topics else 0
-        for chunk_index, chunk in enumerate(chunk_document_text(row.content)):
-            overlap = len(query_terms & _terms(chunk))
-            score = overlap + topic_boost
-            if score > 0:
-                scored.append((score, -row_index, row, chunk_index, chunk))
+    for row in rows:
+        if not db.query(ReferenceChunk.id).filter(ReferenceChunk.document_id == row.id).first():
+            await index_reference_document(db, row)
+    if not rows:
+        return []
+
+    chunk_rows = (
+        db.query(ReferenceChunk, ReferenceDocument)
+        .join(ReferenceDocument, ReferenceChunk.document_id == ReferenceDocument.id)
+        .filter(ReferenceDocument.active.is_(True), ReferenceDocument.id.in_([row.id for row in rows]))
+        .all()
+    )
+    query_vectors = await embed_texts([message])
+    query_vector = query_vectors[0] if query_vectors else None
+    query_terms = _expanded_terms(message)
+    topics = matched_intents(message)
+
+    scored: list[tuple[float, int, ReferenceChunk, ReferenceDocument]] = []
+    for chunk, document in chunk_rows:
+        overlap = len(query_terms & _expanded_terms(chunk.text))
+        topic_match = document.intent in topics
+        similarity = cosine_similarity(query_vector, json.loads(chunk.embedding)) if query_vector and chunk.embedding else None
+        relevant = (similarity is not None and similarity >= SEMANTIC_MIN_SIMILARITY) or overlap > 0 or topic_match
+        if not relevant:
+            continue
+        score = (similarity or 0.0) + 0.1 * min(overlap, 5) + (0.2 if topic_match else 0.0)
+        scored.append((score, -chunk.position, chunk, document))
     scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
 
     documents = []
-    for score, _, row, chunk_index, chunk in scored[:UPLOAD_CHUNKS_PER_REPLY]:
-        part = f" (part {chunk_index + 1})"
+    for score, _, chunk, row in scored[:UPLOAD_CHUNKS_PER_REPLY]:
+        part = f" (part {chunk.position + 1})"
         label = f"{row.title}{part}"
         if row.source_name:
             label = f"{row.title}{part} - {row.source_name}"
-        locale = {"title": label, "content": chunk}
-        documents.append({"id": f"upload-{row.id}-{chunk_index}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
+        locale = {"title": label, "content": chunk.text}
+        documents.append({"id": f"upload-{chunk.id}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
     return documents
 
 
@@ -1981,7 +2077,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
 
-    documents = retrieve_rag_documents(payload.message, retrieve_reference_chunks(db, payload.message))
+    documents = retrieve_rag_documents(payload.message, await retrieve_reference_chunks(db, payload.message))
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None
@@ -2316,6 +2412,7 @@ async def admin_upload_reference_document(
     db.add(document)
     db.commit()
     db.refresh(document)
+    await index_reference_document(db, document)
     return _serialize_reference_document(document)
 
 
@@ -2335,5 +2432,6 @@ def admin_delete_reference_document(document_id: str, admin: User = Depends(get_
     document = db.get(ReferenceDocument, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
+    db.query(ReferenceChunk).filter(ReferenceChunk.document_id == document.id).delete()
     db.delete(document)
     db.commit()

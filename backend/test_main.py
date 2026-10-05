@@ -1096,3 +1096,53 @@ def test_deep_passage_in_long_pdf_style_document_is_cited_for_matching_question(
     assert all(source["source"] != "admin_upload" for source in unrelated["sources"])
 
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_word_matching_uses_synonyms_when_no_embeddings_are_available(monkeypatch) -> None:
+    async def no_embeddings(texts):
+        return None
+    monkeypatch.setattr(main, "embed_texts", no_embeddings)
+    admin_headers = {"Authorization": f"Bearer {_register_admin('synonym-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("calm.txt", b"Anxiety often eases with slow breathing and by naming the feared outcome.", "text/plain")},
+        data={"title": "Calm guide", "intent": "general"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I feel so stressed and overwhelmed lately", "risk_clear": True}).json()
+    assert any(source["source"] == "admin_upload" and "Calm guide" in source["title"] for source in body["sources"])
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_embeddings_rank_passages_by_meaning_not_shared_words(monkeypatch) -> None:
+    concepts = (
+        ("calm", {"settled", "steadies", "calm", "slow", "breathing", "relax"}),
+        ("sleep", {"sleep", "bed", "bedtime", "night"}),
+    )
+
+    async def fake_embeddings(texts):
+        vectors = []
+        for text in texts:
+            words = set(text.lower().replace(".", " ").replace("?", " ").split())
+            vector = [1.0 if words & keywords else 0.0 for _, keywords in concepts]
+            vectors.append(vector if any(vector) else [0.0, 0.0])
+            if not any(vector):
+                vectors[-1] = [0.0, 0.0]
+        return vectors
+    monkeypatch.setattr(main, "embed_texts", fake_embeddings)
+    admin_headers = {"Authorization": f"Bearer {_register_admin('meaning-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("practice.txt", b"Slow diaphragmatic practice steadies the body before bed.", "text/plain")},
+        data={"title": "Practice note", "intent": "general"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I want to feel more settled", "risk_clear": True}).json()
+    cited = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert cited and "Practice note" in cited[0]["title"]
+    assert "steadies" in cited[0]["content"]
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
