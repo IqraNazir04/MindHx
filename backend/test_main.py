@@ -1014,3 +1014,60 @@ def test_combined_estimate_matches_final_risk_assessment_and_ignores_incomplete_
     assert partial["combined_signal"] == round(sum(phq9) / 27 * 100) / 100
 
     assert client.post("/combined-estimate", json={}).json() == {"combined_signal": 0.0, "contributions": []}
+
+
+def test_admin_reference_document_upload_list_toggle_and_delete() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('docs-admin@example.com')}"}
+    regular_token = client.post("/auth/register", json={"email": "docs-regular@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    regular_headers = {"Authorization": f"Bearer {regular_token}"}
+    text_body = "Worry can be eased by naming the feared outcome and checking the evidence for it.".encode("utf-8")
+
+    forbidden = client.post("/admin/documents", files={"file": ("guide.txt", text_body, "text/plain")}, data={"title": "Guide", "intent": "anxiety"}, headers=regular_headers)
+    assert forbidden.status_code == 403
+    assert client.get("/admin/documents").status_code == 401
+
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("guide.txt", text_body, "text/plain")},
+        data={"title": "Worry guide", "intent": "anxiety", "source_name": "Clinic handout"},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    document = created.json()
+    assert document["title"] == "Worry guide" and document["active"] is True and document["characters"] == len(text_body.decode())
+    assert "content" not in document
+
+    assert client.post("/admin/documents", files={"file": ("x.exe", b"MZ", "application/octet-stream")}, data={"title": "x", "intent": "anxiety"}, headers=admin_headers).status_code == 415
+    assert client.post("/admin/documents", files={"file": ("x.txt", b"hi", "text/plain")}, data={"title": "x", "intent": "not-an-intent"}, headers=admin_headers).status_code == 400
+    assert client.post("/admin/documents", files={"file": ("x.txt", b"   ", "text/plain")}, data={"title": "x", "intent": "anxiety"}, headers=admin_headers).status_code == 422
+
+    listed = client.get("/admin/documents", headers=admin_headers).json()
+    assert any(item["id"] == document["id"] for item in listed)
+
+    deactivated = client.patch(f"/admin/documents/{document['id']}", json={"active": False}, headers=admin_headers).json()
+    assert deactivated["active"] is False
+
+    assert client.delete(f"/admin/documents/{document['id']}", headers=admin_headers).status_code == 204
+    assert client.delete(f"/admin/documents/{document['id']}", headers=admin_headers).status_code == 404
+
+
+def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('chat-docs-admin@example.com')}"}
+    marker = "Naming the feared outcome and testing it against evidence eases worry.  "
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("worry.md", marker.encode("utf-8"), "text/markdown")},
+        data={"title": "Uploaded worry note", "intent": "anxiety", "source_name": "Approved clinic note"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
+    titles = [source["title"] for source in body["sources"]]
+    assert any("Uploaded worry note" in title and "Approved clinic note" in title for title in titles)
+    uploaded_sources = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert uploaded_sources and uploaded_sources[0]["content"].startswith(marker.strip()[:40])
+
+    client.patch(f"/admin/documents/{created['id']}", json={"active": False}, headers=admin_headers)
+    body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
+    assert all(source["source"] != "admin_upload" for source in body["sources"])
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)

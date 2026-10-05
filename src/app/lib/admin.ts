@@ -154,3 +154,48 @@ export async function deleteResource(id: string): Promise<void> {
   const response = await authFetch(`/admin/resources/${id}`, { method: "DELETE" });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
 }
+
+export const REFERENCE_INTENTS = ["anxiety", "depression", "therapy", "medication", "family_stigma", "exam_pressure"] as const;
+export type ReferenceIntent = typeof REFERENCE_INTENTS[number];
+
+export type ReferenceDocument = {
+  id: string;
+  title: string;
+  source_name: string;
+  intent: ReferenceIntent;
+  active: boolean;
+  characters: number;
+  created_at: string | null;
+};
+
+export async function fetchReferenceDocuments(): Promise<ReferenceDocument[]> {
+  const response = await authFetch("/admin/documents");
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as ReferenceDocument[];
+}
+
+export async function uploadReferenceDocument(input: { file: File; title: string; intent: ReferenceIntent; sourceName: string }): Promise<ReferenceDocument> {
+  const form = new FormData();
+  form.append("file", input.file);
+  form.append("title", input.title);
+  form.append("intent", input.intent);
+  form.append("source_name", input.sourceName);
+  const response = await authFetch("/admin/documents", { method: "POST", body: form });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as ReferenceDocument;
+}
+
+export async function setReferenceDocumentActive(id: string, active: boolean): Promise<ReferenceDocument> {
+  const response = await authFetch(`/admin/documents/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ active }),
+  });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as ReferenceDocument;
+}
+
+export async function deleteReferenceDocument(id: string): Promise<void> {
+  const response = await authFetch(`/admin/documents/${id}`, { method: "DELETE" });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+}

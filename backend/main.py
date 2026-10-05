@@ -3,6 +3,7 @@ stateless and require no account. Accounts (backend/auth.py, database.py,
 models.py) are an optional, separate feature purely for people who choose
 to save their check-in history across visits."""
 
+import io
 import json
 import logging
 import os
@@ -43,7 +44,7 @@ from auth import (
 )
 from database import get_db, init_db
 from mailer import send_email
-from models import CheckIn, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, Resource, User
+from models import CheckIn, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, ReferenceDocument, Resource, User
 from ratelimit import rate_limit
 
 logger = logging.getLogger("mindhx")
@@ -414,23 +415,50 @@ def is_urdu_script(text: str) -> bool:
     return (urdu_letters / total_letters) >= 0.4
 
 
-def retrieve_rag_documents(message: str) -> list[dict]:
+RAG_INTENT_KEYWORDS = {
+    "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
+    "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
+    "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
+    "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
+    "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
+    "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
+}
+UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS)
+UPLOAD_CONTENT_CHARS_IN_PROMPT = 1500
+UPLOAD_MAX_BYTES = 2_000_000
+UPLOAD_MAX_TEXT_CHARS = 60_000
+UPLOAD_MAX_ACTIVE_FOR_CHAT = 20
+
+
+def matched_intents(message: str) -> set[str]:
     lowered = message.lower()
-    terms = {
-        "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
-        "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
-        "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
-        "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
-        "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
-        "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
-    }
-    matched = [intent for intent, keywords in terms.items() if any(keyword in lowered for keyword in keywords)]
-    return [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
+    return {intent for intent, keywords in RAG_INTENT_KEYWORDS.items() if any(keyword in lowered for keyword in keywords)}
+
+
+def retrieve_rag_documents(message: str, uploaded: Optional[list[dict]] = None) -> list[dict]:
+    matched = matched_intents(message)
+    static = [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
+    admin_matched = [document for document in (uploaded or []) if document["intent"] in matched]
+    return admin_matched[:2] + static
+
+
+def active_reference_documents(db: Session) -> list[dict]:
+    """Active admin uploads, shaped like the built-in RAG documents so the same
+    prompt and source-citation code handles both. Each carries its source name
+    so the chat can say where a statement came from."""
+    rows = db.query(ReferenceDocument).filter(ReferenceDocument.active.is_(True)).order_by(ReferenceDocument.created_at.desc()).limit(UPLOAD_MAX_ACTIVE_FOR_CHAT).all()
+    documents = []
+    for row in rows:
+        excerpt = row.content[:UPLOAD_CONTENT_CHARS_IN_PROMPT]
+        label = f"{row.title} ({row.source_name})" if row.source_name else row.title
+        locale = {"title": label, "content": excerpt}
+        documents.append({"id": f"upload-{row.id}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
+    return documents
 
 
 def localize_rag_document(document: dict, language: str) -> dict:
     locale = document["ur"] if language == "ur" else document["en"]
-    return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"]}
+    return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"], "source": document.get("source", "approved-library")}
 
 
 def severity_for(score: int) -> str:
@@ -1894,7 +1922,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
 
-    documents = retrieve_rag_documents(payload.message)
+    documents = retrieve_rag_documents(payload.message, active_reference_documents(db))
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None
@@ -2150,3 +2178,103 @@ def combined_estimate(payload: LiveEstimateRequest) -> dict:
         return {"combined_signal": 0.0, "contributions": []}
     combined, contributions = _combine_signals(entries)
     return {"combined_signal": combined, "contributions": contributions}
+
+
+class ReferenceDocumentUpdateRequest(BaseModel):
+    active: bool
+
+
+def _serialize_reference_document(document: ReferenceDocument) -> dict:
+    return {
+        "id": document.id,
+        "title": document.title,
+        "source_name": document.source_name,
+        "intent": document.intent,
+        "active": document.active,
+        "characters": len(document.content),
+        "created_at": document.created_at.isoformat() if document.created_at else None,
+    }
+
+
+def _extract_reference_text(filename: str, data: bytes) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix in {".txt", ".md", ".markdown"}:
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise HTTPException(status_code=422, detail="Text files must be UTF-8 encoded") from error
+    elif suffix == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            text = "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        except Exception as error:
+            raise HTTPException(status_code=422, detail="Could not read this PDF") from error
+    else:
+        raise HTTPException(status_code=415, detail="Only .txt, .md and .pdf files can be uploaded")
+    text = re.sub(r"\n{3,}", "\n\n", text.replace("\r\n", "\n")).strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="No readable text was found in this document")
+    return text[:UPLOAD_MAX_TEXT_CHARS]
+
+
+@app.get("/admin/documents")
+def admin_list_reference_documents(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> list[dict]:
+    """Admin: every uploaded reference document (content is never returned here)."""
+    documents = db.query(ReferenceDocument).order_by(ReferenceDocument.created_at.desc()).all()
+    return [_serialize_reference_document(document) for document in documents]
+
+
+@app.post("/admin/documents", status_code=201)
+async def admin_upload_reference_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    intent: str = Form(...),
+    source_name: str = Form(""),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Admin: adds a document the chat can cite. Only extracted text is kept, and
+    the document is used for chat replies on its intent while it stays active."""
+    intent = intent.strip().lower()
+    if intent not in UPLOAD_INTENTS:
+        raise HTTPException(status_code=400, detail=f"intent must be one of {sorted(UPLOAD_INTENTS)}")
+    title = title.strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="title must be between 1 and 200 characters")
+    data = await file.read(UPLOAD_MAX_BYTES + 1)
+    if not data or len(data) > UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Documents must be between 1 byte and 2 MB")
+    content = await run_in_threadpool(_extract_reference_text, file.filename or "", data)
+    document = ReferenceDocument(
+        title=title,
+        source_name=source_name.strip()[:200],
+        intent=intent,
+        content=content,
+        active=True,
+        created_by=admin.id,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    return _serialize_reference_document(document)
+
+
+@app.patch("/admin/documents/{document_id}")
+def admin_update_reference_document(document_id: str, payload: ReferenceDocumentUpdateRequest, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    document = db.get(ReferenceDocument, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    document.active = payload.active
+    db.commit()
+    db.refresh(document)
+    return _serialize_reference_document(document)
+
+
+@app.delete("/admin/documents/{document_id}", status_code=204)
+def admin_delete_reference_document(document_id: str, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> None:
+    document = db.get(ReferenceDocument, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    db.delete(document)
+    db.commit()

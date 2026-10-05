@@ -191,3 +191,20 @@ class LoginSession(Base):
     # when a password change/reset signs out other sessions.
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     end_reason: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # "logout" | "revoked" | "password_change" | "password_reset"
+
+
+class ReferenceDocument(Base):
+    """An admin-uploaded reference document (plain text, Markdown, or PDF) that
+    the MindHx chat can draw on as approved source material, alongside the
+    built-in RAG library. Only the extracted text is stored - the original file
+    is discarded - and the document is only used while `active` is true."""
+    __tablename__ = "reference_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(200), default="")
+    intent: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
