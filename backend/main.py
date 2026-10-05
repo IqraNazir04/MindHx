@@ -397,9 +397,33 @@ class RiskAssessmentRequest(BaseModel):
     voice_features: dict[str, Any] = Field(default_factory=dict)
 
 
+# Phrasings of suicidal thoughts or intent that the exact-phrase list above misses
+# ("taking my own life", "I don't want to be here anymore", "I'd rather not wake
+# up"). Matched on normalised lowercase text. Deliberately sensitive: a false
+# positive routes someone to support, a false negative can leave them without it.
+CRISIS_PATTERNS = [
+    re.compile(p) for p in [
+        r"\b(end|ending|take|taking|took|kill|killing)\s+(my|your|our|their|own)?\s*(own\s+)?(life|lives|myself)\b",
+        r"\b(end|ending)\s+it\s+(all|tonight|today|for\s+good)\b",
+        r"\bthink(ing)?\s+(about|of)\s+(dying|death|suicide|ending|killing|hurting|harming)\b",
+        r"\b(don'?t|do not|dont|no longer|not)\s+want\s+to\s+(be\s+(here|alive|in\s+this\s+world)|exist|live|wake\s+up|go\s+on\s+(living|like\s+this|anymore))\b",
+        r"\b(rather|would\s+prefer)\s+not\s+(wake\s+up|be\s+(here|alive)|exist)\b",
+        r"\bwish\s+i\s+(had\s+)?(never\s+been\s+born|wasn'?t\s+born|could\s+disappear|could\s+vanish|didn'?t\s+exist|were\s+dead|was\s+dead)\b",
+        r"\bwant\s+to\s+(disappear|vanish)\b",
+        r"\bbetter\s+off\s+(if\s+i\s+(were|was)\s+)?(dead|gone|not\s+here)\b",
+        r"\bno\s+(point|reason)\s+(in\s+)?(going\s+on|living|being\s+here|anymore|to\s+(live|go\s+on|continue))\b",
+        r"\bdie\s+every\s+(night|day|morning)\b",
+        r"\bmarna\s+(hai|chahta|chahti|chahta\s+hoon)\b",
+        r"\bab\s+jeena\s+nahi\b",
+        r"\bmar\s+(jaun|jaana|jana)\b",
+        r"مرنا\s+ہے|مرنا\s+چاہتا\s+ہوں|جینا\s+نہیں|اپنی\s+جان\s+لینا",
+    ]
+]
+
+
 def has_crisis_language(text: str) -> bool:
     normalized = " ".join(text.lower().replace("’", "'").replace("‘", "'").split())
-    return any(term in normalized for term in CRISIS_TERMS)
+    return any(term in normalized for term in CRISIS_TERMS) or any(pattern.search(normalized) for pattern in CRISIS_PATTERNS)
 
 
 def is_urdu_script(text: str) -> bool:
@@ -1763,12 +1787,50 @@ def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
     segment_count = int(np.sum(transitions == 1)) + (1 if voiced_mask.size and voiced_mask[0] else 0)
     duration_sec = len(audio) / sample_rate
     speaking_rate = segment_count / duration_sec if duration_sec > 0 else 0.0
+    pitch_std = _pitch_variability_semitones(audio, sample_rate, frame_length, hop_length, voiced_mask)
     return {
         "duration_sec": round(duration_sec, 2),
         "pause_ratio": round(pause_ratio, 3),
         "energy_variability": round(energy_variability, 3),
         "speaking_rate": round(speaking_rate, 3),
+        "pitch_variability_semitones": round(pitch_std, 2) if pitch_std is not None else None,
     }
+
+
+def _pitch_variability_semitones(audio: np.ndarray, sample_rate: int, frame_length: int, hop_length: int, voiced_mask: np.ndarray) -> Optional[float]:
+    """Spread of the fundamental frequency across voiced frames, in semitones.
+
+    Each voiced frame's pitch comes from its autocorrelation peak within the normal
+    speaking range (70-400 Hz); frames without a clear peak are ignored. Flat,
+    monotone speech gives a small spread. Returns None when there isn't enough
+    clearly voiced material to estimate it, so the signal doesn't guess."""
+    min_lag = max(1, int(sample_rate / 400))
+    max_lag = int(sample_rate / 70)
+    semitones: list[float] = []
+    samples = audio.astype(np.float64)
+    for index, voiced in enumerate(voiced_mask):
+        if not voiced:
+            continue
+        start = index * hop_length
+        frame = samples[start:start + frame_length]
+        if frame.size < max_lag + 1:
+            continue
+        frame = frame - frame.mean()
+        energy = float(np.dot(frame, frame))
+        if energy <= 1e-12:
+            continue
+        correlation = np.correlate(frame, frame, mode="full")[frame.size - 1:]
+        window = correlation[min_lag:max_lag + 1]
+        if window.size == 0:
+            continue
+        peak = int(np.argmax(window))
+        if window[peak] / energy < 0.5:
+            continue
+        frequency = sample_rate / (min_lag + peak)
+        semitones.append(12.0 * np.log2(frequency / 110.0))
+    if len(semitones) < 10:
+        return None
+    return float(np.std(semitones))
 
 
 def _prosodic_risk_signal(features: dict) -> float:
@@ -1779,7 +1841,12 @@ def _prosodic_risk_signal(features: dict) -> float:
     pause_component = min(1.0, max(0.0, (features["pause_ratio"] - 0.3) / 0.4))
     variability_component = min(1.0, max(0.0, (0.5 - features["energy_variability"]) / 0.5))
     rate_component = min(1.0, max(0.0, (2.0 - features["speaking_rate"]) / 2.0))
-    signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
+    pitch_std = features.get("pitch_variability_semitones")
+    if pitch_std is None:
+        signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
+    else:
+        pitch_component = min(1.0, max(0.0, (3.0 - pitch_std) / 3.0))
+        signal = 0.3 * pause_component + 0.2 * variability_component + 0.15 * rate_component + 0.35 * pitch_component
     return round(min(1.0, max(0.0, signal)), 2)
 
 
@@ -1878,12 +1945,14 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
     text = payload.text.strip()
     lowered = text.lower()
     crisis = has_crisis_language(text)
-    negative_terms = ["hopeless", "empty", "worthless", "alone", "tired", "sad", "depressed", "اندر سے خالی", "مایوس", "اداس", "تنہا"]
-    positive_terms = ["better", "hopeful", "calm", "خوش", "بہتر", "پُرسکون"]
+    negative_terms = ["hopeless", "empty", "worthless", "alone", "tired", "sad", "depressed", "failure", "failed", "burden", "crying", "cry", "exhausted", "exhaustion", "lost interest", "no interest", "nothing feels", "nothing motivates", "can't sleep", "cant sleep", "insomnia", "racing thoughts", "on edge", "chest feels tight", "pointless", "no point", "lonely", "loneliness", "worried", "worrying", "anxious", "overwhelmed", "stressed", "stopped seeing", "not enjoy", "don't enjoy", "dont enjoy", "nothing matters", "give up", "hate myself", "useless", "خالی", "مایوس", "اداس", "تنہا", "پریشان", "بے کار", "رونا", "تھک"]
+    positive_terms = ["better", "hopeful", "calm", "grateful", "good day", "looking forward", "relaxed", "enjoyed", "enjoy", "feel good", "sukoon", "خوش", "بہتر", "پُرسکون", "سکون", "اچھا"]
     keywords = sorted({term for term in negative_terms + positive_terms if term in lowered})
     negative_hits = sum(term in lowered for term in negative_terms)
     positive_hits = sum(term in lowered for term in positive_terms)
     sentiment: Literal["negative", "neutral", "positive"] = "negative" if negative_hits > positive_hits else "positive" if positive_hits > negative_hits else "neutral"
+    if crisis:
+        sentiment = "negative"
     linguistic_features = _linguistic_features(text)
     heuristic_result = {
         "sentiment": sentiment,
