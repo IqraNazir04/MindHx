@@ -8,7 +8,7 @@ const COPY = {
     resources: "Resources", medication: "Medication", meditation: "Meditation techniques", therapies: "Therapies",
     support: "Support", ai: "MindHx AI", therapist: "Talk to a therapist", emergency: "Emergency support",
     account: "Account", signIn: "Sign in", createAccount: "Create account", dashboard: "Dashboard",
-    more: "MindHx", checkIn: "Check-in", about: "About", brand: "Brand",
+    more: "MindHx", checkIn: "Check-in", about: "About", brand: "Brand", adminSignIn: "Admin sign-in",
     copyright: (year: number) => `© ${year} MindHx - a screening and triage aid, not a diagnosis.`,
     privacy: "Private by default. No account required.",
   },
@@ -17,7 +17,7 @@ const COPY = {
     resources: "وسائل", medication: "ادویات", meditation: "مراقبے کی تکنیکیں", therapies: "تھراپیز",
     support: "مدد", ai: "MindHx AI", therapist: "معالج سے بات کریں", emergency: "فوری مدد",
     account: "اکاؤنٹ", signIn: "سائن ان", createAccount: "اکاؤنٹ بنائیں", dashboard: "ڈیش بورڈ",
-    more: "MindHx", checkIn: "چیک ان", about: "تعارف", brand: "برانڈ",
+    more: "MindHx", checkIn: "چیک ان", about: "تعارف", brand: "برانڈ", adminSignIn: "ایڈمن سائن ان",
     copyright: (year: number) => `© ${year} MindHx - ایک اسکریننگ اور رہنمائی کا ذریعہ، تشخیص نہیں۔`,
     privacy: "پہلے سے نجی۔ کسی اکاؤنٹ کی ضرورت نہیں۔",
   },
@@ -58,6 +58,7 @@ export default function SiteFooter({ language = "English" }: Props) {
             <p className="site-footer-heading">{text.more}</p>
             <Link href="/">{text.checkIn}</Link>
             <Link href="/about">{text.about}</Link>
+            <Link href="/admin/login">{text.adminSignIn}</Link>
             <Link href="/brand">{text.brand}</Link>
           </div>
         </nav>
