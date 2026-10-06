@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { startTransition, useEffect, useState } from "react";
+import { fetchPublishedResources, type ResourceRecord } from "../lib/admin";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleHeart } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
@@ -32,6 +34,12 @@ const copy = {
 
 export default function TherapiesClient() {
   const [language, setLanguage] = useLanguage();
+  const [adminPosts, setAdminPosts] = useState<ResourceRecord[]>([]);
+  useEffect(() => {
+    fetchPublishedResources("therapy")
+      .then((list) => startTransition(() => setAdminPosts(list)))
+      .catch(() => {});
+  }, []);
   const text = copy[language];
   const isUrdu = language === "اردو";
 
@@ -62,6 +70,17 @@ export default function TherapiesClient() {
             </Link>
           );
         })}
+        {adminPosts.map((post) => (
+          <Link key={post.slug} href={`/therapies/post/${post.slug}`} className="reference-card-link">
+            <article>
+              {post.image_data_url && <img className="admin-post-card-image" src={post.image_data_url} alt="" />}
+              <p className="card-kicker">{text.approach}</p>
+              <h2>{post.title}</h2>
+              <p className="reference-card-summary">{post.summary}</p>
+              <footer>{text.learnMore} →</footer>
+            </article>
+          </Link>
+        ))}
       </section>
       <Link className="result-primary result-primary-orange" href="/therapist">{text.discuss} <span>→</span></Link>
     </main>

@@ -3,8 +3,10 @@ stateless and require no account. Accounts (backend/auth.py, database.py,
 models.py) are an optional, separate feature purely for people who choose
 to save their check-in history across visits."""
 
+import io
 import json
 import logging
+import math
 import os
 import re
 import secrets
@@ -43,7 +45,7 @@ from auth import (
 )
 from database import get_db, init_db
 from mailer import send_email
-from models import CheckIn, CheckInReport, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, Resource, User
+from models import CheckIn, CheckInReport, HelpfulPractice, LoginSession, MoodCheckIn, PageView, PasswordResetToken, ReferenceChunk, ReferenceDocument, Resource, User
 from ratelimit import rate_limit
 
 logger = logging.getLogger("mindhx")
@@ -395,9 +397,33 @@ class RiskAssessmentRequest(BaseModel):
     voice_features: dict[str, Any] = Field(default_factory=dict)
 
 
+# Phrasings of suicidal thoughts or intent that the exact-phrase list above misses
+# ("taking my own life", "I don't want to be here anymore", "I'd rather not wake
+# up"). Matched on normalised lowercase text. Deliberately sensitive: a false
+# positive routes someone to support, a false negative can leave them without it.
+CRISIS_PATTERNS = [
+    re.compile(p) for p in [
+        r"\b(end|ending|take|taking|took|kill|killing)\s+(my|your|our|their|own)?\s*(own\s+)?(life|lives|myself)\b",
+        r"\b(end|ending)\s+it\s+(all|tonight|today|for\s+good)\b",
+        r"\bthink(ing)?\s+(about|of)\s+(dying|death|suicide|ending|killing|hurting|harming)\b",
+        r"\b(don'?t|do not|dont|no longer|not)\s+want\s+to\s+(be\s+(here|alive|in\s+this\s+world)|exist|live|wake\s+up|go\s+on\s+(living|like\s+this|anymore))\b",
+        r"\b(rather|would\s+prefer)\s+not\s+(wake\s+up|be\s+(here|alive)|exist)\b",
+        r"\bwish\s+i\s+(had\s+)?(never\s+been\s+born|wasn'?t\s+born|could\s+disappear|could\s+vanish|didn'?t\s+exist|were\s+dead|was\s+dead)\b",
+        r"\bwant\s+to\s+(disappear|vanish)\b",
+        r"\bbetter\s+off\s+(if\s+i\s+(were|was)\s+)?(dead|gone|not\s+here)\b",
+        r"\bno\s+(point|reason)\s+(in\s+)?(going\s+on|living|being\s+here|anymore|to\s+(live|go\s+on|continue))\b",
+        r"\bdie\s+every\s+(night|day|morning)\b",
+        r"\bmarna\s+(hai|chahta|chahti|chahta\s+hoon)\b",
+        r"\bab\s+jeena\s+nahi\b",
+        r"\bmar\s+(jaun|jaana|jana)\b",
+        r"مرنا\s+ہے|مرنا\s+چاہتا\s+ہوں|جینا\s+نہیں|اپنی\s+جان\s+لینا",
+    ]
+]
+
+
 def has_crisis_language(text: str) -> bool:
     normalized = " ".join(text.lower().replace("’", "'").replace("‘", "'").split())
-    return any(term in normalized for term in CRISIS_TERMS)
+    return any(term in normalized for term in CRISIS_TERMS) or any(pattern.search(normalized) for pattern in CRISIS_PATTERNS)
 
 
 def is_urdu_script(text: str) -> bool:
@@ -414,23 +440,204 @@ def is_urdu_script(text: str) -> bool:
     return (urdu_letters / total_letters) >= 0.4
 
 
-def retrieve_rag_documents(message: str) -> list[dict]:
+RAG_INTENT_KEYWORDS = {
+    "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
+    "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
+    "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
+    "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
+    "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
+    "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
+}
+UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS) | {"general"}
+UPLOAD_CHUNK_CHARS = 900
+UPLOAD_CHUNKS_PER_REPLY = 3
+UPLOAD_MAX_BYTES = 2_000_000
+UPLOAD_MAX_TEXT_CHARS = 120_000
+UPLOAD_MAX_ACTIVE_FOR_CHAT = 30
+
+
+def matched_intents(message: str) -> set[str]:
     lowered = message.lower()
-    terms = {
-        "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
-        "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
-        "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
-        "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
-        "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
-        "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
-    }
-    matched = [intent for intent, keywords in terms.items() if any(keyword in lowered for keyword in keywords)]
-    return [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
+    return {intent for intent, keywords in RAG_INTENT_KEYWORDS.items() if any(keyword in lowered for keyword in keywords)}
+
+
+def retrieve_rag_documents(message: str, uploaded: Optional[list[dict]] = None) -> list[dict]:
+    matched = matched_intents(message)
+    static = [document for document in RAG_DOCUMENTS if document["intent"] in matched] or [RAG_DOCUMENTS[0]]
+    return (uploaded or []) + static
+
+
+_TERM_PATTERN = re.compile(r"[a-z؀-ۿ]{3,}")
+
+RETRIEVAL_STOPWORDS = frozenset({
+    "about", "above", "after", "again", "against", "all", "also", "and", "any", "are", "because", "been", "before", "being",
+    "between", "both", "but", "can", "could", "did", "does", "doing", "down", "during", "each", "few", "for", "from", "further",
+    "had", "has", "have", "having", "her", "here", "hers", "him", "his", "how", "into", "its", "just", "like", "more", "most",
+    "much", "not", "now", "off", "once", "only", "other", "our", "out", "over", "own", "same", "she", "should", "some", "such",
+    "tell", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through", "too", "under",
+    "until", "very", "was", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would",
+    "you", "your", "yours", "tomorrow", "today", "know", "think", "want", "need", "help", "lately", "really", "always",
+})
+
+# Words that mean the same thing in everyday language and in clinical guidance,
+# so a question in one vocabulary can find a document written in the other.
+# Used for word matching; the embeddings path doesn't need it.
+SYNONYM_GROUPS = [
+    {"anxiety", "anxious", "worry", "worried", "worrying", "stress", "stressed", "stressful", "overwhelm", "overwhelmed", "panic", "nervous", "tense", "tension", "pressure", "racing"},
+    {"depression", "depressed", "sad", "sadness", "hopeless", "hopelessness", "empty", "unmotivated", "motivation", "low", "withdrawn", "lonely", "alone"},
+    {"sleep", "insomnia", "tired", "tiredness", "fatigue", "exhausted", "bedtime", "rest", "nightmares"},
+    {"therapy", "therapist", "counsellor", "counselor", "counselling", "counseling", "clinician", "psychologist", "psychiatrist", "professional"},
+    {"medicine", "medication", "medicines", "medications", "tablet", "tablets", "pill", "pills", "drug", "drugs", "prescription"},
+    {"family", "relatives", "parents", "stigma", "shame", "ashamed", "embarrassed", "judgement", "judgment"},
+    {"exam", "exams", "examination", "study", "studies", "university", "deadline", "assignment", "coursework"},
+    {"breathe", "breathing", "breath", "grounding", "calm", "calming", "relax", "relaxation", "unwind", "meditation", "mindfulness"},
+]
+
+
+def _terms(text: str) -> set[str]:
+    return {word for word in _TERM_PATTERN.findall(text.lower()) if word not in RETRIEVAL_STOPWORDS}
+
+
+def _expanded_terms(text: str) -> set[str]:
+    terms = _terms(text)
+    expanded = set(terms)
+    for group in SYNONYM_GROUPS:
+        if terms & group:
+            expanded |= group
+    return expanded
+
+
+def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
+    """Splits a document into passages of roughly `size` characters, on paragraph
+    boundaries where possible, so a long PDF is searchable end to end rather than
+    only its first few hundred words."""
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
+    chunks: list[str] = []
+    current = ""
+    for paragraph in paragraphs:
+        while len(paragraph) > size:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(paragraph[:size])
+            paragraph = paragraph[size:]
+        if current and len(current) + len(paragraph) + 2 > size:
+            chunks.append(current)
+            current = paragraph
+        else:
+            current = f"{current}\n\n{paragraph}" if current else paragraph
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+EMBEDDING_BATCH_SIZE = 256
+SEMANTIC_MIN_SIMILARITY = float(os.getenv("REFERENCE_MIN_SIMILARITY", "0.30"))
+
+
+def _embedding_model() -> str:
+    return os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+
+
+async def embed_texts(texts: list[str]) -> Optional[list[list[float]]]:
+    """Embedding vectors for each text, in order, from OpenAI's embeddings API.
+    Returns None when no key is configured or the call fails, so callers fall
+    back to word matching instead of failing the request."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key or not texts:
+        return None
+    vectors: list[list[float]] = []
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+                batch = texts[start:start + EMBEDDING_BATCH_SIZE]
+                response = await client.post("https://api.openai.com/v1/embeddings", headers=headers, json={"model": _embedding_model(), "input": batch})
+                response.raise_for_status()
+                items = sorted(response.json()["data"], key=lambda item: item["index"])
+                vectors.extend(item["embedding"] for item in items)
+    except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
+        logger.error("OpenAI embeddings request failed: %r", error)
+        return None
+    return vectors if len(vectors) == len(texts) else None
+
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+
+
+async def index_reference_document(db: Session, document: ReferenceDocument) -> None:
+    """Splits a document into passages and stores them, embedding each one when
+    the embeddings service is available."""
+    pieces = chunk_document_text(document.content)
+    vectors = await embed_texts(pieces)
+    model = _embedding_model() if vectors else None
+    for position, piece in enumerate(pieces):
+        db.add(ReferenceChunk(
+            document_id=document.id,
+            position=position,
+            text=piece,
+            embedding=json.dumps(vectors[position]) if vectors else None,
+            embedding_model=model,
+        ))
+    db.commit()
+
+
+async def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
+    """The most relevant passages from active admin uploads for this message.
+
+    With embeddings, passages are ranked by cosine similarity to the message. Word
+    matching (with synonyms) adds to the score and covers passages that have no
+    embedding. A passage is only used when it's similar, shares a meaningful word,
+    or belongs to a document whose topic matches the message. Shaped like the
+    built-in RAG documents, so the same prompt and citation code handles both."""
+    rows = db.query(ReferenceDocument).filter(ReferenceDocument.active.is_(True)).order_by(ReferenceDocument.created_at.desc()).limit(UPLOAD_MAX_ACTIVE_FOR_CHAT).all()
+    for row in rows:
+        if not db.query(ReferenceChunk.id).filter(ReferenceChunk.document_id == row.id).first():
+            await index_reference_document(db, row)
+    if not rows:
+        return []
+
+    chunk_rows = (
+        db.query(ReferenceChunk, ReferenceDocument)
+        .join(ReferenceDocument, ReferenceChunk.document_id == ReferenceDocument.id)
+        .filter(ReferenceDocument.active.is_(True), ReferenceDocument.id.in_([row.id for row in rows]))
+        .all()
+    )
+    query_vectors = await embed_texts([message])
+    query_vector = query_vectors[0] if query_vectors else None
+    query_terms = _expanded_terms(message)
+    topics = matched_intents(message)
+
+    scored: list[tuple[float, int, ReferenceChunk, ReferenceDocument]] = []
+    for chunk, document in chunk_rows:
+        overlap = len(query_terms & _expanded_terms(chunk.text))
+        topic_match = document.intent in topics
+        similarity = cosine_similarity(query_vector, json.loads(chunk.embedding)) if query_vector and chunk.embedding else None
+        relevant = (similarity is not None and similarity >= SEMANTIC_MIN_SIMILARITY) or overlap > 0 or topic_match
+        if not relevant:
+            continue
+        score = (similarity or 0.0) + 0.1 * min(overlap, 5) + (0.2 if topic_match else 0.0)
+        scored.append((score, -chunk.position, chunk, document))
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+
+    documents = []
+    for score, _, chunk, row in scored[:UPLOAD_CHUNKS_PER_REPLY]:
+        part = f" (part {chunk.position + 1})"
+        label = f"{row.title}{part}"
+        if row.source_name:
+            label = f"{row.title}{part} - {row.source_name}"
+        locale = {"title": label, "content": chunk.text}
+        documents.append({"id": f"upload-{chunk.id}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
+    return documents
 
 
 def localize_rag_document(document: dict, language: str) -> dict:
     locale = document["ur"] if language == "ur" else document["en"]
-    return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"]}
+    return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"], "source": document.get("source", "approved-library")}
 
 
 def severity_for(score: int) -> str:
@@ -675,29 +882,46 @@ MODALITY_LABELS = {
 }
 
 
-def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, voice_features: dict) -> dict:
-    phq_signal = round(int(phq_result.get("total_score", 0)) / 27, 2)
-    gad_signal = round(int(gad_result.get("total_score", 0)) / 21, 2)
-    k10_signal = round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
-    text_signal = 1.0 if text_result.get("crisis_language") else 0.65 if text_result.get("sentiment") == "negative" else 0.25 if text_result.get("sentiment") == "neutral" else 0.0
-    voice_signal = round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2) if voice_features else None
+BASE_SIGNAL_WEIGHTS = {"phq9": 0.30, "gad7": 0.22, "k10": 0.22, "text": 0.16, "voice": 0.10}
 
-    names = ["phq9", "gad7", "k10", "text"] + (["voice"] if voice_signal is not None else [])
-    signals = [phq_signal, gad_signal, k10_signal, text_signal] + ([voice_signal] if voice_signal is not None else [])
-    base_weights = [0.30, 0.22, 0.22, 0.16] + ([0.10] if voice_signal is not None else [])
-    # Re-normalize over the signals actually present, so the combined score
-    # spans the full 0..1 range whether or not a voice note was recorded
-    # (the raw weights only sum to 1.0 with voice included, which capped a
-    # no-voice check-in at 0.90).
-    weights = [round(weight / sum(base_weights), 4) for weight in base_weights]
-    combined = round(sum(signal * weight for signal, weight in zip(signals, weights)) * 100) / 100
 
-    # combined is a weighted sum with these exact weights, so each term's weighted value is
-    # its exact contribution to combined - the Shapley value for an additive payoff with no
-    # interaction effects to split. Contributions below sum to `combined` (up to rounding)
-    # by construction, not approximately.
+def _phq9_signal(phq_result: dict) -> float:
+    return round(int(phq_result.get("total_score", 0)) / 27, 2)
+
+
+def _gad7_signal(gad_result: dict) -> float:
+    return round(int(gad_result.get("total_score", 0)) / 21, 2)
+
+
+def _k10_signal(k10_result: dict) -> float:
+    return round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
+
+
+def _text_signal(text_result: dict) -> float:
+    return 1.0 if text_result.get("crisis_language") else 0.65 if text_result.get("sentiment") == "negative" else 0.25 if text_result.get("sentiment") == "neutral" else 0.0
+
+
+def _voice_signal(voice_features: dict) -> Optional[float]:
+    if not voice_features:
+        return None
+    return round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2)
+
+
+def _combine_signals(entries: list[tuple[str, float, float]]) -> tuple[float, list[dict]]:
+    """Weighted sum over the signals actually present, as (name, signal, base_weight).
+
+    Weights are re-normalized over those present, so the combined score spans the full
+    0..1 range whether or not a voice note or a text reflection was provided. combined is
+    a weighted sum with these exact weights, so each term's weighted value is its exact
+    contribution to combined - the Shapley value for an additive payoff with no
+    interaction effects to split. Contributions sum to `combined` (up to rounding) by
+    construction, not approximately.
+    """
+    total_base = sum(base for _, _, base in entries)
+    weights = [round(base / total_base, 4) for _, _, base in entries]
+    combined = round(sum(signal * weight for (_, signal, _), weight in zip(entries, weights)) * 100) / 100
     contributions = []
-    for name, signal, weight in zip(names, signals, weights):
+    for (name, signal, _), weight in zip(entries, weights):
         label, modality = MODALITY_LABELS[name]
         value = round(signal * weight, 4)
         contributions.append({
@@ -709,6 +933,25 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
             "contribution": value,
             "share_pct": round((value / combined) * 100, 1) if combined else 0.0,
         })
+    return combined, contributions
+
+
+def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, text_result: dict, voice_features: dict) -> dict:
+    phq_signal = _phq9_signal(phq_result)
+    gad_signal = _gad7_signal(gad_result)
+    k10_signal = _k10_signal(k10_result)
+    text_signal = _text_signal(text_result)
+    voice_signal = _voice_signal(voice_features)
+
+    entries = [
+        ("phq9", phq_signal, BASE_SIGNAL_WEIGHTS["phq9"]),
+        ("gad7", gad_signal, BASE_SIGNAL_WEIGHTS["gad7"]),
+        ("k10", k10_signal, BASE_SIGNAL_WEIGHTS["k10"]),
+        ("text", text_signal, BASE_SIGNAL_WEIGHTS["text"]),
+    ]
+    if voice_signal is not None:
+        entries.append(("voice", voice_signal, BASE_SIGNAL_WEIGHTS["voice"]))
+    combined, contributions = _combine_signals(entries)
 
     return {
         "phq9": {"signal": phq_signal, "score": phq_result.get("total_score", 0), "band": phq_result.get("severity_band")},
@@ -942,6 +1185,19 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer"}
+
+
+@app.post("/admin/login", dependencies=[Depends(rate_limit("admin-login", 10, 300))])
+def admin_login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Sign-in for the separate admin panel. Only admin accounts get a session -
+    a valid non-admin login is refused here without creating one, so the admin
+    sign-in can't be used as an ordinary account login."""
+    user = db.query(User).filter(User.email == payload.email.lower()).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="This account does not have admin access.")
+    return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer", "email": user.email}
 
 
 @app.post("/auth/logout", status_code=204)
@@ -1609,12 +1865,50 @@ def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
     segment_count = int(np.sum(transitions == 1)) + (1 if voiced_mask.size and voiced_mask[0] else 0)
     duration_sec = len(audio) / sample_rate
     speaking_rate = segment_count / duration_sec if duration_sec > 0 else 0.0
+    pitch_std = _pitch_variability_semitones(audio, sample_rate, frame_length, hop_length, voiced_mask)
     return {
         "duration_sec": round(duration_sec, 2),
         "pause_ratio": round(pause_ratio, 3),
         "energy_variability": round(energy_variability, 3),
         "speaking_rate": round(speaking_rate, 3),
+        "pitch_variability_semitones": round(pitch_std, 2) if pitch_std is not None else None,
     }
+
+
+def _pitch_variability_semitones(audio: np.ndarray, sample_rate: int, frame_length: int, hop_length: int, voiced_mask: np.ndarray) -> Optional[float]:
+    """Spread of the fundamental frequency across voiced frames, in semitones.
+
+    Each voiced frame's pitch comes from its autocorrelation peak within the normal
+    speaking range (70-400 Hz); frames without a clear peak are ignored. Flat,
+    monotone speech gives a small spread. Returns None when there isn't enough
+    clearly voiced material to estimate it, so the signal doesn't guess."""
+    min_lag = max(1, int(sample_rate / 400))
+    max_lag = int(sample_rate / 70)
+    semitones: list[float] = []
+    samples = audio.astype(np.float64)
+    for index, voiced in enumerate(voiced_mask):
+        if not voiced:
+            continue
+        start = index * hop_length
+        frame = samples[start:start + frame_length]
+        if frame.size < max_lag + 1:
+            continue
+        frame = frame - frame.mean()
+        energy = float(np.dot(frame, frame))
+        if energy <= 1e-12:
+            continue
+        correlation = np.correlate(frame, frame, mode="full")[frame.size - 1:]
+        window = correlation[min_lag:max_lag + 1]
+        if window.size == 0:
+            continue
+        peak = int(np.argmax(window))
+        if window[peak] / energy < 0.5:
+            continue
+        frequency = sample_rate / (min_lag + peak)
+        semitones.append(12.0 * np.log2(frequency / 110.0))
+    if len(semitones) < 10:
+        return None
+    return float(np.std(semitones))
 
 
 def _prosodic_risk_signal(features: dict) -> float:
@@ -1625,7 +1919,12 @@ def _prosodic_risk_signal(features: dict) -> float:
     pause_component = min(1.0, max(0.0, (features["pause_ratio"] - 0.3) / 0.4))
     variability_component = min(1.0, max(0.0, (0.5 - features["energy_variability"]) / 0.5))
     rate_component = min(1.0, max(0.0, (2.0 - features["speaking_rate"]) / 2.0))
-    signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
+    pitch_std = features.get("pitch_variability_semitones")
+    if pitch_std is None:
+        signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
+    else:
+        pitch_component = min(1.0, max(0.0, (3.0 - pitch_std) / 3.0))
+        signal = 0.3 * pause_component + 0.2 * variability_component + 0.15 * rate_component + 0.35 * pitch_component
     return round(min(1.0, max(0.0, signal)), 2)
 
 
@@ -1724,12 +2023,14 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
     text = payload.text.strip()
     lowered = text.lower()
     crisis = has_crisis_language(text)
-    negative_terms = ["hopeless", "empty", "worthless", "alone", "tired", "sad", "depressed", "اندر سے خالی", "مایوس", "اداس", "تنہا"]
-    positive_terms = ["better", "hopeful", "calm", "خوش", "بہتر", "پُرسکون"]
+    negative_terms = ["hopeless", "empty", "worthless", "alone", "tired", "sad", "depressed", "failure", "failed", "burden", "crying", "cry", "exhausted", "exhaustion", "lost interest", "no interest", "nothing feels", "nothing motivates", "can't sleep", "cant sleep", "insomnia", "racing thoughts", "on edge", "chest feels tight", "pointless", "no point", "lonely", "loneliness", "worried", "worrying", "anxious", "overwhelmed", "stressed", "stopped seeing", "not enjoy", "don't enjoy", "dont enjoy", "nothing matters", "give up", "hate myself", "useless", "خالی", "مایوس", "اداس", "تنہا", "پریشان", "بے کار", "رونا", "تھک"]
+    positive_terms = ["better", "hopeful", "calm", "grateful", "good day", "looking forward", "relaxed", "enjoyed", "enjoy", "feel good", "sukoon", "خوش", "بہتر", "پُرسکون", "سکون", "اچھا"]
     keywords = sorted({term for term in negative_terms + positive_terms if term in lowered})
     negative_hits = sum(term in lowered for term in negative_terms)
     positive_hits = sum(term in lowered for term in positive_terms)
     sentiment: Literal["negative", "neutral", "positive"] = "negative" if negative_hits > positive_hits else "positive" if positive_hits > negative_hits else "neutral"
+    if crisis:
+        sentiment = "negative"
     linguistic_features = _linguistic_features(text)
     heuristic_result = {
         "sentiment": sentiment,
@@ -1923,7 +2224,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
         }
 
-    documents = retrieve_rag_documents(payload.message)
+    documents = retrieve_rag_documents(payload.message, await retrieve_reference_chunks(db, payload.message))
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None
@@ -2141,3 +2442,143 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
         "k10": k10_result,
         "support_plan": plan,
     }
+
+
+class LiveEstimateRequest(BaseModel):
+    # A scale is only counted once it's fully answered, matching /risk-assess.
+    phq9_answers: Optional[list[int]] = Field(default=None, min_length=9, max_length=9)
+    gad7_answers: Optional[list[int]] = Field(default=None, min_length=7, max_length=7)
+    k10_answers: Optional[list[int]] = Field(default=None, min_length=10, max_length=10)
+    text_analysis: dict = Field(default_factory=dict)
+    voice_features: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/combined-estimate")
+def combined_estimate(payload: LiveEstimateRequest) -> dict:
+    """Live preview of the combined signal from whichever inputs are present so far.
+
+    Uses the same signal definitions and weighting as /risk-assess (via the shared
+    helpers), so the number shown while a check-in is in progress matches what the final
+    assessment will compute from the same inputs. Crisis handling stays in /risk-assess.
+    """
+    entries: list[tuple[str, float, float]] = []
+    if payload.phq9_answers is not None:
+        phq_result = score_phq9(Phq9Request(answers=payload.phq9_answers))
+        entries.append(("phq9", _phq9_signal(phq_result), BASE_SIGNAL_WEIGHTS["phq9"]))
+    if payload.gad7_answers is not None:
+        entries.append(("gad7", _gad7_signal(score_gad7(payload.gad7_answers)), BASE_SIGNAL_WEIGHTS["gad7"]))
+    if payload.k10_answers is not None:
+        entries.append(("k10", _k10_signal(score_k10(payload.k10_answers)), BASE_SIGNAL_WEIGHTS["k10"]))
+    if payload.text_analysis:
+        text_result = _sanitize_text_analysis(payload.text_analysis, "")
+        entries.append(("text", _text_signal(text_result), BASE_SIGNAL_WEIGHTS["text"]))
+    voice_signal = _voice_signal(_sanitize_voice_features(payload.voice_features))
+    if voice_signal is not None:
+        entries.append(("voice", voice_signal, BASE_SIGNAL_WEIGHTS["voice"]))
+
+    if not entries:
+        return {"combined_signal": 0.0, "contributions": []}
+    combined, contributions = _combine_signals(entries)
+    return {"combined_signal": combined, "contributions": contributions}
+
+
+class ReferenceDocumentUpdateRequest(BaseModel):
+    active: bool
+
+
+def _serialize_reference_document(document: ReferenceDocument) -> dict:
+    return {
+        "id": document.id,
+        "title": document.title,
+        "source_name": document.source_name,
+        "intent": document.intent,
+        "active": document.active,
+        "characters": len(document.content),
+        "created_at": document.created_at.isoformat() if document.created_at else None,
+    }
+
+
+def _extract_reference_text(filename: str, data: bytes) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix in {".txt", ".md", ".markdown"}:
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise HTTPException(status_code=422, detail="Text files must be UTF-8 encoded") from error
+    elif suffix == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(data))
+            text = "\n\n".join((page.extract_text() or "") for page in reader.pages)
+        except Exception as error:
+            raise HTTPException(status_code=422, detail="Could not read this PDF") from error
+    else:
+        raise HTTPException(status_code=415, detail="Only .txt, .md and .pdf files can be uploaded")
+    text = re.sub(r"\n{3,}", "\n\n", text.replace("\r\n", "\n")).strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="No readable text was found in this document")
+    return text[:UPLOAD_MAX_TEXT_CHARS]
+
+
+@app.get("/admin/documents")
+def admin_list_reference_documents(admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> list[dict]:
+    """Admin: every uploaded reference document (content is never returned here)."""
+    documents = db.query(ReferenceDocument).order_by(ReferenceDocument.created_at.desc()).all()
+    return [_serialize_reference_document(document) for document in documents]
+
+
+@app.post("/admin/documents", status_code=201)
+async def admin_upload_reference_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    intent: str = Form(...),
+    source_name: str = Form(""),
+    admin: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Admin: adds a document the chat can cite. Only extracted text is kept, and
+    the document is used for chat replies on its intent while it stays active."""
+    intent = intent.strip().lower()
+    if intent not in UPLOAD_INTENTS:
+        raise HTTPException(status_code=400, detail=f"intent must be one of {sorted(UPLOAD_INTENTS)}")
+    title = title.strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="title must be between 1 and 200 characters")
+    data = await file.read(UPLOAD_MAX_BYTES + 1)
+    if not data or len(data) > UPLOAD_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Documents must be between 1 byte and 2 MB")
+    content = await run_in_threadpool(_extract_reference_text, file.filename or "", data)
+    document = ReferenceDocument(
+        title=title,
+        source_name=source_name.strip()[:200],
+        intent=intent,
+        content=content,
+        active=True,
+        created_by=admin.id,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    await index_reference_document(db, document)
+    return _serialize_reference_document(document)
+
+
+@app.patch("/admin/documents/{document_id}")
+def admin_update_reference_document(document_id: str, payload: ReferenceDocumentUpdateRequest, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    document = db.get(ReferenceDocument, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    document.active = payload.active
+    db.commit()
+    db.refresh(document)
+    return _serialize_reference_document(document)
+
+
+@app.delete("/admin/documents/{document_id}", status_code=204)
+def admin_delete_reference_document(document_id: str, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> None:
+    document = db.get(ReferenceDocument, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    db.query(ReferenceChunk).filter(ReferenceChunk.document_id == document.id).delete()
+    db.delete(document)
+    db.commit()

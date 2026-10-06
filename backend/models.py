@@ -205,3 +205,33 @@ class CheckInReport(Base):
     pdf_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+class ReferenceDocument(Base):
+    """An admin-uploaded reference document (plain text, Markdown, or PDF) that
+    the MindHx chat can draw on as approved source material, alongside the
+    built-in RAG library. Only the extracted text is stored - the original file
+    is discarded - and the document is only used while `active` is true."""
+    __tablename__ = "reference_documents"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(200), default="")
+    intent: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_by: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ReferenceChunk(Base):
+    """One passage of a ReferenceDocument, with its embedding vector (JSON) when
+    an embeddings service was available at indexing time. Chunks without an
+    embedding are still searchable by word matching."""
+    __tablename__ = "reference_chunks"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    document_id: Mapped[str] = mapped_column(String(36), ForeignKey("reference_documents.id", ondelete="CASCADE"), index=True, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)

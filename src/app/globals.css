@@ -772,3 +772,71 @@ textarea::placeholder { color:#9aa6b4; }
 .site-footer-emergency { color:#f0989c !important; }
 .site-footer-bottom { max-width:1120px; margin:0 auto; padding:20px 6vw 30px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; color:#6f8399; font-size:11px; }
 @media (max-width:800px) { .site-footer-inner { flex-direction:column; gap:34px; } .site-footer-columns { gap:34px; } .site-footer-bottom { flex-direction:column; gap:6px; } }
+
+/* Detailed results + proposed next steps (results page and crisis view) */
+.detail-rows { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:20px; }
+.detail-row { padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
+.detail-row-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:10px; margin-bottom:8px; }
+.detail-row-head b { color:var(--navy); font-size:14px; }
+.detail-value { color:var(--blue-deep); font:600 13px 'DM Mono',monospace; }
+.detail-band { margin-left:auto; color:var(--teal); font:600 9.5px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.6px; background:var(--teal-soft); padding:4px 9px; border-radius:20px; }
+.detail-row p { margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
+.detail-notes { margin:16px 0 0; padding-left:18px; color:var(--muted); font-size:12.5px; line-height:1.7; }
+.recommend-card { margin:28px 0; padding:28px 30px; border-radius:16px; border:1px solid var(--line-cool); background:var(--surface); box-shadow:0 14px 34px var(--shadow); }
+.recommend-card h2 { color:var(--navy); font-size:24px; margin:4px 0 10px; }
+.recommend-card > p:not(.eyebrow) { color:var(--muted); font-size:14px; line-height:1.65; max-width:680px; margin:0 0 18px; }
+.recommend-card h3 { color:var(--navy); font-size:15px; margin:22px 0 10px; }
+.recommend-emergency { border-color:rgba(200,79,79,.4); background:var(--red-soft); }
+.recommend-emergency .eyebrow { color:var(--red); }
+.recommend-professional { border-color:rgba(233,130,50,.35); background:var(--orange-soft); }
+.recommend-professional .eyebrow { color:#b5611f; }
+.recommend-self .eyebrow { color:var(--teal); }
+.therapy-options { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.therapy-options li { padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.therapy-options a { color:var(--blue-deep); font-size:14px; font-weight:600; text-decoration:none; }
+.therapy-options a:hover { text-decoration:underline; }
+.therapy-options span { display:block; margin-top:4px; color:var(--muted); font-size:12.5px; line-height:1.5; }
+.recommend-also { display:flex; flex-wrap:wrap; gap:14px 22px; margin-top:20px; }
+.recommend-also a { color:var(--blue); font-size:13px; text-decoration:none; }
+.recommend-also a:hover { text-decoration:underline; }
+@media (max-width:720px) { .detail-rows { grid-template-columns:1fr; } .recommend-card { padding:22px 20px; } }
+
+/* Stage page (after See my check-in) */
+.stage-ladder { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; max-width:1120px; margin:0 auto 26px; }
+.stage-step { display:flex; flex-direction:column; align-items:center; gap:6px; padding:14px 8px; border:1px solid var(--line); border-radius:12px; background:var(--surface); color:var(--muted); }
+.stage-step span { display:grid; place-items:center; width:30px; height:30px; border-radius:50%; border:1px solid var(--line-cool); font:600 12px 'DM Mono',monospace; }
+.stage-step b { font-size:12px; font-weight:600; }
+.stage-step.passed { color:var(--teal); border-color:rgba(47,143,110,.35); }
+.stage-step.passed span { background:var(--teal-soft); border-color:var(--teal); color:var(--teal); }
+.stage-step.current { color:var(--navy); border-color:var(--blue); box-shadow:0 10px 24px rgba(44,111,186,.15); }
+.stage-step.current span { background:var(--blue); border-color:var(--blue); color:#fff; }
+.stage-scores { max-width:1120px; margin:0 auto; }
+.stage-recommendations { margin:0 0 6px; padding-left:20px; color:var(--navy); font-size:14px; line-height:1.75; }
+.stage-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:22px; }
+@media (max-width:720px) { .stage-ladder { grid-template-columns:repeat(5,1fr); gap:6px; } .stage-step b { font-size:10px; } }
+.stage-safety-note { margin:18px 0 0; color:var(--muted); font-size:12.5px; }
+.stage-safety-note a { color:var(--red); }
+
+/* Admin reference-document upload */
+.admin-upload-form { display:grid; grid-template-columns:1.2fr 1.4fr 1.4fr 1fr auto; gap:10px; align-items:center; margin:14px 0 18px; }
+.admin-upload-form input[type="text"], .admin-upload-form select { border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--navy); padding:10px 12px; font-size:13px; }
+.admin-upload-form input[type="file"] { font-size:12px; color:var(--muted); }
+.admin-upload-form button:disabled { opacity:.5; cursor:not-allowed; }
+@media (max-width:900px) { .admin-upload-form { grid-template-columns:1fr; } }
+
+/* Standalone admin panel: sign-in page and its own header */
+.admin-login-page { min-height:100vh; display:grid; place-items:center; padding:24px; background:var(--background); }
+.admin-login-card { width:100%; max-width:380px; display:grid; gap:14px; padding:32px 30px; border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:0 18px 44px var(--shadow); }
+.admin-login-card h1 { margin:4px 0 6px; color:var(--navy); font:600 26px 'Playfair Display',serif; }
+.admin-login-card label { display:grid; gap:6px; color:var(--muted); font-size:12px; }
+.admin-login-card input { border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--navy); padding:11px 12px; font-size:14px; }
+.admin-login-card input:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft); }
+.admin-login-card .check-in-button { justify-content:center; }
+.admin-login-brand { margin:0; display:flex; align-items:center; gap:8px; color:var(--navy); font-weight:700; }
+.admin-login-tag { color:var(--orange); font:500 11px 'DM Mono',monospace; letter-spacing:1.5px; text-transform:uppercase; }
+.admin-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 5.5vw; border-bottom:1px solid var(--line); background:var(--surface); }
+.admin-header-brand { display:flex; align-items:center; gap:8px; color:var(--navy); font-weight:700; }
+.admin-header-right { display:flex; align-items:center; gap:14px; color:var(--muted); font-size:13px; }
+
+/* Admin-published posts in the Meditation and Therapies sections */
+.admin-post-card-image { display:block; width:100%; height:150px; object-fit:cover; border-radius:10px; margin:0 0 14px; }

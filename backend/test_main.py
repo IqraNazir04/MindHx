@@ -1059,3 +1059,180 @@ def test_checkin_keeps_both_its_answers_and_its_report() -> None:
     client.delete(f"/checkins/{check_in_id}/report", headers=_auth(token))
     entry = client.get("/checkins", headers=_auth(token)).json()[0]
     assert entry["answers"] == VALID_ANSWERS and entry["has_report"] is False
+
+def test_combined_estimate_matches_final_risk_assessment_and_ignores_incomplete_scales() -> None:
+    phq9 = [1, 1, 1, 1, 1, 1, 1, 1, 0]
+    gad7 = [1] * 7
+    k10 = [3] * 10
+    text_analysis = {"sentiment": "negative"}
+
+    final = client.post(
+        "/risk-assess",
+        json={
+            "typed_text": "I have been feeling hopeless and alone lately.",
+            "phq9_answers": phq9,
+            "gad7_answers": gad7,
+            "k10_answers": k10,
+            "text_analysis": text_analysis,
+        },
+    ).json()
+    live = client.post(
+        "/combined-estimate",
+        json={"phq9_answers": phq9, "gad7_answers": gad7, "k10_answers": k10, "text_analysis": text_analysis},
+    ).json()
+    assert live["combined_signal"] == final["risk_score"]
+
+    partial = client.post("/combined-estimate", json={"phq9_answers": phq9, "gad7_answers": None, "k10_answers": None}).json()
+    assert [item["name"] for item in partial["contributions"]] == ["phq9"]
+    assert partial["combined_signal"] == round(sum(phq9) / 27 * 100) / 100
+
+    assert client.post("/combined-estimate", json={}).json() == {"combined_signal": 0.0, "contributions": []}
+
+
+def test_admin_reference_document_upload_list_toggle_and_delete() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('docs-admin@example.com')}"}
+    regular_token = client.post("/auth/register", json={"email": "docs-regular@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    regular_headers = {"Authorization": f"Bearer {regular_token}"}
+    text_body = "Worry can be eased by naming the feared outcome and checking the evidence for it.".encode("utf-8")
+
+    forbidden = client.post("/admin/documents", files={"file": ("guide.txt", text_body, "text/plain")}, data={"title": "Guide", "intent": "anxiety"}, headers=regular_headers)
+    assert forbidden.status_code == 403
+    assert client.get("/admin/documents").status_code == 401
+
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("guide.txt", text_body, "text/plain")},
+        data={"title": "Worry guide", "intent": "anxiety", "source_name": "Clinic handout"},
+        headers=admin_headers,
+    )
+    assert created.status_code == 201
+    document = created.json()
+    assert document["title"] == "Worry guide" and document["active"] is True and document["characters"] == len(text_body.decode())
+    assert "content" not in document
+
+    assert client.post("/admin/documents", files={"file": ("x.exe", b"MZ", "application/octet-stream")}, data={"title": "x", "intent": "anxiety"}, headers=admin_headers).status_code == 415
+    assert client.post("/admin/documents", files={"file": ("x.txt", b"hi", "text/plain")}, data={"title": "x", "intent": "not-an-intent"}, headers=admin_headers).status_code == 400
+    assert client.post("/admin/documents", files={"file": ("x.txt", b"   ", "text/plain")}, data={"title": "x", "intent": "anxiety"}, headers=admin_headers).status_code == 422
+
+    listed = client.get("/admin/documents", headers=admin_headers).json()
+    assert any(item["id"] == document["id"] for item in listed)
+
+    deactivated = client.patch(f"/admin/documents/{document['id']}", json={"active": False}, headers=admin_headers).json()
+    assert deactivated["active"] is False
+
+    assert client.delete(f"/admin/documents/{document['id']}", headers=admin_headers).status_code == 204
+    assert client.delete(f"/admin/documents/{document['id']}", headers=admin_headers).status_code == 404
+
+
+def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('chat-docs-admin@example.com')}"}
+    marker = "Naming the feared outcome and testing it against evidence eases worry.  "
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("worry.md", marker.encode("utf-8"), "text/markdown")},
+        data={"title": "Uploaded worry note", "intent": "anxiety", "source_name": "Approved clinic note"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
+    titles = [source["title"] for source in body["sources"]]
+    assert any("Uploaded worry note" in title and "Approved clinic note" in title for title in titles)
+    uploaded_sources = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert uploaded_sources and uploaded_sources[0]["content"].startswith(marker.strip()[:40])
+
+    client.patch(f"/admin/documents/{created['id']}", json={"active": False}, headers=admin_headers)
+    body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
+    assert all(source["source"] != "admin_upload" for source in body["sources"])
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_deep_passage_in_long_pdf_style_document_is_cited_for_matching_question() -> None:
+    admin_headers = {"Authorization": f"Bearer {_register_admin('deep-doc-admin@example.com')}"}
+    filler = "\n\n".join(f"Section {number}: general background about daily routines and rest, unrelated to the question." for number in range(60))
+    deep = "The orchard lantern protocol is a three-step evening routine: dim the lights, write one worry down, and breathe slowly for two minutes."
+    body = f"{filler}\n\n{deep}\n\n{filler}"
+    assert len(body) > 5000
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("long-guide.txt", body.encode("utf-8"), "text/plain")},
+        data={"title": "Long guide", "intent": "general", "source_name": "Program manual"},
+        headers=admin_headers,
+    ).json()
+
+    body_out = client.post("/ai/chat", json={"message": "What is the orchard lantern protocol?", "risk_clear": True}).json()
+    uploaded = [source for source in body_out["sources"] if source["source"] == "admin_upload"]
+    assert uploaded, body_out
+    assert any("orchard lantern protocol" in source["content"] for source in uploaded)
+    assert all("Long guide" in source["title"] and "Program manual" in source["title"] for source in uploaded)
+
+    unrelated = client.post("/ai/chat", json={"message": "Tell me about the weather tomorrow", "risk_clear": True}).json()
+    assert all(source["source"] != "admin_upload" for source in unrelated["sources"])
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_word_matching_uses_synonyms_when_no_embeddings_are_available(monkeypatch) -> None:
+    async def no_embeddings(texts):
+        return None
+    monkeypatch.setattr(main, "embed_texts", no_embeddings)
+    admin_headers = {"Authorization": f"Bearer {_register_admin('synonym-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("calm.txt", b"Anxiety often eases with slow breathing and by naming the feared outcome.", "text/plain")},
+        data={"title": "Calm guide", "intent": "general"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I feel so stressed and overwhelmed lately", "risk_clear": True}).json()
+    assert any(source["source"] == "admin_upload" and "Calm guide" in source["title"] for source in body["sources"])
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_embeddings_rank_passages_by_meaning_not_shared_words(monkeypatch) -> None:
+    concepts = (
+        ("calm", {"settled", "steadies", "calm", "slow", "breathing", "relax"}),
+        ("sleep", {"sleep", "bed", "bedtime", "night"}),
+    )
+
+    async def fake_embeddings(texts):
+        vectors = []
+        for text in texts:
+            words = set(text.lower().replace(".", " ").replace("?", " ").split())
+            vector = [1.0 if words & keywords else 0.0 for _, keywords in concepts]
+            vectors.append(vector if any(vector) else [0.0, 0.0])
+            if not any(vector):
+                vectors[-1] = [0.0, 0.0]
+        return vectors
+    monkeypatch.setattr(main, "embed_texts", fake_embeddings)
+    admin_headers = {"Authorization": f"Bearer {_register_admin('meaning-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("practice.txt", b"Slow diaphragmatic practice steadies the body before bed.", "text/plain")},
+        data={"title": "Practice note", "intent": "general"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I want to feel more settled", "risk_clear": True}).json()
+    cited = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert cited and "Practice note" in cited[0]["title"]
+    assert "steadies" in cited[0]["content"]
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_admin_login_is_separate_and_refuses_non_admin_accounts() -> None:
+    _register_admin("panel-admin@example.com")
+    client.post("/auth/register", json={"email": "panel-regular@example.com", "password": "correct-horse-battery"})
+
+    refused = client.post("/admin/login", json={"email": "panel-regular@example.com", "password": "correct-horse-battery"})
+    assert refused.status_code == 403
+    assert "access_token" not in refused.json()
+
+    wrong = client.post("/admin/login", json={"email": "panel-admin@example.com", "password": "not-the-password"})
+    assert wrong.status_code == 401
+
+    accepted = client.post("/admin/login", json={"email": "panel-admin@example.com", "password": "correct-horse-battery"})
+    assert accepted.status_code == 200
+    token = accepted.json()["access_token"]
+    assert client.get("/admin/documents", headers={"Authorization": f"Bearer {token}"}).status_code == 200

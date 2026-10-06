@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import AdminGate from "../components/AdminGate";
 import ProgressCharts from "../components/ProgressCharts";
 import QuestionnaireAnswersList from "../components/QuestionnaireAnswersList";
-import SiteHeader from "../components/SiteHeader";
-import SiteFooter from "../components/SiteFooter";
 import {
   createResource, deleteResource, fetchAdminAnalytics, fetchAdminResources, fetchAdminUserCheckIns, fetchAdminUsers, updateResource,
   type AdminAnalytics, type AdminUserCheckIns, type AdminUserSummary, type ResourceInput, type ResourceRecord, type ResourceType,
 } from "../lib/admin";
 import { logout, type CurrentUser } from "../lib/auth";
+import {
+  REFERENCE_INTENTS, deleteReferenceDocument, fetchReferenceDocuments, setReferenceDocumentActive, uploadReferenceDocument,
+  type ReferenceDocument, type ReferenceIntent,
+} from "../lib/admin";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
 
 const RESOURCE_TYPES: ResourceType[] = ["meditation", "therapy", "medication", "general"];
@@ -61,7 +63,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
 
   function handleSignOut() {
     logout();
-    router.push("/");
+    router.push("/admin/login");
   }
 
   const maxBandCount = analytics ? Math.max(1, ...Object.values(analytics.band_counts)) : 1;
@@ -70,10 +72,13 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
   return (
     <>
     <main className="resource-page">
-      <SiteHeader
-        backLabel="New check-in"
-        right={<button className="dashboard-signout" onClick={handleSignOut} type="button">Sign out</button>}
-      />
+      <header className="admin-header">
+        <div className="admin-header-brand"><span className="brand-mark">M</span> MindHx <span className="admin-login-tag">Admin</span></div>
+        <div className="admin-header-right">
+          <span>{admin.email}</span>
+          <button className="dashboard-signout" onClick={handleSignOut} type="button">Sign out</button>
+        </div>
+      </header>
       <section className="resource-hero">
         <p className="eyebrow">ADMIN</p>
         <h1>Website overview<br /><em>for {admin.email}.</em></h1>
@@ -187,8 +192,8 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
           </div>
         )}
       </section>
+      <ReferenceDocumentsSection />
     </main>
-    <SiteFooter />
     {showForm && (
       <ResourceFormModal
         initial={editing}
@@ -331,5 +336,100 @@ function ResourceFormModal({ initial, onClose, onSaved }: { initial: ResourceRec
         </form>
       </div>
     </div>
+  );
+}
+
+function ReferenceDocumentsSection() {
+  const [documents, setDocuments] = useState<ReferenceDocument[] | null>(null);
+  const [error, setError] = useState("");
+  const [title, setTitle] = useState("");
+  const [sourceName, setSourceName] = useState("");
+  const [intent, setIntent] = useState<ReferenceIntent>("anxiety");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  function load() {
+    fetchReferenceDocuments()
+      .then(setDocuments)
+      .catch((err) => setError(err instanceof Error ? err.message : "Could not load documents."));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleUpload(event: React.FormEvent) {
+    event.preventDefault();
+    if (!file || !title.trim()) return;
+    setUploading(true);
+    setError("");
+    try {
+      await uploadReferenceDocument({ file, title: title.trim(), intent, sourceName: sourceName.trim() });
+      setTitle("");
+      setSourceName("");
+      setFile(null);
+      (event.target as HTMLFormElement).reset();
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleToggle(document: ReferenceDocument) {
+    try {
+      const updated = await setReferenceDocumentActive(document.id, !document.active);
+      setDocuments((current) => current?.map((item) => (item.id === updated.id ? updated : item)) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update this document.");
+    }
+  }
+
+  async function handleDelete(document: ReferenceDocument) {
+    if (!window.confirm(`Delete "${document.title}"? The chat will stop citing it.`)) return;
+    try {
+      await deleteReferenceDocument(document.id);
+      setDocuments((current) => current?.filter((item) => item.id !== document.id) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete this document.");
+    }
+  }
+
+  return (
+    <section className="admin-section">
+      <div className="admin-section-heading">
+        <h2>Reference documents</h2>
+      </div>
+      <p className="admin-section-note">Upload approved guidance as a PDF (or .txt / .md, up to 2 MB) to train the MindHx chat. The text is split into passages, and for each question the chat uses the passages that best match it, citing the title and source. Choose &quot;any topic&quot; for general material; other topics also make the passages more likely to be used for that subject. Only the extracted text is stored, and deactivating a document stops the chat using it.</p>
+      {error && <p className="assessment-error">{error}</p>}
+      <form className="admin-upload-form" onSubmit={handleUpload}>
+        <input type="file" accept=".txt,.md,.markdown,.pdf,text/plain,text/markdown,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} aria-label="PDF or text file" />
+        <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title (shown to the chat as the source)" maxLength={200} aria-label="Title" />
+        <input type="text" value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Source (e.g. clinic handout, guideline name)" maxLength={200} aria-label="Source name" />
+        <select value={intent} onChange={(event) => setIntent(event.target.value as ReferenceIntent)} aria-label="Topic">
+          {REFERENCE_INTENTS.map((item) => <option key={item} value={item}>{item === "general" ? "any topic" : item.replaceAll("_", " ")}</option>)}
+        </select>
+        <button className="check-in-button" type="submit" disabled={!file || !title.trim() || uploading}>{uploading ? "Uploading and indexing…" : "Upload PDF to train chatbot"} <span>→</span></button>
+      </form>
+      {documents === null && !error && <p className="dashboard-loading">Loading documents…</p>}
+      {documents?.length === 0 && <p className="dashboard-loading">No reference documents yet.</p>}
+      {documents && documents.length > 0 && (
+        <div className="admin-resource-list">
+          {documents.map((document) => (
+            <article className="admin-resource-row" key={document.id}>
+              <div>
+                <b>{document.title}</b>
+                <span className="admin-resource-meta">{document.intent.replaceAll("_", " ")} · {document.source_name || "no source given"} · {document.characters.toLocaleString()} characters · {document.active ? "active" : "inactive"}</span>
+              </div>
+              <div className="admin-resource-actions">
+                <button type="button" onClick={() => handleToggle(document)}>{document.active ? "Deactivate" : "Activate"}</button>
+                <button type="button" onClick={() => handleDelete(document)}>Delete</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
