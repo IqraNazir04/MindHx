@@ -13,13 +13,54 @@ export type CrisisContext = {
 };
 
 // Pakistan's national emergency numbers, shown as tap-to-call links. These
-// are general emergency services, not a mental-health helpline - add a
-// dedicated helpline here only after verifying the number with the
-// organization itself (a wrong number on this page is worse than none).
+// are general emergency services, not a mental-health helpline.
 export const emergencyNumbers: { number: string; en: string; ur: string }[] = [
   { number: "1122", en: "Rescue 1122 - ambulance & emergency", ur: "ریسکیو 1122 - ایمبولینس اور ہنگامی مدد" },
   { number: "115", en: "Edhi ambulance", ur: "ایدھی ایمبولینس" },
   { number: "15", en: "Police", ur: "پولیس" },
+];
+
+// Dedicated mental-health helplines in Pakistan, verified against each
+// organization's own published details - last verified 2026-10-07, re-verify
+// quarterly (numbers and hours do change). Pakistan has no round-the-clock
+// dedicated mental-health crisis line, so outside these hours the general
+// emergency numbers above or the nearest hospital emergency department are
+// the route; see findHelpBody.
+// Sources: Taskeen Health Initiative (taskeen.org); Sehat Tahaffuz 1166
+// (Humraaz service, federal toll-free health helpline); Rozan Counseling
+// Helpline (rozan.org); Sindh Mental Health Authority; Punjab Safe Cities
+// Authority press-release on Helpline-15 mental health counselling (Apr 2026).
+export const mentalHealthHelplines: { number: string; tel: string; en: string; ur: string }[] = [
+  {
+    number: "+92 316 827 5336",
+    tel: "+923168275336",
+    en: "Taskeen Health Initiative - free support from trained mental health professionals, Mon-Sat 11 AM-11 PM",
+    ur: "تسکین ہیلتھ انیشیٹو - تربیت یافتہ ماہرینِ ذہنی صحت کی مفت معاونت، پیر تا ہفتہ صبح 11 تا رات 11 بجے",
+  },
+  {
+    number: "1166",
+    tel: "1166",
+    en: "Sehat Tahaffuz (Humraaz) - toll-free federal health helpline, connects to counsellors and hospitals",
+    ur: "صحت تحفظ (ہمراز) - ٹول فری وفاقی ہیلتھ ہیلپ لائن، مشیروں اور ہسپتالوں سے رابطہ کرواتی ہے",
+  },
+  {
+    number: "0800-22-444",
+    tel: "080022444",
+    en: "Rozan Counseling Helpline - emotional health, abuse & violence support, Mon-Fri 9:30 AM-5 PM",
+    ur: "روزن کاؤنسلنگ ہیلپ لائن - جذباتی صحت، تشدد اور زیادتی سے متعلق معاونت، پیر تا جمعہ صبح 9:30 تا شام 5 بجے",
+  },
+  {
+    number: "15 (press 7)",
+    tel: "15,7",
+    en: "Police helpline - press 7 for a free psychologist (Punjab Safe Cities Authority)",
+    ur: "پولیس ہیلپ لائن - مفت ماہرِ نفسیات کے لیے 7 دبائیں (پنجاب سیف سٹیز اتھارٹی)",
+  },
+  {
+    number: "021 111 117 642",
+    tel: "021111117642",
+    en: "Sindh Mental Health Authority - Karachi (JPMC); also Hyderabad on 022 111 117 642",
+    ur: "سندھ مینٹل ہیلتھ اتھارٹی - کراچی (جے پی ایم سی)؛ حیدرآباد کے لیے 022 111 117 642",
+  },
 ];
 
 export const crisisCopy: Record<CrisisLanguage, {
@@ -30,6 +71,8 @@ export const crisisCopy: Record<CrisisLanguage, {
   stepsTitle: string;
   steps: string[];
   notDiagnosis: string;
+  helplinesTitle: string;
+  helplinesNote: string;
   findHelp: string;
   findHelpBody: string;
   talkTherapist: string;
@@ -47,6 +90,8 @@ export const crisisCopy: Record<CrisisLanguage, {
       "If symptoms ease, still bring this check-in to a licensed professional for a full evaluation.",
     ],
     notDiagnosis: "This is a risk-tier signal, not a diagnosis. Only a qualified professional can assess and treat what you are experiencing.",
+    helplinesTitle: "Mental health helplines (Pakistan)",
+    helplinesNote: "Pakistan doesn't yet have a round-the-clock mental health crisis line. Outside these hours, use the emergency numbers above or go to the nearest hospital emergency department.",
     findHelp: "Find help",
     findHelpBody: "Search for a local crisis line, emergency service, or hospital emergency department in your country. If you already have a therapist, psychiatrist, or doctor, contact them directly.",
     talkTherapist: "Talk to a professional",
@@ -64,6 +109,8 @@ export const crisisCopy: Record<CrisisLanguage, {
       "علامات کم ہونے پر بھی، اس جائزے کو مکمل تشخیص کے لیے کسی مستند ماہر کے پاس ضرور لے جائیں۔",
     ],
     notDiagnosis: "یہ ایک خطرے کی سطح کا اشارہ ہے، تشخیص نہیں۔ آپ کی کیفیت کا جائزہ اور علاج صرف ایک مستند ماہر ہی کر سکتا ہے۔",
+    helplinesTitle: "ذہنی صحت کی ہیلپ لائنز (پاکستان)",
+    helplinesNote: "پاکستان میں ابھی چوبیس گھنٹے کام کرنے والی ذہنی صحت کی بحرانی ہیلپ لائن موجود نہیں۔ ان اوقات کے علاوہ، اوپر دیے گئے ہنگامی نمبروں پر کال کریں یا قریبی ہسپتال کے ایمرجنسی شعبے میں جائیں۔",
     findHelp: "مدد تلاش کریں",
     findHelpBody: "اپنے ملک میں کسی مقامی بحرانی ہیلپ لائن، ہنگامی سروس، یا ہسپتال کے ایمرجنسی شعبے کو تلاش کریں۔ اگر آپ کا پہلے سے کوئی معالج، ماہرِ نفسیات، یا ڈاکٹر ہے تو براہِ راست ان سے رابطہ کریں۔",
     talkTherapist: "کسی ماہر سے بات کریں",

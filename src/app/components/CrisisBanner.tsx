@@ -1,4 +1,4 @@
-import { crisisCopy, emergencyNumbers, type CrisisLanguage } from "../lib/crisisCopy";
+import { crisisCopy, emergencyNumbers, mentalHealthHelplines, type CrisisLanguage } from "../lib/crisisCopy";
 
 // The crisis/emergency steps + notice + find-help content - shared by the
 // standalone /emergency page and the banner embedded at the top of
@@ -25,6 +25,18 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
             </a>
           ))}
         </div>
+      </section>
+      <section className="emergency-numbers" aria-label={text.helplinesTitle}>
+        <p className="card-kicker">{text.helplinesTitle}</p>
+        <div className="emergency-number-list">
+          {mentalHealthHelplines.map((entry) => (
+            <a key={entry.tel} className="emergency-number" href={`tel:${entry.tel}`}>
+              <strong dir="ltr">{entry.number}</strong>
+              <span>{language === "ur" ? entry.ur : entry.en}</span>
+            </a>
+          ))}
+        </div>
+        <p className="emergency-helplines-note">{text.helplinesNote}</p>
       </section>
       <div className="crisis-card emergency-notice">{text.notDiagnosis}</div>
       <section className="therapist-contact">

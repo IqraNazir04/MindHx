@@ -447,6 +447,12 @@ RAG_INTENT_KEYWORDS = {
     "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
     "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
     "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
+    "safety": ("suicid", "self harm", "self-harm", "kill myself", "warning sign", "safety plan", "worried about someone", "خودکشی", "خود کو نقصان", "حفاظتی منصوبہ"),
+    "stress": ("stress", "burnout", "burn out", "overwhelm", "تناؤ", "دباؤ"),
+    "meditation": ("meditat", "breathing exercise", "mindful", "grounding", "relax", "مراقبہ", "سانس"),
+    "grief": ("grief", "grieving", "bereave", "passed away", "miscarriage", "mourning", "غم", "انتقال"),
+    "pain": ("chronic pain", "pain management", "body pain", "فائبرومیالجیا", "درد"),
+    "conditions": ("insomnia", "ocd", "ptsd", "bipolar", "postpartum", "panic attack", "psychosis", "اندرا", "نیند نہیں آتی"),
 }
 UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS) | {"general"}
 UPLOAD_CHUNK_CHARS = 900

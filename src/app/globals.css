@@ -494,6 +494,7 @@ textarea::placeholder { color:#9aa6b4; }
 .emergency-number strong { font-size:26px; line-height:1; }
 .emergency-number span { font-size:12px; color:var(--navy); }
 .emergency-number:hover, .emergency-number:focus-visible { border-color:#8b3535; }
+.emergency-helplines-note { margin:12px 0 0; color:#8b3535; font-size:12px; line-height:1.6; }
 .emergency-steps ol { margin:14px 0 0; padding-inline-start:18px; color:var(--navy); font-size:13px; line-height:1.9; }
 .emergency-actions { position:relative; z-index:1; max-width:900px; margin:26px auto 0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
 
