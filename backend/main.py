@@ -1168,7 +1168,13 @@ def _anthropic_client() -> Optional[anthropic.AsyncAnthropic]:
     if not os.getenv("ANTHROPIC_API_KEY"):
         return None
     if _anthropic_client_cache is None:
-        _anthropic_client_cache = anthropic.AsyncAnthropic(timeout=30.0, max_retries=1)
+        # A key that isn't scoped to a workspace must name one on every request.
+        workspace_id = os.getenv("ANTHROPIC_WORKSPACE_ID")
+        _anthropic_client_cache = anthropic.AsyncAnthropic(
+            timeout=30.0,
+            max_retries=1,
+            default_headers={"anthropic-workspace-id": workspace_id} if workspace_id else None,
+        )
     return _anthropic_client_cache
 
 
