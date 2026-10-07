@@ -7,12 +7,17 @@ imported by SQLAlchemy at connection time, once that URL is configured.
 """
 
 import os
+from pathlib import Path
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mindhx.db")
+# The default SQLite file always lives next to this module (backend/mindhx.db),
+# whichever directory the server or manage.py is started from - a relative
+# path put the CLI's writes in a different file than the server reads.
+_DEFAULT_SQLITE_PATH = Path(__file__).resolve().parent / "mindhx.db"
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{_DEFAULT_SQLITE_PATH}")
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
