@@ -1,5 +1,7 @@
 import asyncio
+import json
 
+import anthropic
 import httpx
 import numpy as np
 from fastapi.testclient import TestClient
@@ -1298,3 +1300,65 @@ def test_saving_the_same_assessment_twice_returns_the_same_checkin(monkeypatch) 
     # A different result inside the window is still refused.
     other = client.post("/risk-assess", json={"phq9_answers": [0] * 9, "gad7_answers": [0] * 7, "k10_answers": [1] * 10}).json()["assessment_token"]
     assert client.post("/checkins", json={"assessment_token": other}, headers=headers).status_code == 429
+
+
+class _FakeClaude:
+    """Stands in for anthropic.AsyncAnthropic: records each request and
+    returns the queued JSON reply (or raises the queued error)."""
+
+    def __init__(self, reply=None, error=None) -> None:
+        self.calls: list[dict] = []
+        self._reply, self._error = reply, error
+        fake = self
+
+        class _Messages:
+            async def create(self, **kwargs):
+                fake.calls.append(kwargs)
+                if fake._error:
+                    raise fake._error
+                block = type("Block", (), {"type": "text", "text": json.dumps(fake._reply)})()
+                return type("Response", (), {"stop_reason": "end_turn", "content": [block]})()
+
+        self.beta = type("Beta", (), {"messages": _Messages()})()
+
+
+def _use_claude(monkeypatch, fake: "_FakeClaude") -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(main, "_anthropic_client", lambda: fake)
+
+
+def test_analyze_text_uses_claude_with_a_schema_and_keeps_the_crisis_floor(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"sentiment": "neutral", "keyword_flags": [], "crisis_language": False, "anxiety_level": 0.2, "stress_level": 0.3, "depression_indicator": 0.9})
+    _use_claude(monkeypatch, fake)
+    body = client.post("/analyze-text", json={"text": "I want to kill myself", "language": "en"}).json()
+    assert body["provider"] == "claude"
+    assert body["crisis_language"] is True  # Claude saying False can't clear it
+    assert body["depression_indicator"] == 0.9
+    request = fake.calls[0]
+    assert request["model"] == main.claude_model()
+    assert request["output_config"]["format"]["schema"] == main.TRIAGE_CLASSIFICATION_SCHEMA
+    assert request["fallbacks"] == "default"
+
+
+def test_chat_uses_claude_and_maps_schema_placeholders(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"action": "respond", "message": "Grounding can help shift attention to your senses.", "offer_exercise": "none", "suggested_cta": {"label": "x", "href": "none"}})
+    _use_claude(monkeypatch, fake)
+    body = client.post("/ai/chat", json={
+        "message": "I feel anxious before exams", "language": "en", "risk_clear": True,
+        "history": [{"role": "assistant", "content": "Hi, how can I help?"}, {"role": "user", "content": "hello"}],
+    }).json()
+    assert body["generation"]["provider"] == "claude"
+    assert body["message"].startswith("Grounding")
+    assert "exercise" not in body and "suggested_cta" not in body
+    messages = fake.calls[0]["messages"]
+    assert messages[0]["role"] == "user"  # a leading assistant turn is dropped for Claude
+
+
+def test_claude_failure_falls_back_without_error(monkeypatch) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    outage = anthropic.InternalServerError("overloaded", response=httpx.Response(529, request=request), body=None)
+    _use_claude(monkeypatch, _FakeClaude(error=outage))
+    text = client.post("/analyze-text", json={"text": "I feel hopeless and alone", "language": "en"}).json()
+    assert text["provider"] == "heuristic" and text["sentiment"] == "negative"
+    chat = client.post("/ai/chat", json={"message": "what is CBT?", "language": "en", "risk_clear": True}).json()
+    assert chat["generation"]["provider"] == "approved-rag-library"

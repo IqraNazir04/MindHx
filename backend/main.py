@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 
+import anthropic
 import httpx
 import jwt
 import numpy as np
@@ -1151,6 +1152,90 @@ def _parse_triage_classification(content: str) -> Optional[dict]:
     return result
 
 
+# Claude is used for text classification and the grounded chat whenever
+# ANTHROPIC_API_KEY is set, with OpenAI (if configured) as the fallback and
+# the local heuristics/template behind both. Speech-to-text and embeddings
+# stay on OpenAI - Claude has no transcription or embeddings endpoint.
+def claude_model() -> str:
+    return os.getenv("ANTHROPIC_MODEL", "claude-opus-5-5")
+
+
+_anthropic_client_cache: Optional[anthropic.AsyncAnthropic] = None
+
+
+def _anthropic_client() -> Optional[anthropic.AsyncAnthropic]:
+    global _anthropic_client_cache
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        return None
+    if _anthropic_client_cache is None:
+        _anthropic_client_cache = anthropic.AsyncAnthropic(timeout=30.0, max_retries=1)
+    return _anthropic_client_cache
+
+
+async def claude_json(*, system: str, messages: list[dict], schema: dict, max_tokens: int, purpose: str) -> Optional[dict]:
+    """One Claude call constrained to a JSON schema. Returns the parsed object,
+    or None on any failure so the caller can fall back - never raises."""
+    client = _anthropic_client()
+    if client is None:
+        return None
+    try:
+        response = await client.beta.messages.create(
+            model=claude_model(),
+            max_tokens=max_tokens,
+            system=system,
+            messages=messages,
+            # Short, well-specified tasks: low effort keeps replies quick and cheap.
+            output_config={"effort": "low", "format": {"type": "json_schema", "schema": schema}},
+            # If a safety classifier declines, the API retries on a fallback
+            # model inside the same call instead of returning nothing.
+            betas=["server-side-fallback-2026-07-01"],
+            fallbacks="default",
+        )
+    except anthropic.APIStatusError as error:
+        logger.error("Claude %s returned %s: %s", purpose, error.status_code, error.message)
+        return None
+    except anthropic.APIConnectionError as error:
+        logger.error("Claude %s request failed: %r", purpose, error)
+        return None
+    if response.stop_reason != "end_turn":
+        logger.warning("Claude %s stopped with %s", purpose, response.stop_reason)
+        return None
+    text = next((block.text for block in response.content if block.type == "text"), None)
+    try:
+        result = json.loads(text) if text else None
+    except ValueError:
+        logger.error("Claude %s returned invalid JSON", purpose)
+        return None
+    return result if isinstance(result, dict) else None
+
+
+TRIAGE_CLASSIFICATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sentiment": {"type": "string", "enum": ["negative", "neutral", "positive"]},
+        "keyword_flags": {"type": "array", "items": {"type": "string"}},
+        "crisis_language": {"type": "boolean"},
+        "anxiety_level": {"type": "number"},
+        "stress_level": {"type": "number"},
+        "depression_indicator": {"type": "number"},
+    },
+    "required": ["sentiment", "keyword_flags", "crisis_language", "anxiety_level", "stress_level", "depression_indicator"],
+    "additionalProperties": False,
+}
+
+
+async def analyze_with_claude(text: str, language: str) -> Optional[dict]:
+    """Classify check-in text with Claude, validated the same way as OpenAI's."""
+    result = await claude_json(
+        system=TRIAGE_CLASSIFIER_SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": f"Language: {language}\nText: {text}"}],
+        schema=TRIAGE_CLASSIFICATION_SCHEMA,
+        max_tokens=2000,
+        purpose="/analyze-text",
+    )
+    return _parse_triage_classification(json.dumps(result)) if result is not None else None
+
+
 async def analyze_with_openai(text: str, language: str) -> Optional[dict]:
     """Classify check-in text with OpenAI's chat completions API."""
     api_key = os.getenv("OPENAI_API_KEY")
@@ -2138,8 +2223,11 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
         "language": payload.language,
         **_linguistic_indicators(linguistic_features),
     }
-    llm_result = await analyze_with_openai(text, payload.language)
-    provider = "openai" if llm_result else None
+    llm_result = await analyze_with_claude(text, payload.language)
+    provider = "claude" if llm_result else None
+    if llm_result is None:
+        llm_result = await analyze_with_openai(text, payload.language)
+        provider = "openai" if llm_result else None
     merged = {
         **heuristic_result,
         **(llm_result or {}),
@@ -2230,16 +2318,13 @@ async def compose_chat_reply(
     mood_checkins: list[int],
     helpful_practices: list[str],
 ) -> Optional[dict]:
-    """Composes a grounded, guarded chat reply via OpenAI's chat completions API.
-    Returns None on any failure or unsafe/malformed output, so the caller can
-    fall back to the deterministic template response - the chat never goes
-    unanswered, it just loses the conversational layer."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    """Composes a grounded, guarded chat reply with Claude (or OpenAI when
+    Claude isn't configured or fails). Returns None on any failure or
+    unsafe/malformed output, so the caller can fall back to the deterministic
+    template response - the chat never goes unanswered, it just loses the
+    conversational layer."""
+    if not os.getenv("ANTHROPIC_API_KEY") and not os.getenv("OPENAI_API_KEY"):
         return None
-    provider, model = "openai", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     context_lines = []
     if screening_context:
@@ -2260,30 +2345,33 @@ async def compose_chat_reply(
     reference_material = "\n\n".join(f"[{document['id']}] {document[language]['title']}: {document[language]['content']}" for document in documents)
     exercise_ids = ", ".join(INTERACTIVE_EXERCISES.keys())
 
-    messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
-    for turn in history[-8:]:
-        messages.append({"role": turn.role, "content": turn.content})
-    messages.append({"role": "user", "content": "\n\n".join([
+    turns = [{"role": turn.role, "content": turn.content} for turn in history[-8:]]
+    user_content = "\n\n".join([
         f"Language: {language}",
         "\n".join(context_lines) if context_lines else "No situational context available.",
         f"Reference material:\n{reference_material}",
         f"Available interactive exercise ids: {exercise_ids}",
         f"Allowed suggested_cta hrefs: {', '.join(sorted(ALLOWED_CTA_HREFS))}",
         f"User message: {message}",
-    ])})
+    ])
 
-    payload = {"model": model, "temperature": 0, "response_format": {"type": "json_object"}, "messages": messages}
-    try:
-        async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post(url, headers=headers, json=payload)
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-            result = json.loads(content)
-    except httpx.HTTPStatusError as error:
-        logger.error("OpenAI /ai/chat returned %s: %s", error.response.status_code, error.response.text[:500])
-        return None
-    except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError) as error:
-        logger.error("OpenAI /ai/chat request failed: %r", error)
+    result: Optional[dict] = None
+    provider = model = ""
+    claude_turns = list(turns)
+    while claude_turns and claude_turns[0]["role"] != "user":
+        claude_turns.pop(0)  # a Claude conversation has to open with a user turn
+    claude_result = await claude_json(
+        system=CHAT_SYSTEM_PROMPT,
+        messages=[*claude_turns, {"role": "user", "content": user_content}],
+        schema=_chat_reply_schema(),
+        max_tokens=4000,
+        purpose="/ai/chat",
+    )
+    if claude_result is not None:
+        result, provider, model = _from_chat_schema(claude_result), "claude", claude_model()
+    elif os.getenv("OPENAI_API_KEY"):
+        result, provider, model = await _chat_with_openai(turns, user_content), "openai", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    if result is None:
         return None
 
     if result.get("action") not in {"clarify", "respond"}:
@@ -2307,6 +2395,59 @@ async def compose_chat_reply(
     result["_provider"] = provider
     result["_model"] = model
     return result
+
+
+def _chat_reply_schema() -> dict:
+    # "none" stands in for null, keeping the schema to plain strings and enums.
+    return {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["clarify", "respond"]},
+            "message": {"type": "string"},
+            "offer_exercise": {"type": "string", "enum": [*INTERACTIVE_EXERCISES.keys(), "none"]},
+            "suggested_cta": {
+                "type": "object",
+                "properties": {"label": {"type": "string"}, "href": {"type": "string", "enum": [*sorted(ALLOWED_CTA_HREFS), "none"]}},
+                "required": ["label", "href"],
+                "additionalProperties": False,
+            },
+        },
+        "required": ["action", "message", "offer_exercise", "suggested_cta"],
+        "additionalProperties": False,
+    }
+
+
+def _from_chat_schema(result: dict) -> dict:
+    """Maps the schema's "none" placeholders back to the null the rest of the
+    chat code expects."""
+    if result.get("offer_exercise") == "none":
+        result["offer_exercise"] = None
+    cta = result.get("suggested_cta")
+    if isinstance(cta, dict) and cta.get("href") == "none":
+        result["suggested_cta"] = None
+    return result
+
+
+async def _chat_with_openai(turns: list[dict], user_content: str) -> Optional[dict]:
+    payload = {
+        "model": os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+        "temperature": 0,
+        "response_format": {"type": "json_object"},
+        "messages": [{"role": "system", "content": CHAT_SYSTEM_PROMPT}, *turns, {"role": "user", "content": user_content}],
+    }
+    headers = {"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}", "Content-Type": "application/json"}
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            result = json.loads(response.json()["choices"][0]["message"]["content"])
+    except httpx.HTTPStatusError as error:
+        logger.error("OpenAI /ai/chat returned %s: %s", error.response.status_code, error.response.text[:500])
+        return None
+    except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError) as error:
+        logger.error("OpenAI /ai/chat request failed: %r", error)
+        return None
+    return result if isinstance(result, dict) else None
 
 
 @app.post("/ai/chat", dependencies=[Depends(rate_limit("ai-chat", 30, 600))])
