@@ -1,6 +1,6 @@
 import Link from "next/link";
 import TextMoodBars from "./TextMoodBars";
-import { buildRecommendation, scaleExplanation } from "../lib/resultsGuidance";
+import { buildRecommendation, routingLabel, scaleExplanation, scoreText } from "../lib/resultsGuidance";
 import VoiceEmotionBars, { type VoiceEmotion } from "./VoiceEmotionBars";
 
 export type Result = {
@@ -13,10 +13,15 @@ export type Result = {
   explanation?: string[];
   crisis_flag?: boolean;
   themes?: string[];
+  // Signed copy of this result from /risk-assess - the only thing POST
+  // /checkins accepts, so saved history can't differ from what was computed.
+  assessment_token?: string;
   components?: {
     phq9: { score: number; band: string };
-    gad7: { score: number; band: string };
-    k10: { score: number; band: string };
+    // score is null (band "not_answered") for a questionnaire that wasn't
+    // finished, which only happens on a crisis check-in.
+    gad7: { score: number | null; band: string };
+    k10: { score: number | null; band: string };
     text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null };
     voice: { available: boolean; signal: number | null; note: string; emotion?: VoiceEmotion | null };
     attribution?: {
@@ -59,13 +64,13 @@ export default function CheckInResultsBody({
 
   return (
     <>
-      <section className="results-hero"><div><p className="eyebrow">YOUR MINDHX CHECK-IN</p><h1>A clearer picture<br /><em>to take forward.</em></h1><p className="results-lede">These signals are a starting point for a conversation, not a diagnosis. You remain in control of what happens next.</p><button className="result-primary" type="button" onClick={onDownloadPdf}>Download PDF <span>↓</span></button><p className="results-pdf-hint">Bring this to a doctor or therapist. A copy is saved to your history, so you can download it again from your dashboard.</p></div><div className="result-score-card"><p className="card-kicker">COMBINED SIGNAL</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{result.band.replaceAll("_", " ")}</b><small>{result.routing_decision.replaceAll("_", " ")}</small></div></section>
+      <section className="results-hero"><div><p className="eyebrow">YOUR MINDHX CHECK-IN</p><h1>A clearer picture<br /><em>to take forward.</em></h1><p className="results-lede">These signals are a starting point for a conversation, not a diagnosis. You remain in control of what happens next.</p><button className="result-primary" type="button" onClick={onDownloadPdf}>Download PDF <span>↓</span></button><p className="results-pdf-hint">Bring this to a doctor or therapist. A copy is saved to your history, so you can download it again from your dashboard.</p></div><div className="result-score-card"><p className="card-kicker">COMBINED SIGNAL</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{result.band.replaceAll("_", " ")}</b><small>{routingLabel(result.routing_decision)}</small></div></section>
 
       <section className="result-section detail-results"><div className="result-section-heading"><p className="eyebrow">DETAILED RESULTS</p><h2>Your numbers, explained</h2><p>Each questionnaire is scored against its published range. Words and voice are combined with them into the overall signal.</p></div>
         <div className="detail-rows">
-          <DetailRow name="PHQ-9 (low mood)" value={`${components?.phq9.score ?? 0} / 27`} band={components?.phq9.band} explanation={scaleExplanation("phq9", components?.phq9.band)} />
-          <DetailRow name="GAD-7 (anxiety)" value={`${components?.gad7.score ?? 0} / 21`} band={components?.gad7.band} explanation={scaleExplanation("gad7", components?.gad7.band)} />
-          <DetailRow name="K10 (overall distress)" value={`${components?.k10.score ?? 0} / 50`} band={components?.k10.band} explanation={scaleExplanation("k10", components?.k10.band)} />
+          <DetailRow name="PHQ-9 (low mood)" value={scoreText(components?.phq9.score, 27)} band={components?.phq9.band} explanation={scaleExplanation("phq9", components?.phq9.band)} />
+          <DetailRow name="GAD-7 (anxiety)" value={scoreText(components?.gad7.score, 21)} band={components?.gad7.band} explanation={scaleExplanation("gad7", components?.gad7.band)} />
+          <DetailRow name="K10 (overall distress)" value={scoreText(components?.k10.score, 50)} band={components?.k10.band} explanation={scaleExplanation("k10", components?.k10.band)} />
           <DetailRow name="Words (what you wrote)" value={components?.text.signal ? `${Math.round(components.text.signal * 100)}% text signal` : "No text signal"} band={components?.text.sentiment} explanation={`Sentiment read as ${components?.text.sentiment ?? "neutral"}. This adds to the overall signal alongside the questionnaires.`} />
           <DetailRow name="Voice (how you sounded)" value={components?.voice.available ? `${Math.round((components.voice.signal ?? 0) * 100)}% voice signal` : "Not recorded"} explanation={components?.voice.note ?? "No voice features for this check-in."} />
         </div>
@@ -83,8 +88,8 @@ export default function CheckInResultsBody({
 
       <section className="result-section"><div className="result-section-heading"><p className="eyebrow">01 / THE SIGNALS</p><h2>What contributed to this picture</h2><p>Each measure is shown separately so the combined estimate stays explainable.</p></div><div className="result-signal-grid">
         <Signal name="PHQ-9" score={components?.phq9.score ?? 0} max={27} band={components?.phq9.band ?? "not available"} color="orange" />
-        <Signal name="GAD-7" score={components?.gad7.score ?? 0} max={21} band={components?.gad7.band ?? "not available"} color="blue" />
-        <Signal name="K10" score={components?.k10.score ?? 0} max={50} band={components?.k10.band ?? "not available"} color="green" />
+        <Signal name="GAD-7" score={components ? components.gad7.score : 0} max={21} band={components?.gad7.band ?? "not available"} color="blue" />
+        <Signal name="K10" score={components ? components.k10.score : 0} max={50} band={components?.k10.band ?? "not available"} color="green" />
         <div className="result-signal-card text-result"><span className="result-signal-icon">Aa</span><div><b>WORDS</b><h3>{components?.text.sentiment ?? "not available"}</h3><p>{components?.text.signal ? `${Math.round(components.text.signal * 100)}% text signal` : "No text signal"}</p></div></div>
         <div className="result-signal-card voice-result"><span className="result-signal-icon">◉</span><div><b>VOICE</b><h3>{components?.voice.available ? `${Math.round((components.voice.signal ?? 0) * 100)}% signal` : "Not available"}</h3><p>{components?.voice.note ?? "No acoustic features returned."}</p></div></div>
       </div>{components?.text.anxiety_level != null && components.text.stress_level != null && components.text.depression_indicator != null && <TextMoodBars scores={{ anxiety_level: components.text.anxiety_level, stress_level: components.text.stress_level, depression_indicator: components.text.depression_indicator }} title="Word-choice breakdown" />}{components?.voice.emotion && <VoiceEmotionBars emotion={components.voice.emotion} title="Voice tone breakdown" />}{components?.attribution && <><div className="attribution-list">{components.attribution.contributions.map((item) => <div className="attribution-row" key={item.name}><span className="attribution-label">{item.label}<small>{item.modality}</small></span><span className="attribution-track"><i className="attribution-fill" style={{ width: `${Math.max(4, item.share_pct)}%` }} /></span><span className="attribution-share">{item.share_pct}%</span></div>)}</div><p className="attribution-note">{components.attribution.note}</p></>}</section>
@@ -97,8 +102,8 @@ export default function CheckInResultsBody({
   );
 }
 
-function Signal({ name, score, max, band, color }: { name: string; score: number; max: number; band: string; color: string }) {
-  return <div className={`result-signal-card ${color}-result`}><span className="result-signal-icon">{name === "PHQ-9" ? "9" : name === "GAD-7" ? "∿" : "K"}</span><div><b>{name}</b><h3>{score}<small> / {max}</small></h3><div className="result-bar"><i style={{ width: `${Math.min(100, (score / max) * 100)}%` }} /></div><p>{band.replaceAll("_", " ")}</p></div></div>;
+function Signal({ name, score, max, band, color }: { name: string; score: number | null; max: number; band: string; color: string }) {
+  return <div className={`result-signal-card ${color}-result`}><span className="result-signal-icon">{name === "PHQ-9" ? "9" : name === "GAD-7" ? "∿" : "K"}</span><div><b>{name}</b><h3>{score === null ? "Not answered" : <>{score}<small> / {max}</small></>}</h3><div className="result-bar"><i style={{ width: `${Math.min(100, ((score ?? 0) / max) * 100)}%` }} /></div><p>{band.replaceAll("_", " ")}</p></div></div>;
 }
 
 function SupportList({ title, items }: { title: string; items: string[] }) {

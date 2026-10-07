@@ -64,6 +64,7 @@ def init_db() -> None:
         "token_version": "INTEGER NOT NULL DEFAULT 0",
     })
     _ensure_columns("check_ins", {
+        "assessment_id": "VARCHAR(36)",
         "details_json": "TEXT",
         "answers_json": "TEXT",
     })

@@ -139,7 +139,7 @@ function makeLeafCanvas(rand, size = 512) {
     for (let i = 0; i <= N; i++) {
       const th = (i / N) * Math.PI * 2;
       const [x, y] = pt(th, mapleRadius(th));
-      i ? g.lineTo(x, y) : g.moveTo(x, y);
+      if (i) g.lineTo(x, y); else g.moveTo(x, y);
     }
     g.closePath();
   };
@@ -386,6 +386,14 @@ export function createMapleScene(THREE, canvas, options = {}) {
   /* renderer */
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.dpr));
+  // Software rasterisers can't animate this scene without freezing the page.
+  const softwareGl = (() => {
+    try {
+      const gl = renderer.getContext();
+      const info = gl.getExtension('WEBGL_debug_renderer_info');
+      return /swiftshader|llvmpipe|softpipe|software/i.test(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : '');
+    } catch { return false; }
+  })();
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = parseInt(THREE.REVISION, 10) >= 180 ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -905,6 +913,7 @@ export function createMapleScene(THREE, canvas, options = {}) {
     const t = Math.tan((camera.fov * Math.PI) / 360);
     const halfH = (maxY + 2.2) / 2, halfW = maxR + 1;
     fitDist = Math.max(halfH / t, halfW / (t * camera.aspect)) * 1.1;
+    if (settled) renderer.render(scene, camera);
   }
 
   /* annotations overlay */
@@ -1020,10 +1029,14 @@ export function createMapleScene(THREE, canvas, options = {}) {
 
   /* visibility / resize */
   let visible = true, running = true, paused = false, raf = 0;
+  // Set once frames have stayed too slow to animate smoothly (software
+  // rendering, a weak GPU): the scene then holds its last frame instead of
+  // monopolising the main thread on a page people need to type into.
+  let settled = false;
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
-  ro ? ro.observe(canvas) : on(window, 'resize', fit);
+  if (ro) ro.observe(canvas); else on(window, 'resize', fit);
   const io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => { visible = es[0].isIntersecting; if (visible) kick(); }) : null;
-  io && io.observe(canvas);
+  if (io) io.observe(canvas);
   on(document, 'visibilitychange', () => { if (!document.hidden) kick(); });
   fit();
 
@@ -1044,11 +1057,23 @@ export function createMapleScene(THREE, canvas, options = {}) {
     arr[i3] += (c.r * br - arr[i3]) * k; arr[i3 + 1] += (c.g * br - arr[i3 + 1]) * k; arr[i3 + 2] += (c.b * br - arr[i3 + 2]) * k;
   }
 
+  // Smoothed time between frames; the first frames are skipped because
+  // shader compilation makes them slow on every device.
+  let frameGapAvg = 0, lastFrameAt = 0;
+  const SLOW_FRAME_GAP_MS = 60, STALLED_FRAME_GAP_MS = 400, WARMUP_FRAMES = 1;
   function frame() {
     raf = 0;
-    if (!running) return;
-    if (!visible || document.hidden || paused) { clock.getDelta(); return; }
-    raf = requestAnimationFrame(frame);
+    if (!running || settled) return;
+    if (!visible || document.hidden || paused) { clock.getDelta(); lastFrameAt = 0; return; }
+    const now = performance.now();
+    if (softwareGl) settled = true; // still draws this one frame
+    if (lastFrameAt && frameN > WARMUP_FRAMES) {
+      frameGapAvg = frameGapAvg ? frameGapAvg * 0.9 + (now - lastFrameAt) * 0.1 : now - lastFrameAt;
+      // One very long frame is enough; a steady slow pace needs a few to tell.
+      if (now - lastFrameAt > STALLED_FRAME_GAP_MS || (frameN > WARMUP_FRAMES + 20 && frameGapAvg > SLOW_FRAME_GAP_MS)) settled = true;
+    }
+    lastFrameAt = now;
+    if (!settled) raf = requestAnimationFrame(frame);
     const dt = Math.min(clock.getDelta(), 0.05) * (o.timeScale || 1);
     t += dt * motion; frameN++;
     storm = Math.max(0, storm - dt / 8);
@@ -1057,7 +1082,6 @@ export function createMapleScene(THREE, canvas, options = {}) {
     const wf = windEff / 3;
 
     /* zones */
-    let barkHit = null;
     if (pointerIn && (needsPick || frameN % 3 === 0)) {
       needsPick = false;
       const hit = pick();
@@ -1067,7 +1091,7 @@ export function createMapleScene(THREE, canvas, options = {}) {
         if (obj === canopy || obj === blossoms) { paintCrown(hit.point, 1.6); hoverZone = 'crown'; }
         else if (obj === fall) fHover[hit.instanceId] = 1;
         else if (obj === heads) mHover[hit.instanceId] = 1;
-        else if (obj.userData.zone) { hoverZone = obj.userData.zone; barkHit = hoverZone; }
+        else if (obj.userData.zone) { hoverZone = obj.userData.zone; }
       }
       canvas.style.cursor = dragging ? 'grabbing' : hit ? 'pointer' : 'grab';
     }
@@ -1079,7 +1103,7 @@ export function createMapleScene(THREE, canvas, options = {}) {
         pins[z].classList.toggle('is-dim', !!activeZone && z !== activeZone);
         pins[z].setAttribute('aria-expanded', String(z === activeZone));
       }
-      o.onZoneChange && o.onZoneChange(activeZone);
+      o.onZoneChange?.(activeZone);
     }
     const kz = 1 - Math.exp(-dt * 5);
     for (const z of ZONES) {
@@ -1334,10 +1358,10 @@ export function createMapleScene(THREE, canvas, options = {}) {
     dispose() {
       running = false;
       if (raf) cancelAnimationFrame(raf);
-      ro && ro.disconnect(); io && io.disconnect();
+      ro?.disconnect(); io?.disconnect();
       for (const [el, ev, fn, opt] of listeners) el.removeEventListener(ev, fn, opt);
-      overlay && overlay.remove();
-      for (const d of disposables) d.dispose && d.dispose();
+      overlay?.remove();
+      for (const d of disposables) d.dispose?.();
       for (const m of [canopy, blossoms, fall, litter, grass, stems, heads, nodes]) m.dispose();
       renderer.dispose();
     },

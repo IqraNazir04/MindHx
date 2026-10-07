@@ -10,6 +10,7 @@ import math
 import os
 import re
 import secrets
+import uuid
 import tempfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -17,19 +18,23 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 
 import httpx
+import jwt
 import numpy as np
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from auth import (
+    JWT_ALGORITHM,
+    JWT_SECRET_KEY,
     PASSWORD_RESET_EXPIRE_MINUTES,
     AuthContext,
     as_aware_utc,
+    authenticate,
     create_access_token,
     end_login_sessions,
     generate_reset_token,
@@ -40,6 +45,7 @@ from auth import (
     hash_password,
     hash_reset_token,
     password_too_long,
+    password_weakness,
     start_login_session,
     verify_password,
 )
@@ -312,7 +318,10 @@ class QuestionnaireAnswers(BaseModel):
     k10: list[K10Answer] = Field(min_length=10, max_length=10)
 
 
-class CheckInCreateRequest(BaseModel):
+class CheckInRecord(BaseModel):
+    """What a saved check-in holds. Only ever built from a signed
+    /risk-assess result (see CheckInCreateRequest), never from client input."""
+    assessment_id: Optional[str] = Field(default=None, max_length=36)
     risk_score: float = Field(ge=0, le=1)
     band: str = Field(max_length=20)
     routing_decision: str = Field(max_length=30)
@@ -326,9 +335,39 @@ class CheckInCreateRequest(BaseModel):
     # them without losing their score history.
     components: Optional[dict] = None
     support_plan: Optional[dict] = None
-    # Optional so older clients (and check-ins without complete
-    # questionnaires) can still save; visible to admins only.
+    # Absent when the questionnaires weren't all completed (e.g. a crisis
+    # check-in); visible to admins only.
     answers: Optional[QuestionnaireAnswers] = None
+
+
+class CheckInCreateRequest(BaseModel):
+    # The assessment_token /risk-assess returned. It carries the computed
+    # result, signed, so a client can't save scores or a band it made up -
+    # admins and progress charts read these as the real thing.
+    assessment_token: str = Field(min_length=1, max_length=200_000)
+
+
+ASSESSMENT_TOKEN_TTL = timedelta(hours=24)
+
+
+def sign_assessment(record: dict) -> str:
+    payload = {"typ": "assessment", "record": {"assessment_id": str(uuid.uuid4()), **record}, "exp": datetime.now(timezone.utc) + ASSESSMENT_TOKEN_TTL}
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def read_assessment(token: str) -> CheckInRecord:
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError as error:
+        raise HTTPException(status_code=422, detail="This check-in result has expired. Please complete the check-in again to save it.") from error
+    except jwt.PyJWTError as error:
+        raise HTTPException(status_code=422, detail="This check-in result could not be verified. Please complete the check-in again.") from error
+    if payload.get("typ") != "assessment" or not isinstance(payload.get("record"), dict):
+        raise HTTPException(status_code=422, detail="This check-in result could not be verified. Please complete the check-in again.")
+    try:
+        return CheckInRecord.model_validate(payload["record"])
+    except ValidationError as error:
+        raise HTTPException(status_code=422, detail="This check-in result is incomplete or invalid.") from error
 
 
 RESOURCE_TYPES = {"meditation", "therapy", "medication", "general"}
@@ -376,7 +415,7 @@ class SpeechRequest(BaseModel):
 
 
 class Phq9Request(BaseModel):
-    answers: list[int] = Field(min_length=9, max_length=9)
+    answers: list[FrequencyAnswer] = Field(min_length=9, max_length=9)
     session_token: Optional[str] = Field(default=None, max_length=128)
 
 
@@ -388,9 +427,12 @@ class RiskAssessmentRequest(BaseModel):
     transcript: str = Field(default="", max_length=10000)
     typed_text: str = Field(default="", max_length=10000)
     language: str = "en"
-    phq9_answers: list[int] = Field(min_length=9, max_length=9)
-    gad7_answers: list[int] = Field(default_factory=lambda: [0] * 7, min_length=7, max_length=7)
-    k10_answers: list[int] = Field(default_factory=lambda: [1] * 10, min_length=10, max_length=10)
+    phq9_answers: list[FrequencyAnswer] = Field(min_length=9, max_length=9)
+    # None when that questionnaire wasn't finished (only possible on a crisis
+    # check-in). It is then left out of the combined score and shown as "not
+    # answered" - never scored as if every answer were the lowest one.
+    gad7_answers: Optional[list[FrequencyAnswer]] = Field(default=None, min_length=7, max_length=7)
+    k10_answers: Optional[list[K10Answer]] = Field(default=None, min_length=10, max_length=10)
     text_analysis: dict = Field(default_factory=dict)
     phq9_result: dict = Field(default_factory=dict)
     profile: Optional[Profile] = None
@@ -413,6 +455,24 @@ CRISIS_PATTERNS = [
         r"\bbetter\s+off\s+(if\s+i\s+(were|was)\s+)?(dead|gone|not\s+here)\b",
         r"\bno\s+(point|reason)\s+(in\s+)?(going\s+on|living|being\s+here|anymore|to\s+(live|go\s+on|continue))\b",
         r"\bdie\s+every\s+(night|day|morning)\b",
+        # Self-harm acts and means, not just the words "self harm".
+        r"\b(been|started|start|keep|kept|still)\s+(cutting|burning)\b",
+        r"\b(cutting|burning)\s+(again|my\s+(arms?|wrists?|legs?|thighs?|skin))\b",
+        r"\b(cut|burn|burned|burnt)\s+my\s+(arms?|wrists?|legs?|thighs?|skin)\b",
+        r"\b(take|taking|took|swallow|swallowing|swallowed)\s+(all|every\s+one|a\s+(bunch|handful|bottle|lot)\s+of)\s+(of\s+)?(my|the|these|those)?\s*(pills|tablets|meds|medication|medicine|sleeping\s+pills)\b",
+        r"\boverdos(e|ed|ing)\b",
+        r"\b(bought|got|have|tied|made|found)\s+(a\s+)?(rope|noose)\b",
+        r"\bnoose\b",
+        r"\b(sleep|fall\s+asleep)\s+and\s+never\s+wake\s+up\b",
+        r"\bnever\s+wake\s+up\s+again\b",
+        r"\b(what'?s|what\s+is)\s+the\s+point\s+(of|in)\s+(living|life|being\s+alive|going\s+on|staying\s+alive)\b",
+        r"\b(won'?t|will\s+not)\s+be\s+(around|here)\s+(much\s+longer|for\s+long|tomorrow|anymore)\b",
+        # Slang and filter-dodging spellings.
+        r"\bkms\b",
+        r"\bunalive\b",
+        r"\bk[i1!|]ll+\s*my\s*self\b",
+        r"\bsu[i1!]c[i1!]d(e|al)\b",
+        r"\bsewer\s*slide\b",
         r"\bmarna\s+(hai|chahta|chahti|chahta\s+hoon)\b",
         r"\bab\s+jeena\s+nahi\b",
         r"\bmar\s+(jaun|jaana|jana)\b",
@@ -443,8 +503,12 @@ def is_urdu_script(text: str) -> bool:
 RAG_INTENT_KEYWORDS = {
     "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
     "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
-    "therapy": ("therap", "counsel", "relationship", "تھراپی", "مشیر"),
-    "medication": ("medicine", "medication", "drug", "دوا", "دوائی"),
+    "therapy": ("therap", "counsel", "relationship", "cbt", "dbt", "emdr", "psychologist", "تھراپی", "مشیر"),
+    "medication": (
+        "medicine", "medication", "drug", "pill", "tablet", "dose", "dosage", "prescri", "antidepress", "ssri", "snri",
+        "sertraline", "fluoxetine", "escitalopram", "citalopram", "paroxetine", "venlafaxine", "duloxetine", "mirtazapine",
+        "benzo", "xanax", "alprazolam", "clonazepam", "diazepam", "lorazepam", "دوا", "دوائی",
+    ),
     "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
     "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
 }
@@ -459,6 +523,18 @@ UPLOAD_MAX_ACTIVE_FOR_CHAT = 30
 def matched_intents(message: str) -> set[str]:
     lowered = message.lower()
     return {intent for intent, keywords in RAG_INTENT_KEYWORDS.items() if any(keyword in lowered for keyword in keywords)}
+
+
+# Questions about how much of a medication to take, or whether to start,
+# stop or change one - answered with a fixed deflection, never generated.
+DOSE_QUESTION_PATTERN = re.compile(
+    r"\b(how\s+(much|many)|what\s+dose|dose|dosage|mg|milligrams?|double\s+(up|my)|stop\s+taking|start\s+taking|"
+    r"come\s+off|switch\s+(to|from)|increase|decrease|skip\s+(a|my)\s+dose)\b"
+)
+
+
+def is_dose_question(message: str) -> bool:
+    return "medication" in matched_intents(message) and bool(DOSE_QUESTION_PATTERN.search(message.lower()))
 
 
 def retrieve_rag_documents(message: str, uploaded: Optional[list[dict]] = None) -> list[dict]:
@@ -749,9 +825,9 @@ def classify_themes(phq_result: dict, gad_result: dict, k10_result: dict, text_r
     """Themes are derived from the raw check-in text (not text_result['keyword_flags'], which
     only ever holds a small fixed sentiment vocabulary and would never match these terms)."""
     themes: list[str] = []
-    phq_score = int(phq_result.get("total_score", 0))
-    gad_score = int(gad_result.get("total_score", 0))
-    k10_score = int(k10_result.get("total_score", 0))
+    phq_score = int(phq_result.get("total_score") or 0)
+    gad_score = int(gad_result.get("total_score") or 0)
+    k10_score = int(k10_result.get("total_score") or 0)
     lowered = raw_text.lower()
 
     def mentions(theme: str) -> bool:
@@ -889,12 +965,20 @@ def _phq9_signal(phq_result: dict) -> float:
     return round(int(phq_result.get("total_score", 0)) / 27, 2)
 
 
-def _gad7_signal(gad_result: dict) -> float:
-    return round(int(gad_result.get("total_score", 0)) / 21, 2)
+# What /risk-assess uses for a questionnaire that wasn't finished.
+NOT_ANSWERED = {"total_score": None, "severity_band": "not_answered"}
 
 
-def _k10_signal(k10_result: dict) -> float:
-    return round(max(0, int(k10_result.get("total_score", 10)) - 10) / 40, 2)
+def _gad7_signal(gad_result: dict) -> Optional[float]:
+    if gad_result.get("total_score") is None:
+        return None
+    return round(int(gad_result["total_score"]) / 21, 2)
+
+
+def _k10_signal(k10_result: dict) -> Optional[float]:
+    if k10_result.get("total_score") is None:
+        return None
+    return round(max(0, int(k10_result["total_score"]) - 10) / 40, 2)
 
 
 def _text_signal(text_result: dict) -> float:
@@ -943,20 +1027,20 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
     text_signal = _text_signal(text_result)
     voice_signal = _voice_signal(voice_features)
 
-    entries = [
-        ("phq9", phq_signal, BASE_SIGNAL_WEIGHTS["phq9"]),
-        ("gad7", gad_signal, BASE_SIGNAL_WEIGHTS["gad7"]),
-        ("k10", k10_signal, BASE_SIGNAL_WEIGHTS["k10"]),
-        ("text", text_signal, BASE_SIGNAL_WEIGHTS["text"]),
-    ]
+    entries = [("phq9", phq_signal, BASE_SIGNAL_WEIGHTS["phq9"])]
+    if gad_signal is not None:
+        entries.append(("gad7", gad_signal, BASE_SIGNAL_WEIGHTS["gad7"]))
+    if k10_signal is not None:
+        entries.append(("k10", k10_signal, BASE_SIGNAL_WEIGHTS["k10"]))
+    entries.append(("text", text_signal, BASE_SIGNAL_WEIGHTS["text"]))
     if voice_signal is not None:
         entries.append(("voice", voice_signal, BASE_SIGNAL_WEIGHTS["voice"]))
     combined, contributions = _combine_signals(entries)
 
     return {
         "phq9": {"signal": phq_signal, "score": phq_result.get("total_score", 0), "band": phq_result.get("severity_band")},
-        "gad7": {"signal": gad_signal, "score": gad_result.get("total_score", 0), "band": gad_result.get("severity_band")},
-        "k10": {"signal": k10_signal, "score": k10_result.get("total_score", 0), "band": k10_result.get("severity_band")},
+        "gad7": {"signal": gad_signal, "score": gad_result.get("total_score"), "band": gad_result.get("severity_band")},
+        "k10": {"signal": k10_signal, "score": k10_result.get("total_score"), "band": k10_result.get("severity_band")},
         "text": {
             "signal": text_signal,
             "sentiment": text_result.get("sentiment", "neutral"),
@@ -1154,11 +1238,18 @@ def _require_hashable_password(password: str) -> None:
         raise PASSWORD_TOO_LONG
 
 
+def _require_acceptable_new_password(password: str) -> None:
+    _require_hashable_password(password)
+    weakness = password_weakness(password)
+    if weakness:
+        raise HTTPException(status_code=400, detail=weakness)
+
+
 @app.post("/auth/register", status_code=201, dependencies=[Depends(rate_limit("register", 10, 3600))])
 def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     """Create an account. Needed to view check-in results and save history;
     the questionnaires themselves can be filled in without one."""
-    _require_hashable_password(payload.password)
+    _require_acceptable_new_password(payload.password)
     email = payload.email.lower()
     if db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=409, detail="An account with this email already exists")
@@ -1182,7 +1273,7 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
 @app.post("/auth/login", dependencies=[Depends(rate_limit("login", 10, 300))])
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)) -> dict:
     user = db.query(User).filter(User.email == payload.email.lower()).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
+    if not authenticate(user, payload.password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer"}
 
@@ -1193,7 +1284,7 @@ def admin_login(payload: LoginRequest, request: Request, db: Session = Depends(g
     a valid non-admin login is refused here without creating one, so the admin
     sign-in can't be used as an ordinary account login."""
     user = db.query(User).filter(User.email == payload.email.lower()).first()
-    if not user or not verify_password(payload.password, user.hashed_password):
+    if not authenticate(user, payload.password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     if not user.is_admin:
         raise HTTPException(status_code=403, detail="This account does not have admin access.")
@@ -1350,7 +1441,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 
 @app.post("/auth/reset-password", dependencies=[Depends(rate_limit("reset-password", 10, 3600))])
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> dict:
-    _require_hashable_password(payload.new_password)
+    _require_acceptable_new_password(payload.new_password)
     token_hash = hash_reset_token(payload.token)
     reset_token = db.query(PasswordResetToken).filter(PasswordResetToken.token_hash == token_hash).first()
     invalid = HTTPException(status_code=400, detail="This reset link is invalid or has expired. Request a new one.")
@@ -1394,7 +1485,7 @@ def change_password(payload: ChangePasswordRequest, request: Request, auth: Auth
     current_user = auth.user
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
-    _require_hashable_password(payload.new_password)
+    _require_acceptable_new_password(payload.new_password)
     current_user.hashed_password = hash_password(payload.new_password)
     # Sign out every other session; hand this one a fresh token (same login
     # session, new token_version) so the person making the change stays
@@ -1442,12 +1533,17 @@ def get_checkin_eligibility(current_user: User = Depends(get_current_user), db: 
 
 
 @app.post("/checkins", status_code=201)
-def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+def create_checkin(request: CheckInCreateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     """Save every section's structured check-in result, plus the individual
     questionnaire answers when sent, for a signed-in user. The transcript
     and written text arrive separately, inside the PDF report (PUT
     /checkins/{id}/report). At most one per CHECKIN_COOLDOWN_DAYS per
     account."""
+    payload = read_assessment(request.assessment_token)
+    if payload.assessment_id:
+        already_saved = db.query(CheckIn).filter(CheckIn.user_id == current_user.id, CheckIn.assessment_id == payload.assessment_id).first()
+        if already_saved:
+            return _serialize_checkin(already_saved, include_answers=True)
     eligibility = checkin_eligibility(db, current_user)
     if not eligibility["can_check_in"]:
         retry_after = int((datetime.fromisoformat(eligibility["next_available_at"]) - datetime.now(timezone.utc)).total_seconds()) + 1
@@ -1472,6 +1568,7 @@ def create_checkin(payload: CheckInCreateRequest, current_user: User = Depends(g
         themes=",".join(themes),
         details_json=details_json,
         answers_json=json.dumps(payload.answers.model_dump()) if payload.answers else None,
+        assessment_id=payload.assessment_id,
     )
     db.add(check_in)
     db.commit()
@@ -2066,12 +2163,18 @@ def get_support_resources(payload: SupportResourcesRequest) -> dict:
 AI_CHAT_COPY = {
     "en": {
         "escalate": "A safety concern requires immediate professional or emergency support. This chat cannot provide crisis counseling.",
-        "escalate_resource": "Immediate professional support",
+        "escalate_resource": "Emergency support",
+        "escalate_secondary": "Find a professional",
+        "dose": "MindHx can't advise on how much of a medication to take, or on starting, stopping or changing one - that needs to come from the doctor or pharmacist who knows your history. Please ask them directly, and don't change a dose on your own. If you've taken more than prescribed or feel unwell after a dose, seek urgent medical help now.",
+        "no_match": "I can share general information about anxiety, low mood, stress, sleep, therapy approaches, medication basics, and coping with family or exam pressure. Could you tell me a little more about what's on your mind?",
         "grounded": "Here is grounded information related to what you shared. It is general education, not a diagnosis or treatment plan.",
     },
     "ur": {
         "escalate": "ایک حفاظتی خدشے کے لیے فوری پیشہ ورانہ یا ہنگامی مدد درکار ہے۔ یہ چیٹ بحرانی مشاورت فراہم نہیں کر سکتی۔",
-        "escalate_resource": "فوری پیشہ ورانہ مدد",
+        "escalate_resource": "فوری مدد",
+        "escalate_secondary": "ماہر تلاش کریں",
+        "dose": "MindHx یہ مشورہ نہیں دے سکتا کہ کوئی دوا کتنی مقدار میں لیں، یا اسے شروع، بند یا تبدیل کریں - یہ صرف وہ ڈاکٹر یا فارماسسٹ بتا سکتا ہے جو آپ کی طبی تاریخ جانتا ہو۔ براہ کرم ان سے براہ راست پوچھیں، اور خود سے خوراک تبدیل نہ کریں۔ اگر آپ نے تجویز سے زیادہ دوا لے لی ہے یا خوراک کے بعد طبیعت خراب ہے تو فوراً طبی مدد حاصل کریں۔",
+        "no_match": "میں بے چینی، اداسی، ذہنی دباؤ، نیند، تھراپی کے طریقوں، ادویات کی بنیادی معلومات، اور خاندانی یا امتحانی دباؤ کے بارے میں عمومی معلومات دے سکتا ہوں۔ کیا آپ تھوڑا اور بتا سکتے ہیں کہ آپ کے ذہن میں کیا ہے؟",
         "grounded": "آپ نے جو بتایا اس سے متعلق مصدقہ معلومات یہ ہیں۔ یہ عمومی تعلیم ہے، تشخیص یا علاج کا منصوبہ نہیں۔",
     },
 }
@@ -2221,10 +2324,22 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
         return {
             "status": "escalate",
             "message": text["escalate"],
-            "resources": [{"title": text["escalate_resource"], "link": "/therapist"}],
+            "resources": [{"title": text["escalate_resource"], "link": "/emergency"}, {"title": text["escalate_secondary"], "link": "/therapist"}],
         }
 
-    documents = retrieve_rag_documents(payload.message, await retrieve_reference_chunks(db, payload.message))
+    if is_dose_question(payload.message):
+        medication = next(document for document in RAG_DOCUMENTS if document["intent"] == "medication")
+        return {
+            "status": "grounded_support",
+            "intent": "medication",
+            "message": text["dose"],
+            "sources": [localize_rag_document(medication, lang)],
+            "generation": {"provider": "approved-rag-library", "model": "fixed-deflection", "diagnosis": False, "medication_prescribing": False},
+        }
+
+    uploaded = await retrieve_reference_chunks(db, payload.message)
+    documents = retrieve_rag_documents(payload.message, uploaded)
+    on_topic = bool(uploaded) or bool(matched_intents(payload.message))
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None
@@ -2243,6 +2358,17 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
         screening_context=payload.screening_context, trajectory_summary=trajectory_summary,
         mood_checkins=mood_checkins, helpful_practices=helpful_practices,
     )
+
+    if composed is None and not on_topic:
+        # Without a model to ask a follow-up, don't answer an unrelated
+        # question with the anxiety article just because it's first.
+        return {
+            "status": "clarifying",
+            "intent": "general",
+            "message": text["no_match"],
+            "sources": [],
+            "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
+        }
 
     if composed is None:
         return {
@@ -2343,6 +2469,8 @@ def score_phq9(payload: Phq9Request) -> dict:
 def score_gad7_endpoint(payload: QuestionnaireRequest) -> dict:
     if len(payload.answers) != 7:
         raise HTTPException(status_code=422, detail="GAD-7 requires exactly 7 answers")
+    if any(answer < 0 or answer > 3 for answer in payload.answers):
+        raise HTTPException(status_code=422, detail="GAD-7 answers must be between 0 and 3")
     return score_gad7(payload.answers)
 
 
@@ -2350,6 +2478,8 @@ def score_gad7_endpoint(payload: QuestionnaireRequest) -> dict:
 def score_k10_endpoint(payload: QuestionnaireRequest) -> dict:
     if len(payload.answers) != 10:
         raise HTTPException(status_code=422, detail="K10 requires exactly 10 answers")
+    if any(answer < 1 or answer > 5 for answer in payload.answers):
+        raise HTTPException(status_code=422, detail="K10 answers must be between 1 and 5")
     return score_k10(payload.answers)
 
 
@@ -2395,8 +2525,8 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
     # phq9_result is ignored (the field is still accepted for backward
     # compatibility), since trusting it let item 9's crisis flag be dropped.
     phq_result = score_phq9(Phq9Request(answers=payload.phq9_answers))
-    gad_result = score_gad7(payload.gad7_answers)
-    k10_result = score_k10(payload.k10_answers)
+    gad_result = score_gad7(payload.gad7_answers) if payload.gad7_answers is not None else NOT_ANSWERED
+    k10_result = score_k10(payload.k10_answers) if payload.k10_answers is not None else NOT_ANSWERED
     combined_text = f"{payload.transcript}\n{payload.typed_text}"
     if payload.text_analysis:
         text_result = _sanitize_text_analysis(payload.text_analysis, combined_text)
@@ -2408,7 +2538,7 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
     components = evaluate_components(phq_result, gad_result, k10_result, text_result, _sanitize_voice_features(payload.voice_features))
     plan = support_plan(phq_result, gad_result, k10_result, crisis, profile_data, themes)
     if crisis:
-        return {
+        return _with_assessment_token(payload, {
             "risk_score": 1.0,
             "band": "crisis",
             "explanation": ["A crisis signal was detected and takes priority over the combined score."],
@@ -2420,7 +2550,7 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
             "gad7": gad_result,
             "k10": k10_result,
             "support_plan": plan,
-        }
+        })
 
     risk_score = components["combined_signal"]
     band = "elevated" if risk_score >= 0.40 else "watch" if risk_score >= 0.2 else "low"
@@ -2429,10 +2559,12 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
         # routes to a professional evaluation; never pair that advice with a
         # "low" or "watch" label just because the other signals were quiet.
         band = "elevated"
-    return {
+    gad_note = f"GAD-7 contributed {components['gad7']['score']} of 21 points" if components["gad7"]["score"] is not None else "GAD-7 was not answered"
+    k10_note = f"K10 contributed {components['k10']['score']} of 50 points" if components["k10"]["score"] is not None else "K10 was not answered"
+    return _with_assessment_token(payload, {
         "risk_score": risk_score,
         "band": band,
-        "explanation": [f"PHQ-9 contributed {components['phq9']['score']} of 27 points.", f"GAD-7 contributed {components['gad7']['score']} of 21 points and K10 contributed {components['k10']['score']} of 50 points.", f"Text sentiment was {text_result.get('sentiment', 'neutral')}.", components["voice"]["note"]],
+        "explanation": [f"PHQ-9 contributed {components['phq9']['score']} of 27 points.", f"{gad_note} and {k10_note}.", f"Text sentiment was {text_result.get('sentiment', 'neutral')}.", components["voice"]["note"]],
         "routing_decision": "refer" if plan["route"] == "psychiatric_referral" else "no_referral_needed",
         "crisis_flag": False,
         "themes": themes,
@@ -2441,14 +2573,31 @@ async def risk_assess(payload: RiskAssessmentRequest) -> dict:
         "gad7": gad_result,
         "k10": k10_result,
         "support_plan": plan,
+    })
+
+
+def _with_assessment_token(payload: RiskAssessmentRequest, result: dict) -> dict:
+    """Adds the signed copy of this result that POST /checkins accepts, so
+    what gets saved is exactly what was computed here. Item answers are
+    included only when all three questionnaires were finished."""
+    complete = payload.gad7_answers is not None and payload.k10_answers is not None
+    record = {
+        "risk_score": result["risk_score"],
+        "band": result["band"],
+        "routing_decision": result["routing_decision"],
+        "themes": result["themes"],
+        "components": result["components"],
+        "support_plan": result["support_plan"],
+        "answers": {"phq9": payload.phq9_answers, "gad7": payload.gad7_answers, "k10": payload.k10_answers} if complete else None,
     }
+    return {**result, "assessment_token": sign_assessment(record)}
 
 
 class LiveEstimateRequest(BaseModel):
     # A scale is only counted once it's fully answered, matching /risk-assess.
-    phq9_answers: Optional[list[int]] = Field(default=None, min_length=9, max_length=9)
-    gad7_answers: Optional[list[int]] = Field(default=None, min_length=7, max_length=7)
-    k10_answers: Optional[list[int]] = Field(default=None, min_length=10, max_length=10)
+    phq9_answers: Optional[list[FrequencyAnswer]] = Field(default=None, min_length=9, max_length=9)
+    gad7_answers: Optional[list[FrequencyAnswer]] = Field(default=None, min_length=7, max_length=7)
+    k10_answers: Optional[list[K10Answer]] = Field(default=None, min_length=10, max_length=10)
     text_analysis: dict = Field(default_factory=dict)
     voice_features: dict[str, Any] = Field(default_factory=dict)
 

@@ -55,6 +55,31 @@ def password_too_long(password: str) -> bool:
     return len(password.encode("utf-8")) > BCRYPT_MAX_PASSWORD_BYTES
 
 
+# The most-used passwords in public breach lists that are 8+ characters -
+# the length rule alone lets every one of these through.
+COMMON_PASSWORDS = frozenset({
+    "password", "password1", "password12", "password123", "password1234", "passw0rd", "p@ssword", "p@ssw0rd",
+    "12345678", "123456789", "1234567890", "87654321", "11111111", "00000000", "12121212", "11223344",
+    "qwertyui", "qwerty123", "qwertyuiop", "asdfghjk", "asdfghjkl", "zxcvbnm1", "1q2w3e4r", "1qaz2wsx",
+    "iloveyou", "iloveyou1", "abcd1234", "abc12345", "abcdefgh", "welcome1", "welcome123", "letmein1",
+    "sunshine", "football", "baseball", "princess", "superman", "trustno1", "whatever", "starwars",
+    "pakistan", "pakistan1", "pakistan123", "karachi1", "lahore123", "mindhx123",
+})
+
+
+def password_weakness(password: str) -> Optional[str]:
+    """Why password is too easy to guess, or None if it's acceptable."""
+    if password.lower() in COMMON_PASSWORDS:
+        return "That password is one of the most commonly used. Please choose something less predictable."
+    if password.isdigit():
+        return "Use letters as well as numbers in your password."
+    if len(set(password.lower())) < 4:
+        return "That password repeats too few characters. Please choose something less predictable."
+    if not any(character.isalpha() for character in password):
+        return "Include at least one letter in your password."
+    return None
+
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
@@ -63,6 +88,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     if password_too_long(plain_password):
         return False  # Could never have been set, and bcrypt would raise.
     return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+
+
+# Checked against when an email has no account, so a failed login costs the
+# same bcrypt work either way and its timing doesn't reveal which emails are
+# registered.
+_DUMMY_PASSWORD_HASH = bcrypt.hashpw(secrets.token_bytes(16), bcrypt.gensalt()).decode("utf-8")
+
+
+def authenticate(user: Optional["User"], password: str) -> bool:
+    if user is None:
+        verify_password(password, _DUMMY_PASSWORD_HASH)
+        return False
+    return verify_password(password, user.hashed_password)
 
 
 def create_access_token(user: User, session: LoginSession) -> str:

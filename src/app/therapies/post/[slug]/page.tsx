@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { pageMetadata } from "../../../lib/seo";
+import { lookupResource } from "../../../lib/resourceLookup";
 import ResourcePostDetail from "../../../components/ResourcePostDetail";
 
-export const metadata: Metadata = pageMetadata({
-  title: "Therapy approach",
-  description: "A therapy approach shared by the MindHx team.",
-  path: "/therapies",
-});
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const resource = await lookupResource(slug);
+  if (resource === "missing") notFound();
+  return pageMetadata({
+    title: resource?.title ?? "Therapy approach",
+    description: resource?.summary || "A therapy approach shared by the MindHx team.",
+    path: `/therapies/post/${slug}`,
+  });
+}
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  if (await lookupResource(slug) === "missing") notFound();
   return <ResourcePostDetail slug={slug} section="therapy" />;
 }

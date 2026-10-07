@@ -7,6 +7,7 @@ import NatureBanner from "./components/NatureBanner";
 import { naturePhotos } from "./components/naturePhotos";
 import SiteFooter from "./components/SiteFooter";
 import AccountChip from "./components/AccountChip";
+import SiteNav from "./components/SiteNav";
 import FeatureCarousel from "./components/FeatureCarousel";
 import InnovationGrid from "./components/InnovationGrid";
 import TreeScene from "./components/TreeScene";
@@ -14,7 +15,7 @@ import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from ".
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
-import { resetSaveProgress, saveResultToHistory, setPendingAnswers } from "./lib/checkinHistory";
+import { resetSaveProgress, saveResultToHistory } from "./lib/checkinHistory";
 import { loadQuestionnaireDraft } from "./lib/questionnaireDraft";
 import { useLanguage } from "./lib/language";
 import { API_BASE } from "./lib/api";
@@ -122,6 +123,22 @@ export default function HomeClient() {
       clearTimeout(timer);
     };
   }, [answers, gadAnswers, k10Answers, textSubmitResult, voiceFeatures]);
+  // A signed-in account already gave its age range (and optional details)
+  // at registration - prefill them rather than asking again. Anything set
+  // in this session wins.
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+    fetchCurrentUser().then((user) => {
+      if (!user) return;
+      startTransition(() => setProfile((current) => ({
+        ...current,
+        ageRange: current.ageRange || user.age_range || "",
+        gender: current.gender || user.gender || "",
+        maritalStatus: current.maritalStatus || user.marital_status || "",
+        lifeContext: current.lifeContext || user.life_context || "",
+      })));
+    });
+  }, []);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
   const [resumeNotice, setResumeNotice] = useState("");
@@ -396,7 +413,7 @@ export default function HomeClient() {
       // PHQ-9 and the crisis flags are always recomputed by /risk-assess from
       // the raw answers and text; textAnalysis is passed only so it doesn't
       // repeat the (possibly LLM-backed) text read for sentiment.
-      const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers, k10_answers: k10Answers.map((answer) => answer + 1), profile: { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode }, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
+      const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers.every((answer) => answer > -1) ? gadAnswers : null, k10_answers: k10Answers.every((answer) => answer > -1) ? k10Answers.map((answer) => answer + 1) : null, profile: { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode }, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
       if (!riskResponse.ok) throw new Error("Risk assessment unavailable");
       const result = await riskResponse.json();
       // A new result - saved below (scores + PDF report) to the user's
@@ -414,12 +431,6 @@ export default function HomeClient() {
         k10: k10Questions[languageKey].map((questionText, index) => ({ question: questionText, answer: k10Options[languageKey][k10Answers[index]] ?? null })),
       };
       sessionStorage.setItem("mindhx:last-checkin-detail", JSON.stringify(checkInDetail));
-      // The item answers go with the check-in when it's saved; a crisis
-      // check-in can reach here with GAD-7/K10 unfinished, and only complete
-      // sets are saved (the backend rejects partial ones).
-      setPendingAnswers(isComplete && gadAnswers.every((answer) => answer > -1) && k10Answers.every((answer) => answer > -1)
-        ? { phq9: answers, gad7: gadAnswers, k10: k10Answers.map((answer) => answer + 1) }
-        : null);
       // Saved now rather than only when /results opens, since the stage page
       // comes first and not everyone goes on to the full report. /results
       // finds it already saved (or retries and shows the error if this failed).
@@ -459,7 +470,7 @@ export default function HomeClient() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div><nav className="topbar-nav" aria-label="MindHx resources"><Link href="/medication">Medication</Link><Link href="/ai">MindHx AI</Link><Link href="/meditation">Meditation</Link><Link href="/therapies">Therapies</Link><Link href="/therapist">Therapist</Link><Link href="/resources">Resources</Link><Link href="/emergency" className="topbar-nav-emergency">Emergency support</Link></nav><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div><SiteNav isUrdu={language === "اردو"} /><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
       <main className="workspace" dir={language === "اردو" ? "rtl" : "ltr"}>
         <section className="intro intro-banner">
           <TreeScene className="intro-tree-bg" />

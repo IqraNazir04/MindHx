@@ -24,7 +24,24 @@ const SCALE_EXPLANATIONS: Record<ScaleKey, Record<string, string>> = {
 
 export function scaleExplanation(scale: ScaleKey, band: string | undefined): string {
   if (!band) return "No band available for this measure.";
+  if (band === "not_answered") return "This questionnaire wasn't finished, so it isn't part of the combined score.";
   return SCALE_EXPLANATIONS[scale][band] ?? "See the score against the range for this measure.";
+}
+
+// "12 / 21", or "Not answered" for a questionnaire that wasn't finished.
+export function scoreText(score: number | null | undefined, max: number): string {
+  return score === null || score === undefined ? "Not answered" : `${score} / ${max}`;
+}
+
+// What the routing decision means, in place of the raw value ("refer").
+export const ROUTING_LABELS: Record<string, string> = {
+  refer_immediately: "Get support now",
+  refer: "Professional evaluation advised",
+  no_referral_needed: "No referral needed right now",
+};
+
+export function routingLabel(decision: string): string {
+  return ROUTING_LABELS[decision] ?? decision.replaceAll("_", " ");
 }
 
 export type Recommendation = {

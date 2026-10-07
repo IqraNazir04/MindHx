@@ -101,20 +101,20 @@ export default function QuestionnaireClient() {
           </div>
           <span className="progress-label">{activeAnswers.filter((answer) => answer > -1).length} / {activeQuestions.length}</span>
         </div>
-        <div className="scale-tabs">
-          <button className={activeScale === "phq9" ? "active" : ""} onClick={() => setActiveScale("phq9")}>PHQ-9</button>
-          <button className={activeScale === "gad7" ? "active" : ""} onClick={() => setActiveScale("gad7")}>GAD-7</button>
-          <button className={activeScale === "k10" ? "active" : ""} onClick={() => setActiveScale("k10")}>K10</button>
+        <div className="scale-tabs" role="group" aria-label={text.clinical}>
+          <button type="button" className={activeScale === "phq9" ? "active" : ""} aria-pressed={activeScale === "phq9"} onClick={() => setActiveScale("phq9")}>PHQ-9</button>
+          <button type="button" className={activeScale === "gad7" ? "active" : ""} aria-pressed={activeScale === "gad7"} onClick={() => setActiveScale("gad7")}>GAD-7</button>
+          <button type="button" className={activeScale === "k10" ? "active" : ""} aria-pressed={activeScale === "k10"} onClick={() => setActiveScale("k10")}>K10</button>
         </div>
         <div className="question-progress"><span style={{ width: `${(activeAnswers.filter((answer) => answer > -1).length / activeQuestions.length) * 100}%` }} /></div>
         <div className="question-list">
           {activeQuestions.map((questionText, questionIndex) => (
             <div className="question-block" key={`${activeScale}-${questionIndex}`}>
               <p className="question-number">{activeScale.toUpperCase()} · {questionIndex + 1} / {activeQuestions.length}</p>
-              <h3>{questionText}</h3>
-              <div className="answer-list">
+              <h3 id={`${activeScale}-q${questionIndex}`}>{questionText}</h3>
+              <div className="answer-list" role="group" aria-labelledby={`${activeScale}-q${questionIndex}`}>
                 {activeOptions.map((option, optionIndex) => (
-                  <button key={option} className={activeAnswers[questionIndex] === optionIndex ? "selected" : ""} onClick={() => updateActiveAnswer(questionIndex, optionIndex)}>
+                  <button key={option} type="button" className={activeAnswers[questionIndex] === optionIndex ? "selected" : ""} aria-pressed={activeAnswers[questionIndex] === optionIndex} onClick={() => updateActiveAnswer(questionIndex, optionIndex)}>
                     <span className="radio" />{option}
                   </button>
                 ))}

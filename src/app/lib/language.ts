@@ -39,6 +39,17 @@ export function getStoredLanguage(): Language {
 }
 
 /**
+ * Keeps <html lang> in step with the language a page is showing, so screen
+ * readers pronounce Urdu as Urdu. Direction stays on each page's own
+ * container (dir="rtl"), which is where the layouts expect it.
+ */
+export function useDocumentLanguage(language: Language): void {
+  useEffect(() => {
+    document.documentElement.lang = language === "اردو" ? "ur" : "en";
+  }, [language]);
+}
+
+/**
  * Drop-in replacement for `useState<Language>("English")` used on every
  * bilingual page. Persists the choice to localStorage so that picking Urdu
  * once keeps every page in Urdu - across navigation and reloads - until
@@ -56,6 +67,8 @@ export function useLanguage(): [Language, (language: Language) => void] {
       startTransition(() => setLanguageState(stored));
     }
   }, []);
+
+  useDocumentLanguage(language);
 
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);

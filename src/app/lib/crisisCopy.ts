@@ -27,6 +27,8 @@ export const crisisCopy: Record<CrisisLanguage, {
   eyebrow: string;
   title: string;
   lede: string;
+  // For someone who opened this page themselves, not from a flagged check-in.
+  ledeDirect: string;
   stepsTitle: string;
   steps: string[];
   notDiagnosis: string;
@@ -39,10 +41,11 @@ export const crisisCopy: Record<CrisisLanguage, {
     eyebrow: "IMMEDIATE SUPPORT",
     title: "You do not have to handle this alone.",
     lede: "MindHx detected a safety signal in your check-in. This is not a diagnosis — it is the fastest route to a person who can help right now.",
+    ledeDirect: "If you are struggling or feel unsafe right now, you don't have to wait. Call one of the numbers below, or reach out to someone you trust.",
     stepsTitle: "Right now",
     steps: [
       "If you are in immediate danger, call one of the emergency numbers below now (outside Pakistan, your local emergency number).",
-      "Reach out to a crisis line or a trusted person and stay with them, in person or on a call.",
+      "Reach out to someone you trust - a friend, family member, or your doctor - and stay with them, in person or on a call.",
       "Remove access to anything you could use to harm yourself, if you can.",
       "If symptoms ease, still bring this check-in to a licensed professional for a full evaluation.",
     ],
@@ -56,10 +59,11 @@ export const crisisCopy: Record<CrisisLanguage, {
     eyebrow: "فوری مدد",
     title: "آپ کو یہ اکیلے نہیں سنبھالنا۔",
     lede: "MindHx نے آپ کے جائزے میں ایک حفاظتی اشارہ محسوس کیا ہے۔ یہ تشخیص نہیں ہے — یہ ابھی کسی مددگار شخص تک پہنچنے کا تیز ترین راستہ ہے۔",
+    ledeDirect: "اگر آپ اس وقت مشکل میں ہیں یا خود کو غیر محفوظ محسوس کر رہے ہیں تو انتظار نہ کریں۔ نیچے دیے گئے کسی نمبر پر کال کریں، یا کسی قابلِ اعتماد شخص سے رابطہ کریں۔",
     stepsTitle: "ابھی کریں",
     steps: [
       "اگر آپ فوری خطرے میں ہیں تو ابھی نیچے دیے گئے کسی ہنگامی نمبر پر کال کریں (پاکستان سے باہر ہوں تو اپنے مقامی ہنگامی نمبر پر)۔",
-      "کسی بحرانی ہیلپ لائن یا قابلِ اعتماد شخص سے رابطہ کریں اور ان کے ساتھ رہیں، ذاتی طور پر یا کال پر۔",
+      "کسی قابلِ اعتماد شخص - دوست، گھر کے فرد، یا اپنے ڈاکٹر - سے رابطہ کریں اور ان کے ساتھ رہیں، ذاتی طور پر یا کال پر۔",
       "اگر ممکن ہو تو خود کو نقصان پہنچانے کی کسی بھی چیز تک رسائی ختم کریں۔",
       "علامات کم ہونے پر بھی، اس جائزے کو مکمل تشخیص کے لیے کسی مستند ماہر کے پاس ضرور لے جائیں۔",
     ],

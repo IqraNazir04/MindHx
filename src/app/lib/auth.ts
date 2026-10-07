@@ -278,38 +278,20 @@ export async function fetchCheckIns(): Promise<CheckInRecord[]> {
   return await response.json() as CheckInRecord[];
 }
 
-export type SaveCheckInInput = {
-  riskScore: number;
-  band: string;
-  routingDecision: string;
-  themes: string[];
-  // Every section's structured result - the transcript and written text
-  // aren't sent here; they go only into the PDF report (uploadCheckInReport).
-  components?: Result["components"];
-  supportPlan?: Result["support_plan"];
-  // Individual item answers (PHQ-9/GAD-7 0-3, K10 1-5), readable by admins.
-  // Omitted unless all three questionnaires are complete.
-  answers?: QuestionnaireAnswers;
-};
-
 export type QuestionnaireAnswers = { phq9: number[]; gad7: number[]; k10: number[] };
 
 // Saves a check-in's scores to the signed-in user's history and returns
 // its id (for attaching the PDF report - see lib/checkinHistory.ts).
 // Throws on failure so the results page can say so and offer a retry.
-export async function saveCheckIn(input: SaveCheckInInput): Promise<string> {
+// assessmentToken is the signed result /risk-assess returned: the server
+// saves exactly what it computed (scores, sections, item answers), never
+// values sent by the browser. The transcript and written text aren't part of
+// it; they go only into the PDF report (uploadCheckInReport).
+export async function saveCheckIn(assessmentToken: string): Promise<string> {
   const response = await authFetch("/checkins", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      risk_score: input.riskScore,
-      band: input.band,
-      routing_decision: input.routingDecision,
-      themes: input.themes,
-      components: input.components ?? null,
-      support_plan: input.supportPlan ?? null,
-      answers: input.answers ?? null,
-    }),
+    body: JSON.stringify({ assessment_token: assessmentToken }),
   });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
   const saved = await response.json() as { id: string };

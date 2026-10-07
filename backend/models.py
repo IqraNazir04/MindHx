@@ -84,6 +84,10 @@ class CheckIn(Base):
     # never the transcript or typed text. Null for check-ins saved before
     # answers were recorded.
     answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Id of the signed /risk-assess result this was saved from, so saving the
+    # same result twice (e.g. a retry after a reload) returns this check-in
+    # instead of being refused by the weekly limit or creating a duplicate.
+    assessment_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     user: Mapped[User] = relationship(back_populates="check_ins")
