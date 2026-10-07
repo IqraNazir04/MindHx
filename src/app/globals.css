@@ -176,6 +176,10 @@ button { cursor:pointer; }
 .record-button,.next-button,.check-in-button { border:0; border-radius:7px; background:var(--blue); color:#fff; padding:12px 17px; font-size:13px; transition:.2s; }
 .record-button:hover,.next-button:hover,.check-in-button:hover { background:var(--blue-deep); transform:translateY(-1px); }
 .record-button.recording { background:var(--red); }
+.recording-timer { display:inline-flex; align-items:center; gap:7px; margin-inline-start:12px; color:var(--red); font:500 13px 'DM Mono',monospace; font-variant-numeric:tabular-nums; }
+.recording-timer-dot { width:8px; height:8px; border-radius:50%; background:var(--red); animation:recording-pulse 1.2s ease-in-out infinite; }
+@keyframes recording-pulse { 50% { opacity:.3; } }
+@media (prefers-reduced-motion:reduce) { .recording-timer-dot { animation:none; } }
 .check-in-button:disabled { opacity:.6; cursor:wait; }
 .record-icon { display:inline-block; width:9px; height:9px; border-radius:50%; background:#ffc078; margin-right:9px; }
 .microcopy,.text-footer { display:block; color:var(--muted); font-size:11px; margin-top:11px; }

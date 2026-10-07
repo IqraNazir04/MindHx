@@ -3,6 +3,8 @@ stateless and require no account. Accounts (backend/auth.py, database.py,
 models.py) are an optional, separate feature purely for people who choose
 to save their check-in history across visits."""
 
+import envfile  # noqa: F401  - must load .env before modules read settings
+
 import io
 import json
 import logging

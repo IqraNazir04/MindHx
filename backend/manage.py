@@ -14,6 +14,7 @@ Usage (from the repo root, with the same DATABASE_URL the API uses):
 import getpass
 import sys
 
+import envfile  # noqa: F401  - must load .env before modules read settings
 from auth import hash_password, password_weakness
 from database import SessionLocal, init_db
 from models import User
