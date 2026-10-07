@@ -828,3 +828,4 @@ textarea::placeholder { color:#9aa6b4; }
 
 /* Admin-published posts in the Meditation and Therapies sections */
 .admin-post-card-image { display:block; width:100%; height:150px; object-fit:cover; border-radius:10px; margin:0 0 14px; }
+.admin-upload-hint { margin:0 0 18px; color:var(--muted); font-size:12px; }

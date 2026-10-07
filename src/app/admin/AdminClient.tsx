@@ -404,7 +404,19 @@ function ReferenceDocumentsSection() {
       <p className="admin-section-note">Upload approved guidance as a PDF (or .txt / .md, up to 2 MB) to train the MindHx chat. The text is split into passages, and for each question the chat uses the passages that best match it, citing the title and source. Choose &quot;any topic&quot; for general material; other topics also make the passages more likely to be used for that subject. Only the extracted text is stored, and deactivating a document stops the chat using it.</p>
       {error && <p className="assessment-error">{error}</p>}
       <form className="admin-upload-form" onSubmit={handleUpload}>
-        <input type="file" accept=".txt,.md,.markdown,.pdf,text/plain,text/markdown,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} aria-label="PDF or text file" />
+        <input
+          type="file"
+          accept=".txt,.md,.markdown,.pdf,text/plain,text/markdown,application/pdf"
+          onChange={(event) => {
+            const picked = event.target.files?.[0] ?? null;
+            setFile(picked);
+            if (picked && !title.trim()) {
+              const base = picked.name.replace(/\.[^./\\]+$/, "").replace(/[-_]+/g, " ").trim();
+              if (base) setTitle(base.replace(/\b\w/g, (letter) => letter.toUpperCase()));
+            }
+          }}
+          aria-label="PDF or text file"
+        />
         <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Title (shown to the chat as the source)" maxLength={200} aria-label="Title" />
         <input type="text" value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Source (e.g. clinic handout, guideline name)" maxLength={200} aria-label="Source name" />
         <select value={intent} onChange={(event) => setIntent(event.target.value as ReferenceIntent)} aria-label="Topic">
@@ -412,6 +424,7 @@ function ReferenceDocumentsSection() {
         </select>
         <button className="check-in-button" type="submit" disabled={!file || !title.trim() || uploading}>{uploading ? "Uploading and indexing…" : "Upload PDF to train chatbot"} <span>→</span></button>
       </form>
+      {!uploading && (!file || !title.trim()) && <p className="admin-upload-hint">{!file ? "Choose a file, then add a title (filled in for you from the file name - edit it if you like)." : "Add a title to enable the upload button."}</p>}
       {documents === null && !error && <p className="dashboard-loading">Loading documents…</p>}
       {documents?.length === 0 && <p className="dashboard-loading">No reference documents yet.</p>}
       {documents && documents.length > 0 && (
