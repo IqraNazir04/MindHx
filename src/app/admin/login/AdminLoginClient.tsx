@@ -34,7 +34,7 @@ export default function AdminLoginClient() {
   return (
     <main className="admin-login-page">
       <form className="admin-login-card" onSubmit={handleSubmit}>
-        <p className="admin-login-brand"><span className="brand-mark">M</span> MindHx <span className="admin-login-tag">Admin</span></p>
+        <p className="admin-login-brand"><img className="brand-mark" src="/logo-mark.png" alt="" /> MindHx <span className="admin-login-tag">Admin</span></p>
         <h1>Sign in</h1>
         <label>
           Email

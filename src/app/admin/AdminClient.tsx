@@ -73,7 +73,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
     <>
     <main className="resource-page">
       <header className="admin-header">
-        <div className="admin-header-brand"><span className="brand-mark">M</span> MindHx <span className="admin-login-tag">Admin</span></div>
+        <div className="admin-header-brand"><img className="brand-mark" src="/logo-mark.png" alt="" /> MindHx <span className="admin-login-tag">Admin</span></div>
         <div className="admin-header-right">
           <span>{admin.email}</span>
           <button className="dashboard-signout" onClick={handleSignOut} type="button">Sign out</button>
