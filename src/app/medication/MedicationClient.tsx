@@ -63,7 +63,7 @@ export default function MedicationClient() {
                 <p className="card-kicker">{text.reference}</p>
                 <h2>{content.name}</h2>
                 <p className="reference-card-summary">{content.use}</p>
-                <footer>{text.learnMore} →</footer>
+                <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
               </article>
             </Link>
           );
@@ -75,7 +75,7 @@ export default function MedicationClient() {
               <p className="card-kicker">{text.reference}</p>
               <h2>{post.title}</h2>
               <p className="reference-card-summary">{post.summary}</p>
-              <footer>{text.learnMore} →</footer>
+              <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
             </article>
           </Link>
         ))}

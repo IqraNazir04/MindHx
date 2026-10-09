@@ -65,7 +65,7 @@ export default function TherapiesClient() {
                 <p className="card-kicker">{text.approach}</p>
                 <h2>{content.name}</h2>
                 <p className="reference-card-summary">{content.summary}</p>
-                <footer>{text.learnMore} →</footer>
+                <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
               </article>
             </Link>
           );
@@ -77,7 +77,7 @@ export default function TherapiesClient() {
               <p className="card-kicker">{text.approach}</p>
               <h2>{post.title}</h2>
               <p className="reference-card-summary">{post.summary}</p>
-              <footer>{text.learnMore} →</footer>
+              <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
             </article>
           </Link>
         ))}
