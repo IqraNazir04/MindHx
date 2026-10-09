@@ -10,11 +10,13 @@ import { useLanguage } from "../lib/language";
 const SECTION_LABEL = {
   meditation: { back: "All meditation techniques", backHref: "/meditation", kicker: "PRACTICE" },
   therapy: { back: "All therapy approaches", backHref: "/therapies", kicker: "APPROACH" },
+  medication: { back: "All medication reference", backHref: "/medication", kicker: "REFERENCE" },
 } as const;
 
-// A post an admin published in the Meditation or Therapies section. The body is
-// shown as written (English content), with the site header/footer around it.
-export default function ResourcePostDetail({ slug, section }: { slug: string; section: "meditation" | "therapy" }) {
+// A post an admin published in the Meditation, Therapies, or Medication
+// section. The body is shown as written (English content), with the site
+// header/footer around it.
+export default function ResourcePostDetail({ slug, section }: { slug: string; section: "meditation" | "therapy" | "medication" }) {
   const [language, setLanguage] = useLanguage();
   const [post, setPost] = useState<ResourceRecord | null | undefined>(undefined);
   const labels = SECTION_LABEL[section];
