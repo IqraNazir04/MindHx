@@ -1071,14 +1071,33 @@ def _parse_triage_classification(content: str) -> Optional[dict]:
     return result
 
 
-async def analyze_with_openai(text: str, language: str) -> Optional[dict]:
-    """Classify check-in text with OpenAI's chat completions API."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+def _llm_provider() -> Optional[tuple[str, str, str, str]]:
+    """Picks the chat-completions provider for /analyze-text and /ai/chat: Qwen on
+    Alibaba Cloud Model Studio (its OpenAI-compatible API) when DASHSCOPE_API_KEY is
+    set, else OpenAI. Both speak the same request/response shape, so callers only
+    need the (provider, model, url, api_key) this returns - or None if neither is
+    configured, in which case callers fall back to their non-LLM path."""
+    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
+    if dashscope_key:
+        base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        model = os.getenv("DASHSCOPE_CHAT_MODEL", "qwen-plus")
+        return "qwen", model, f"{base_url}/chat/completions", dashscope_key
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+        return "openai", model, "https://api.openai.com/v1/chat/completions", openai_key
+    return None
+
+
+async def analyze_with_llm(text: str, language: str) -> Optional[dict]:
+    """Classify check-in text with the configured provider's chat completions API."""
+    provider_info = _llm_provider()
+    if provider_info is None:
         return None
+    provider, model, url, api_key = provider_info
 
     payload = {
-        "model": os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+        "model": model,
         "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [
@@ -1089,14 +1108,14 @@ async def analyze_with_openai(text: str, language: str) -> Optional[dict]:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
     except httpx.HTTPStatusError as error:
-        logger.error("OpenAI /analyze-text returned %s: %s", error.response.status_code, error.response.text[:500])
+        logger.error("%s /analyze-text returned %s: %s", provider, error.response.status_code, error.response.text[:500])
         return None
     except (httpx.HTTPError, KeyError, TypeError, IndexError) as error:
-        logger.error("OpenAI /analyze-text request failed: %r", error)
+        logger.error("%s /analyze-text request failed: %r", provider, error)
         return None
     return _parse_triage_classification(content)
 
@@ -1980,7 +1999,7 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
         "language": payload.language,
         **_linguistic_indicators(linguistic_features),
     }
-    llm_result = await analyze_with_openai(text, payload.language)
+    llm_result = await analyze_with_llm(text, payload.language)
     provider = "openai" if llm_result else None
     merged = {
         **heuristic_result,
@@ -2069,15 +2088,15 @@ async def compose_chat_reply(
     mood_checkins: list[int],
     helpful_practices: list[str],
 ) -> Optional[dict]:
-    """Composes a grounded, guarded chat reply via OpenAI's chat completions API.
+    """Composes a grounded, guarded chat reply via the configured provider's chat
+    completions API (Qwen on Alibaba Cloud Model Studio, or OpenAI).
     Returns None on any failure or unsafe/malformed output, so the caller can
     fall back to the deterministic template response - the chat never goes
     unanswered, it just loses the conversational layer."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    provider_info = _llm_provider()
+    if provider_info is None:
         return None
-    provider, model = "openai", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
-    url = "https://api.openai.com/v1/chat/completions"
+    provider, model, url, api_key = provider_info
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     context_lines = []
@@ -2119,10 +2138,10 @@ async def compose_chat_reply(
             content = response.json()["choices"][0]["message"]["content"]
             result = json.loads(content)
     except httpx.HTTPStatusError as error:
-        logger.error("OpenAI /ai/chat returned %s: %s", error.response.status_code, error.response.text[:500])
+        logger.error("%s /ai/chat returned %s: %s", provider, error.response.status_code, error.response.text[:500])
         return None
     except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError) as error:
-        logger.error("OpenAI /ai/chat request failed: %r", error)
+        logger.error("%s /ai/chat request failed: %r", provider, error)
         return None
 
     if result.get("action") not in {"clarify", "respond"}:
