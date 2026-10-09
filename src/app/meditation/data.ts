@@ -256,7 +256,7 @@ export const techniques: Technique[] = [
   {
     slug: "loving-kindness-meditation",
     image: "sunlitPathway",
-    stepIcons: ["seated", "thoughtCloud", "openHand", "calmFinish"],
+    stepIcons: ["seated", "thoughtCloud", "openHand", "peopleGroup", "calmFinish"],
     en: {
       name: "Loving-kindness meditation",
       summary: "Silently repeat phrases of goodwill, starting with yourself and extending outward.",
@@ -314,7 +314,7 @@ export const techniques: Technique[] = [
   {
     slug: "alternate-nostril-breathing",
     image: "forestPath",
-    stepIcons: ["seated", "breatheIn", "breatheOut", "repeatCycle"],
+    stepIcons: ["seated", "breatheIn", "breatheOut", "repeatCycle", "calmFinish"],
     en: {
       name: "Alternate nostril breathing",
       summary: "A slow, balancing breath practice that alternates between nostrils.",
@@ -372,7 +372,7 @@ export const techniques: Technique[] = [
   {
     slug: "gratitude-reflection",
     image: "goldenField",
-    stepIcons: ["notebook", "thoughtCloud", "openHand", "calmFinish"],
+    stepIcons: ["notebook", "thoughtCloud", "openHand", "calmFinish", "breatheOut"],
     en: {
       name: "Gratitude reflection",
       summary: "Bring to mind a few specific things you're grateful for, and notice how they feel in the body.",
@@ -402,7 +402,7 @@ export const techniques: Technique[] = [
   {
     slug: "urge-surfing",
     image: "foggyValley",
-    stepIcons: ["headFocus", "breatheIn", "gauge", "calmFinish"],
+    stepIcons: ["headFocus", "breatheIn", "gauge", "calmFinish", "reflect"],
     en: {
       name: "Urge surfing",
       summary: "Ride out a craving or urge by observing it rise and fall, rather than acting on it or fighting it.",
@@ -432,7 +432,7 @@ export const techniques: Technique[] = [
   {
     slug: "self-compassion-break",
     image: "oceanSunrise",
-    stepIcons: ["openHand", "thoughtCloud", "calmFinish"],
+    stepIcons: ["openHand", "thoughtCloud", "peopleGroup", "calmFinish"],
     en: {
       name: "Self-compassion break",
       summary: "A short practice to meet a hard moment with kindness instead of self-criticism.",
