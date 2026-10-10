@@ -1405,3 +1405,15 @@ def test_qwen_is_used_when_claude_fails(monkeypatch) -> None:
     assert text["provider"] == "qwen"
     assert chat["generation"]["provider"] == "qwen"
     assert all("dashscope" in url for url in posted_to) and len(posted_to) == 2
+
+
+def test_unmatched_message_gets_no_default_reference_card(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"action": "respond", "message": "That sounds like a good kind of energy - what's coming up for you?", "offer_exercise": "none", "suggested_cta": {"label": "x", "href": "none"}})
+    _use_claude(monkeypatch, fake)
+    for message in ["i am excited, what should i do", "how can I sleep better?"]:
+        body = client.post("/ai/chat", json={"message": message, "language": "en", "risk_clear": True}).json()
+        assert body["sources"] == [] and body["intent"] == "general", (message, body)
+    assert "(No reference material matched this message.)" in fake.calls[-1]["messages"][-1]["content"]
+    # A real topic still brings its article.
+    body = client.post("/ai/chat", json={"message": "what is CBT therapy?", "language": "en", "risk_clear": True}).json()
+    assert [source["id"] for source in body["sources"]] == ["therapy"]

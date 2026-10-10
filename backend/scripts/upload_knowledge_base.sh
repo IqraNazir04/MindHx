@@ -5,8 +5,12 @@
 # or sent anywhere but the site's own /admin/login endpoint.
 #
 # Usage:
-#   ./backend/scripts/upload_knowledge_base.sh                # targets https://mindhx.com
+#   ./backend/scripts/upload_knowledge_base.sh                # targets https://mindhx.com/api
 #   BASE_URL=http://127.0.0.1:8000 ./backend/scripts/upload_knowledge_base.sh
+#
+# BASE_URL is the API's address. On the deployed site the API is served under
+# /api (next.config.ts proxies it); https://mindhx.com/admin/login is the web
+# page, not the endpoint.
 #
 # The live site must already be running a backend build that knows the new
 # intents (safety, stress, meditation, grief, pain, conditions) - i.e. this
@@ -15,7 +19,7 @@
 
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-https://mindhx.com}"
+BASE_URL="${BASE_URL:-https://mindhx.com/api}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KB_DIR="$SCRIPT_DIR/../knowledge_base"
 

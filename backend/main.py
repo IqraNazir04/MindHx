@@ -519,7 +519,7 @@ RAG_INTENT_KEYWORDS = {
     "meditation": ("meditat", "breathing exercise", "mindful", "grounding", "relax", "مراقبہ", "سانس"),
     "grief": ("grief", "grieving", "bereave", "passed away", "miscarriage", "mourning", "غم", "انتقال"),
     "pain": ("chronic pain", "pain management", "body pain", "فائبرومیالجیا", "درد"),
-    "conditions": ("insomnia", "ocd", "ptsd", "bipolar", "postpartum", "panic attack", "psychosis", "اندرا", "نیند نہیں آتی"),
+    "conditions": ("insomnia", "sleep", "نیند", "ocd", "ptsd", "bipolar", "postpartum", "panic attack", "psychosis", "اندرا", "نیند نہیں آتی"),
 }
 UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS) | {"general"}
 UPLOAD_CHUNK_CHARS = 900
@@ -2378,7 +2378,7 @@ async def compose_chat_reply(
     if helpful_practices:
         context_lines.append(f"Practices this person has said helped before: {', '.join(helpful_practices)}")
 
-    reference_material = "\n\n".join(f"[{document['id']}] {document[language]['title']}: {document[language]['content']}" for document in documents)
+    reference_material = "\n\n".join(f"[{document['id']}] {document[language]['title']}: {document[language]['content']}" for document in documents) or "(No reference material matched this message.)"
     exercise_ids = ", ".join(INTERACTIVE_EXERCISES.keys())
 
     turns = [{"role": turn.role, "content": turn.content} for turn in history[-8:]]
@@ -2520,8 +2520,13 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
         }
 
     uploaded = await retrieve_reference_chunks(db, payload.message)
-    documents = retrieve_rag_documents(payload.message, uploaded)
-    on_topic = bool(uploaded) or bool(matched_intents(payload.message))
+    # Only articles that actually match the message. When none do there's no
+    # reference card - attaching the first library article (grounding) to
+    # every unrelated message made each reply look the same.
+    matched = matched_intents(payload.message)
+    documents = (uploaded or []) + [document for document in RAG_DOCUMENTS if document["intent"] in matched]
+    on_topic = bool(documents)
+    intent = documents[0]["intent"] if documents else "general"
     mood_checkins = payload.mood_checkins
     helpful_practices = payload.helpful_practices
     trajectory_summary = None
@@ -2555,7 +2560,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
     if composed is None:
         return {
             "status": "grounded_support",
-            "intent": documents[0]["intent"],
+            "intent": intent,
             "message": text["grounded"],
             "sources": [localize_rag_document(document, lang) for document in documents],
             "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
@@ -2563,7 +2568,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
 
     response: dict = {
         "status": "clarifying" if composed["action"] == "clarify" else "grounded_support",
-        "intent": documents[0]["intent"],
+        "intent": intent,
         "message": composed["message"],
         "sources": [] if composed["action"] == "clarify" else [localize_rag_document(document, lang) for document in documents],
         "generation": {"provider": composed["_provider"], "model": composed["_model"], "diagnosis": False, "medication_prescribing": False},
