@@ -242,8 +242,7 @@ export default function HomeClient() {
       if (!response.ok) throw new Error("Text analysis unavailable");
       const result = await response.json() as { sentiment: string; crisis_language: boolean } & TextMoodScores;
       if (result.crisis_language) {
-        sessionStorage.setItem("mindhx:crisis-context", JSON.stringify({ source: "text_crisis_language", language: language === "اردو" ? "ur" : "en" }));
-        router.push("/emergency");
+        await handleCrisis("text_crisis_language", result);
         return;
       }
       setTextSubmitResult({ sentiment: result.sentiment, anxiety_level: result.anxiety_level, stress_level: result.stress_level, depression_indicator: result.depression_indicator });
@@ -378,6 +377,74 @@ export default function HomeClient() {
     router.push("/emergency");
   }
 
+  // Scores the check-in with /risk-assess and keeps the result, plus the
+  // per-question detail for the PDF report, where /results,
+  // /recommendations and /emergency read them. Throws if it can't be scored.
+  async function assessAndStore(textAnalysis: Record<string, unknown> | null) {
+    const languageCode = language === "اردو" ? "ur" : "en";
+    // PHQ-9 and the crisis flags are always recomputed by /risk-assess from
+    // the raw answers and text; textAnalysis is passed only so it doesn't
+    // repeat the (possibly LLM-backed) text read for sentiment.
+    const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers.every((answer) => answer > -1) ? gadAnswers : null, k10_answers: k10Answers.every((answer) => answer > -1) ? k10Answers.map((answer) => answer + 1) : null, profile: profile.ageRange ? { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode } : null, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
+    if (!riskResponse.ok) throw new Error("Risk assessment unavailable");
+    const result = await riskResponse.json();
+    // A new result - saved (scores + PDF report) to the user's history by
+    // saveInBackground; see lib/checkinHistory.ts.
+    resetSaveProgress();
+    sessionStorage.setItem("mindhx:last-result", JSON.stringify(result));
+    // Full per-question detail, transcript, and written text - used for the
+    // PDF report.
+    const checkInDetail = {
+      language,
+      transcript,
+      typedText,
+      phq9: questions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][answers[index]] ?? null })),
+      gad7: gadQuestions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][gadAnswers[index]] ?? null })),
+      k10: k10Questions[languageKey].map((questionText, index) => ({ question: questionText, answer: k10Options[languageKey][k10Answers[index]] ?? null })),
+    };
+    sessionStorage.setItem("mindhx:last-checkin-detail", JSON.stringify(checkInDetail));
+    return { result, checkInDetail };
+  }
+
+  // Saved now rather than only when /results opens, since people go to the
+  // stage or emergency page first and not everyone opens the full report.
+  // /results finds it already saved (or retries and shows the error).
+  function saveInBackground(result: Parameters<typeof saveResultToHistory>[0], checkInDetail: Parameters<typeof saveResultToHistory>[2]) {
+    fetchCurrentUser()
+      .then((user) => user && saveResultToHistory(result, { name: user.full_name, email: user.email }, checkInDetail))
+      .catch(() => {});
+  }
+
+  // A crisis signal always ends on the emergency page - never on a sign-in
+  // form, a missing age range, or the weekly limit. When the PHQ-9 is
+  // complete the full results are worked out first and shown there too
+  // (signed in or not); they're saved to history only for a signed-in
+  // account that's outside its weekly cooldown.
+  async function handleCrisis(source: "phq9_item9" | "text_crisis_language", textAnalysis: Record<string, unknown> | null) {
+    try {
+      // Never show an earlier check-in's results as if they were this one's.
+      sessionStorage.removeItem("mindhx:last-result");
+      sessionStorage.removeItem("mindhx:last-checkin-detail");
+    } catch {
+      // Storage unavailable - nothing stale to show either.
+    }
+    if (isComplete) {
+      setAssessmentLoading(true);
+      try {
+        const { result, checkInDetail } = await assessAndStore(textAnalysis);
+        if (isLoggedIn()) {
+          const eligibility = await fetchCheckInEligibility();
+          if (!eligibility || eligibility.can_check_in) saveInBackground(result, checkInDetail);
+        }
+      } catch {
+        // Couldn't score it - emergency support still opens, without results.
+      } finally {
+        setAssessmentLoading(false);
+      }
+    }
+    goToEmergency(source);
+  }
+
   async function handleCheckIn() {
     const isUrdu = language === "اردو";
     const languageCode = isUrdu ? "ur" : "en";
@@ -401,58 +468,48 @@ export default function HomeClient() {
       }
     }
     const crisisSource = answers[8] > 0 ? "phq9_item9" : textAnalysis?.crisis_language ? "text_crisis_language" : null;
-    // Full results (with the crisis banner on top) are only possible once
-    // signed in with an age range and a complete PHQ-9; otherwise go straight
-    // to emergency support rather than asking for any of that first.
-    if (crisisSource && !(isLoggedIn() && profile.ageRange && isComplete)) {
-      goToEmergency(crisisSource);
+    if (crisisSource) {
+      await handleCrisis(crisisSource, textAnalysis);
       return;
     }
 
-    if (!crisisSource) {
-      // The voice note is optional: it needs a microphone, a supported browser,
-      // and a configured speech-to-text service, none of which should stand
-      // between someone and their questionnaire results.
-      const missingSteps: string[] = [];
-      if (!typedText.trim()) missingSteps.push(isUrdu ? "تحریری جواب" : "written reflection");
-      if (!isComplete) missingSteps.push("PHQ-9");
-      if (!gadAnswers.every((answer) => answer > -1)) missingSteps.push("GAD-7");
-      if (!k10Answers.every((answer) => answer > -1)) missingSteps.push("K10");
-      if (missingSteps.length > 0) {
-        setAssessmentError(
-          isUrdu
-            ? `نتائج دیکھنے سے پہلے یہ مکمل کریں: ${missingSteps.join("، ")}۔`
-            : `Complete these before you can see your results: ${missingSteps.join(", ")}.`
-        );
-        return;
+    // The voice note is optional: it needs a microphone, a supported browser,
+    // and a configured speech-to-text service, none of which should stand
+    // between someone and their questionnaire results.
+    const missingSteps: string[] = [];
+    if (!typedText.trim()) missingSteps.push(isUrdu ? "تحریری جواب" : "written reflection");
+    if (!isComplete) missingSteps.push("PHQ-9");
+    if (!gadAnswers.every((answer) => answer > -1)) missingSteps.push("GAD-7");
+    if (!k10Answers.every((answer) => answer > -1)) missingSteps.push("K10");
+    if (missingSteps.length > 0) {
+      setAssessmentError(
+        isUrdu
+          ? `نتائج دیکھنے سے پہلے یہ مکمل کریں: ${missingSteps.join("، ")}۔`
+          : `Complete these before you can see your results: ${missingSteps.join(", ")}.`
+      );
+      return;
+    }
+    if (!isLoggedIn()) {
+      try {
+        sessionStorage.setItem(CHECKIN_DRAFT_KEY, JSON.stringify({
+          transcript, typedText, answers, gadAnswers, k10Answers, profile, language, voiceFeatures, sessionToken,
+        }));
+      } catch {
+        // Storage unavailable - proceed anyway; they'll just re-enter answers after signing in.
       }
-      if (!isLoggedIn()) {
-        try {
-          sessionStorage.setItem(CHECKIN_DRAFT_KEY, JSON.stringify({
-            transcript, typedText, answers, gadAnswers, k10Answers, profile, language, voiceFeatures, sessionToken,
-          }));
-        } catch {
-          // Storage unavailable - proceed anyway; they'll just re-enter answers after signing in.
-        }
-        router.push("/login?next=%2F");
-        return;
-      }
-      if (!profile.ageRange) {
-        setAssessmentError(isUrdu ? "پہلے نجی سیشن کا سیاق مکمل کریں۔" : "Set your private session context before starting the assessment.");
-        setShowProfile(true);
-        return;
-      }
+      router.push("/login?next=%2F");
+      return;
+    }
+    if (!profile.ageRange) {
+      setAssessmentError(isUrdu ? "پہلے نجی سیشن کا سیاق مکمل کریں۔" : "Set your private session context before starting the assessment.");
+      setShowProfile(true);
+      return;
     }
 
     // One saved check-in per cooldown window. Checked fresh (not from state)
-    // in case a check-in was just saved from another tab. A crisis signal
-    // still goes to emergency support rather than stopping here.
+    // in case a check-in was just saved from another tab.
     const eligibility = await fetchCheckInEligibility();
     if (eligibility && !eligibility.can_check_in) {
-      if (crisisSource) {
-        goToEmergency(crisisSource);
-        return;
-      }
       setCooldown(eligibility);
       setAssessmentError(cooldownMessage(eligibility, isUrdu));
       try {
@@ -465,40 +522,10 @@ export default function HomeClient() {
 
     setAssessmentLoading(true);
     try {
-      // PHQ-9 and the crisis flags are always recomputed by /risk-assess from
-      // the raw answers and text; textAnalysis is passed only so it doesn't
-      // repeat the (possibly LLM-backed) text read for sentiment.
-      const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers.every((answer) => answer > -1) ? gadAnswers : null, k10_answers: k10Answers.every((answer) => answer > -1) ? k10Answers.map((answer) => answer + 1) : null, profile: { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode }, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
-      if (!riskResponse.ok) throw new Error("Risk assessment unavailable");
-      const result = await riskResponse.json();
-      // A new result - saved below (scores + PDF report) to the user's
-      // history; see lib/checkinHistory.ts.
-      resetSaveProgress();
-      sessionStorage.setItem("mindhx:last-result", JSON.stringify(result));
-      // Full per-question detail, transcript, and written text - used for the
-      // PDF report, which /results saves to the user's account.
-      const checkInDetail = {
-        language,
-        transcript,
-        typedText,
-        phq9: questions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][answers[index]] ?? null })),
-        gad7: gadQuestions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][gadAnswers[index]] ?? null })),
-        k10: k10Questions[languageKey].map((questionText, index) => ({ question: questionText, answer: k10Options[languageKey][k10Answers[index]] ?? null })),
-      };
-      sessionStorage.setItem("mindhx:last-checkin-detail", JSON.stringify(checkInDetail));
-      // Saved now rather than only when /results opens, since the stage page
-      // comes first and not everyone goes on to the full report. /results
-      // finds it already saved (or retries and shows the error if this failed).
-      fetchCurrentUser()
-        .then((user) => user && saveResultToHistory(result, { name: user.full_name, email: user.email }, checkInDetail))
-        .catch(() => {});
+      const { result, checkInDetail } = await assessAndStore(textAnalysis);
+      saveInBackground(result, checkInDetail);
       router.push("/recommendations");
     } catch {
-      if (crisisSource) {
-        // Never leave a crisis check-in on an error message.
-        goToEmergency(crisisSource);
-        return;
-      }
       setAssessmentError(isUrdu ? "MindHx سروس دستیاب نہیں۔ براہ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔" : "MindHx service unavailable. Please try again in a moment.");
     } finally {
       setAssessmentLoading(false);
