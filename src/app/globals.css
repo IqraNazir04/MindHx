@@ -506,7 +506,7 @@ textarea::placeholder { color:#9aa6b4; }
 /* Conversation thread */
 .chat-thread { display:flex; flex-direction:column; gap:14px; max-height:520px; overflow-y:auto; padding:4px 2px; margin-bottom:14px; }
 .chat-bubble { max-width:85%; padding:13px 16px; border-radius:13px; font-size:13px; line-height:1.55; }
-.chat-bubble p { margin:0; }
+.chat-bubble p { margin:0; white-space:pre-line; }
 .chat-bubble.user { align-self:flex-end; background:var(--blue-soft); color:var(--navy); border-bottom-right-radius:3px; }
 .chat-bubble.assistant { align-self:flex-start; background:var(--surface-soft); border:1px solid var(--line); color:var(--navy); border-bottom-left-radius:3px; }
 .chat-bubble.escalation { background:var(--red-soft); border:1px solid rgba(200,79,79,.3); color:#8b3535; }
