@@ -816,49 +816,95 @@ def score_k10(answers: list[int]) -> dict:
 
 def support_resources(themes: list[str], language: str = "en") -> dict:
     """Return fixed, non-diagnostic support content; no model or profile data is required."""
+    ur = language == "ur"
     theme_set = set(themes)
     strategies = [
-        {"name": "One small action", "themes": ["hardship", "patience"], "steps": "Choose one achievable action for the next hour, such as water, food, a shower, or messaging someone you trust."},
-        {"name": "Gentle routine", "themes": ["depression", "hardship"], "steps": "Pick one anchor for today: wake time, a meal, daylight, or a 5-minute walk. Keep the goal deliberately small."},
-        {"name": "Worry notes", "themes": ["anxiety"], "steps": "Write the worry down, separate what you can control from what you cannot, and choose one next action."},
-        {"name": "Grief pacing", "themes": ["grief", "patience"], "steps": "Allow the feeling without forcing a timeline. Alternate emotional space with basic care, rest, and contact with someone safe."},
-        {"name": "Cool-down pause", "themes": ["frustration"], "steps": "Step away for 2 minutes, unclench your jaw and shoulders, and name what specifically triggered the frustration before responding."},
-        {"name": "Loss processing", "themes": ["loss"], "steps": "Acknowledge what changed, allow yourself an adjustment period, and identify one practical next step for the coming week."},
-        {"name": "Grounding after distress", "themes": ["trauma"], "steps": "Orient to the present: name the room, the date, and one safe fact. Trauma-focused work is best done with a qualified trauma-informed clinician."},
+        {"themes": ["hardship", "patience"],
+         "name": "One small action" if not ur else "ایک چھوٹا قدم",
+         "steps": "Choose one achievable action for the next hour, such as water, food, a shower, or messaging someone you trust." if not ur else "اگلے ایک گھنٹے کے لیے ایک قابلِ حصول کام منتخب کریں، جیسے پانی پینا، کھانا، نہانا، یا کسی قابلِ اعتماد شخص کو پیغام بھیجنا۔"},
+        {"themes": ["depression", "hardship"],
+         "name": "Gentle routine" if not ur else "نرم معمول",
+         "steps": "Pick one anchor for today: wake time, a meal, daylight, or a 5-minute walk. Keep the goal deliberately small." if not ur else "آج کے لیے ایک سہارا چنیں: جاگنے کا وقت، کوئی کھانا، دن کی روشنی، یا 5 منٹ کی چہل قدمی۔ ہدف جان بوجھ کر چھوٹا رکھیں۔"},
+        {"themes": ["anxiety"],
+         "name": "Worry notes" if not ur else "فکر کے نوٹس",
+         "steps": "Write the worry down, separate what you can control from what you cannot, and choose one next action." if not ur else "فکر کو لکھ لیں، جو آپ کے بس میں ہے اسے جو نہیں ہے اس سے الگ کریں، اور ایک اگلا قدم منتخب کریں۔"},
+        {"themes": ["grief", "patience"],
+         "name": "Grief pacing" if not ur else "غم کی رفتار",
+         "steps": "Allow the feeling without forcing a timeline. Alternate emotional space with basic care, rest, and contact with someone safe." if not ur else "کسی وقت کی حد مقرر کیے بغیر احساس کو محسوس ہونے دیں۔ جذباتی وقفے کو بنیادی خیال رکھنے، آرام، اور کسی محفوظ شخص سے رابطے کے ساتھ بدلتے رہیں۔"},
+        {"themes": ["frustration"],
+         "name": "Cool-down pause" if not ur else "ٹھنڈک کا وقفہ",
+         "steps": "Step away for 2 minutes, unclench your jaw and shoulders, and name what specifically triggered the frustration before responding." if not ur else "2 منٹ کے لیے الگ ہو جائیں، اپنے جبڑے اور کندھوں کو ڈھیلا کریں، اور جواب دینے سے پہلے یہ پہچانیں کہ غصہ خاص طور پر کس چیز سے بھڑکا۔"},
+        {"themes": ["loss"],
+         "name": "Loss processing" if not ur else "نقصان کو سمجھنا",
+         "steps": "Acknowledge what changed, allow yourself an adjustment period, and identify one practical next step for the coming week." if not ur else "جو بدلا اسے تسلیم کریں، خود کو ڈھلنے کا وقت دیں، اور آنے والے ہفتے کے لیے ایک عملی اگلا قدم طے کریں۔"},
+        {"themes": ["trauma"],
+         "name": "Grounding after distress" if not ur else "تکلیف کے بعد گراؤنڈنگ",
+         "steps": "Orient to the present: name the room, the date, and one safe fact. Trauma-focused work is best done with a qualified trauma-informed clinician." if not ur else "موجودہ لمحے سے جڑیں: کمرے، تاریخ، اور ایک محفوظ حقیقت کا نام لیں۔ صدمے پر مرکوز کام ایک مستند، صدمے سے آگاہ معالج کے ساتھ بہترین طور پر کیا جاتا ہے۔"},
     ]
     meditation = [
-        {"name": "Paced breathing", "themes": ["anxiety", "hardship"], "steps": "Inhale gently for 4 counts and exhale for 6 counts for 2 minutes. Stop if dizzy or more distressed."},
-        {"name": "Five-senses grounding", "themes": ["anxiety", "hardship"], "steps": "Notice 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste."},
-        {"name": "Compassionate body scan", "themes": ["patience", "grief", "hardship"], "steps": "For 3 minutes, notice tension from head to feet without judging it. Relax only where comfortable."},
-        {"name": "Name and allow", "themes": ["grief", "patience"], "steps": "Name the feeling in a few words, acknowledge it, and give it 90 seconds without forcing it away."},
-        {"name": "Cooling breath", "themes": ["frustration"], "steps": "Inhale through the nose for 4 counts, exhale slowly through pursed lips for 6 counts, and repeat for 2 minutes."},
-        {"name": "Anchoring statement", "themes": ["loss"], "steps": "Repeat a brief steadying phrase (e.g. \"this is hard, and I am getting through it\") while breathing slowly for 1-2 minutes."},
-        {"name": "Safe-place visualization", "themes": ["trauma"], "steps": "Picture a place where you have felt calm and safe and notice its details for 2-3 minutes. Stop if this increases distress and seek trauma-informed professional support."},
+        {"themes": ["anxiety", "hardship"],
+         "name": "Paced breathing" if not ur else "ترتیب شدہ سانس",
+         "steps": "Inhale gently for 4 counts and exhale for 6 counts for 2 minutes. Stop if dizzy or more distressed." if not ur else "آہستہ سے 4 گنتی تک سانس اندر لیں اور 6 گنتی تک باہر نکالیں، 2 منٹ تک۔ اگر چکر آئے یا تکلیف بڑھے تو روک دیں۔"},
+        {"themes": ["anxiety", "hardship"],
+         "name": "Five-senses grounding" if not ur else "پانچ حواس کی گراؤنڈنگ",
+         "steps": "Notice 5 things you see, 4 you feel, 3 you hear, 2 you smell, and 1 you taste." if not ur else "5 چیزیں جو آپ دیکھتے ہیں، 4 جو محسوس کرتے ہیں، 3 جو سنتے ہیں، 2 جن کی خوشبو آتی ہے، اور 1 جس کا ذائقہ محسوس ہو، ان پر توجہ دیں۔"},
+        {"themes": ["patience", "grief", "hardship"],
+         "name": "Compassionate body scan" if not ur else "ہمدردانہ باڈی اسکین",
+         "steps": "For 3 minutes, notice tension from head to feet without judging it. Relax only where comfortable." if not ur else "3 منٹ تک، سر سے پاؤں تک تناؤ کو بغیر فیصلہ کیے محسوس کریں۔ صرف وہاں آرام کریں جہاں آرام دہ محسوس ہو۔"},
+        {"themes": ["grief", "patience"],
+         "name": "Name and allow" if not ur else "نام دیں اور محسوس ہونے دیں",
+         "steps": "Name the feeling in a few words, acknowledge it, and give it 90 seconds without forcing it away." if not ur else "احساس کو چند الفاظ میں نام دیں، اسے تسلیم کریں، اور اسے زبردستی دور کیے بغیر 90 سیکنڈ دیں۔"},
+        {"themes": ["frustration"],
+         "name": "Cooling breath" if not ur else "ٹھنڈی سانس",
+         "steps": "Inhale through the nose for 4 counts, exhale slowly through pursed lips for 6 counts, and repeat for 2 minutes." if not ur else "ناک سے 4 گنتی تک سانس اندر لیں، ہونٹ سکیڑ کر آہستہ سے 6 گنتی تک باہر نکالیں، اور 2 منٹ تک دہرائیں۔"},
+        {"themes": ["loss"],
+         "name": "Anchoring statement" if not ur else "سہارا دینے والا جملہ",
+         "steps": "Repeat a brief steadying phrase (e.g. \"this is hard, and I am getting through it\") while breathing slowly for 1-2 minutes." if not ur else "آہستہ سانس لیتے ہوئے 1-2 منٹ تک ایک مختصر حوصلہ دینے والا جملہ دہرائیں (مثلاً \"یہ مشکل ہے، اور میں اس سے گزر رہا/رہی ہوں\")۔"},
+        {"themes": ["trauma"],
+         "name": "Safe-place visualization" if not ur else "محفوظ جگہ کا تصور",
+         "steps": "Picture a place where you have felt calm and safe and notice its details for 2-3 minutes. Stop if this increases distress and seek trauma-informed professional support." if not ur else "ایسی جگہ کا تصور کریں جہاں آپ نے پرسکون اور محفوظ محسوس کیا ہو اور 2-3 منٹ تک اس کی تفصیلات پر توجہ دیں۔ اگر اس سے تکلیف بڑھے تو روک دیں اور صدمے سے آگاہ پیشہ ورانہ مدد حاصل کریں۔"},
     ]
     groups = [
-        {"name": "Peer support groups", "description": "Look for a moderated, confidential group through a licensed clinic, hospital, university, or established mental-health organization."},
-        {"name": "Trusted-person check-in", "description": "Choose one person and tell them what kind of support would help: listening, company, or help finding care."},
+        {"name": "Peer support groups" if not ur else "ہم خیال معاون گروپس",
+         "description": "Look for a moderated, confidential group through a licensed clinic, hospital, university, or established mental-health organization." if not ur else "کسی لائسنس یافتہ کلینک، ہسپتال، یونیورسٹی، یا قائم شدہ ذہنی صحت کی تنظیم کے ذریعے ایک منظم، خفیہ گروپ تلاش کریں۔"},
+        {"name": "Trusted-person check-in" if not ur else "قابلِ اعتماد شخص سے رابطہ",
+         "description": "Choose one person and tell them what kind of support would help: listening, company, or help finding care." if not ur else "ایک شخص چنیں اور انہیں بتائیں کہ کس قسم کی مدد کارآمد ہوگی: سننا، ساتھ دینا، یا دیکھ بھال تلاش کرنے میں مدد۔"},
     ]
     resources = [
-        {"name": "Licensed mental-health professional", "description": "Use a regulated local provider directory, hospital service, or telehealth service for an assessment."},
-        {"name": "Local crisis service", "description": "For immediate safety concerns, contact local emergency services or a crisis line in your country."},
+        {"name": "Licensed mental-health professional" if not ur else "لائسنس یافتہ ذہنی صحت کا ماہر",
+         "description": "Use a regulated local provider directory, hospital service, or telehealth service for an assessment." if not ur else "جائزے کے لیے کسی منظم مقامی فراہم کنندہ کی ڈائریکٹری، ہسپتال کی سروس، یا ٹیلی ہیلتھ سروس استعمال کریں۔"},
+        {"name": "Local crisis service" if not ur else "مقامی بحرانی سروس",
+         "description": "For immediate safety concerns, contact local emergency services or a crisis line in your country." if not ur else "فوری حفاظتی خدشات کے لیے، اپنے ملک کی مقامی ہنگامی خدمات یا کرائسس لائن سے رابطہ کریں۔"},
     ]
     return {
         "language": language,
         "themes": themes,
-        "strategies": [item for item in strategies if not theme_set or theme_set.intersection(item["themes"])],
-        "meditation": [item for item in meditation if not theme_set or theme_set.intersection(item["themes"])],
+        "strategies": [{k: v for k, v in item.items() if k != "themes"} for item in strategies if not theme_set or theme_set.intersection(item["themes"])],
+        "meditation": [{k: v for k, v in item.items() if k != "themes"} for item in meditation if not theme_set or theme_set.intersection(item["themes"])],
         "support_groups": groups,
         "resources": resources,
     }
 
 
-def professional_contact(urgency: str) -> dict:
+def professional_contact(urgency: str, language: str = "en") -> dict:
+    ur = language == "ur"
     if urgency == "immediate":
-        return {"recommended": True, "urgency": "immediate", "action": "Contact local emergency services or a crisis line now, and stay with a trusted person if possible.", "what_to_say": "Tell them you are experiencing a mental-health safety concern and need immediate support."}
+        return {
+            "recommended": True, "urgency": "immediate",
+            "action": "Contact local emergency services or a crisis line now, and stay with a trusted person if possible." if not ur else "ابھی مقامی ہنگامی خدمات یا کرائسس لائن سے رابطہ کریں، اور اگر ممکن ہو تو کسی قابلِ اعتماد شخص کے ساتھ رہیں۔",
+            "what_to_say": "Tell them you are experiencing a mental-health safety concern and need immediate support." if not ur else "انہیں بتائیں کہ آپ ذہنی صحت کے حفاظتی خدشے کا سامنا کر رہے ہیں اور آپ کو فوری مدد کی ضرورت ہے۔",
+        }
     if urgency == "soon":
-        return {"recommended": True, "urgency": "soon", "action": "Arrange a call or appointment with a licensed psychiatrist or qualified mental-health clinician before continuing self-management alone.", "what_to_say": "Share that your screening results show moderate or severe symptoms and ask for a safety and treatment review."}
-    return {"recommended": False, "urgency": "monitor", "action": "Consider speaking with a qualified professional if symptoms persist, worsen, or interfere with daily life.", "what_to_say": "You can bring these screening results to the conversation."}
+        return {
+            "recommended": True, "urgency": "soon",
+            "action": "Arrange a call or appointment with a licensed psychiatrist or qualified mental-health clinician before continuing self-management alone." if not ur else "اکیلے خود سنبھالنا جاری رکھنے سے پہلے کسی لائسنس یافتہ ماہرِ نفسیات یا مستند ذہنی صحت کے معالج سے کال یا اپائنٹمنٹ کا بندوبست کریں۔",
+            "what_to_say": "Share that your screening results show moderate or severe symptoms and ask for a safety and treatment review." if not ur else "بتائیں کہ آپ کے اسکریننگ نتائج درمیانی یا شدید علامات ظاہر کرتے ہیں اور حفاظت اور علاج کے جائزے کی درخواست کریں۔",
+        }
+    return {
+        "recommended": False, "urgency": "monitor",
+        "action": "Consider speaking with a qualified professional if symptoms persist, worsen, or interfere with daily life." if not ur else "اگر علامات برقرار رہیں، بڑھ جائیں، یا روزمرہ زندگی میں رکاوٹ بنیں تو کسی مستند ماہر سے بات کرنے پر غور کریں۔",
+        "what_to_say": "You can bring these screening results to the conversation." if not ur else "آپ یہ اسکریننگ نتائج گفتگو میں ساتھ لے جا سکتے ہیں۔",
+    }
 
 
 THEME_KEYWORDS = {
@@ -1120,17 +1166,19 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
 
 
 def support_plan(phq_result: dict, gad_result: dict, k10_result: dict, crisis: bool, profile: dict, themes: list[str]) -> dict:
+    language = profile.get("preferred_language", "en")
+    ur = language == "ur"
     if crisis:
         return {
             "route": "crisis",
-            "title": "Immediate support comes first",
-            "next_action": "Contact local emergency services or a crisis line now, and stay with a trusted person if possible.",
-            "psychiatric_referral": professional_contact("immediate"),
-            "support_content": support_resources(themes, profile.get("preferred_language", "en")),
+            "title": "Immediate support comes first" if not ur else "فوری مدد سب سے پہلے",
+            "next_action": "Contact local emergency services or a crisis line now, and stay with a trusted person if possible." if not ur else "ابھی مقامی ہنگامی خدمات یا کرائسس لائن سے رابطہ کریں، اور اگر ممکن ہو تو کسی قابلِ اعتماد شخص کے ساتھ رہیں۔",
+            "psychiatric_referral": professional_contact("immediate", language),
+            "support_content": support_resources(themes, language),
             "meditation": [],
             "strategies": [],
             "support_groups": [],
-            "resources": support_resources(themes, profile.get("preferred_language", "en"))["resources"],
+            "resources": support_resources(themes, language)["resources"],
         }
 
     urgent_bands = {"moderate", "moderately_severe", "severe"}
@@ -1142,32 +1190,32 @@ def support_plan(phq_result: dict, gad_result: dict, k10_result: dict, crisis: b
     if urgent:
         return {
             "route": "psychiatric_referral",
-            "title": "A professional evaluation is the next step",
-            "next_action": "Book an appointment with a licensed psychiatrist or qualified mental-health clinician. If symptoms worsen or safety changes, seek urgent help.",
+            "title": "A professional evaluation is the next step" if not ur else "ماہر سے جائزہ اگلا قدم ہے",
+            "next_action": "Book an appointment with a licensed psychiatrist or qualified mental-health clinician. If symptoms worsen or safety changes, seek urgent help." if not ur else "کسی لائسنس یافتہ ماہرِ نفسیات یا مستند ذہنی صحت کے معالج سے اپائنٹمنٹ لیں۔ اگر علامات بڑھیں یا حفاظت متاثر ہو تو فوری مدد حاصل کریں۔",
             "psychiatric_referral": {
                 "what_to_expect": [
-                    "A private conversation about symptoms, sleep, mood, anxiety, medicines, substance use, and safety.",
-                    "A review of your questionnaire results and daily functioning.",
-                    "Shared decisions about therapy, medical checks, medication, or follow-up. You can ask questions and decline options.",
+                    "A private conversation about symptoms, sleep, mood, anxiety, medicines, substance use, and safety." if not ur else "علامات، نیند، موڈ، بے چینی، ادویات، نشہ آور اشیاء کے استعمال، اور حفاظت کے بارے میں ایک نجی گفتگو۔",
+                    "A review of your questionnaire results and daily functioning." if not ur else "آپ کے سوالنامے کے نتائج اور روزمرہ کارکردگی کا جائزہ۔",
+                    "Shared decisions about therapy, medical checks, medication, or follow-up. You can ask questions and decline options." if not ur else "تھراپی، طبی معائنوں، ادویات، یا فالو اپ کے بارے میں مشترکہ فیصلے۔ آپ سوال پوچھ سکتے ہیں اور آپشنز سے انکار کر سکتے ہیں۔",
                 ],
-                "provider_search": "Use a licensed local service, a hospital psychiatry department, or a regulated telehealth directory in your country.",
+                "provider_search": "Use a licensed local service, a hospital psychiatry department, or a regulated telehealth directory in your country." if not ur else "اپنے ملک میں کسی لائسنس یافتہ مقامی سروس، ہسپتال کے نفسیاتی شعبے، یا منظم ٹیلی ہیلتھ ڈائریکٹری کا استعمال کریں۔",
                 "not_a_diagnosis": True,
             },
-            "professional_contact": professional_contact("soon"),
-            "support_content": support_resources(themes, profile.get("preferred_language", "en")),
+            "professional_contact": professional_contact("soon", language),
+            "support_content": support_resources(themes, language),
             "meditation": [],
             "strategies": [],
-            "support_groups": support_resources(themes, profile.get("preferred_language", "en"))["support_groups"],
-            "resources": support_resources(themes, profile.get("preferred_language", "en"))["resources"],
+            "support_groups": support_resources(themes, language)["support_groups"],
+            "resources": support_resources(themes, language)["resources"],
         }
 
-    content = support_resources(themes, profile.get("preferred_language", "en"))
+    content = support_resources(themes, language)
     return {
         "route": "self_support_options",
-        "title": "Gentle support options",
-        "next_action": "Choose one small practice and consider sharing how you are doing with someone you trust.",
+        "title": "Gentle support options" if not ur else "نرم خود مدد کے اختیارات",
+        "next_action": "Choose one small practice and consider sharing how you are doing with someone you trust." if not ur else "ایک چھوٹی مشق منتخب کریں اور کسی قابلِ اعتماد شخص کے ساتھ اپنی کیفیت بانٹنے پر غور کریں۔",
         "psychiatric_referral": None,
-        "professional_contact": professional_contact("monitor"),
+        "professional_contact": professional_contact("monitor", language),
         "support_content": content,
         "meditation": content["meditation"],
         "strategies": content["strategies"],
