@@ -50,7 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 
 # Backend: installed packages plus the app's own source files.
 COPY --from=api-deps /install /usr/local
-COPY backend/main.py backend/auth.py backend/database.py backend/mailer.py backend/manage.py backend/models.py backend/ratelimit.py ./backend/
+COPY backend/main.py backend/auth.py backend/database.py backend/envfile.py backend/mailer.py backend/manage.py backend/models.py backend/ratelimit.py ./backend/
 
 # Frontend: standalone server output.
 COPY --from=web-builder /web/.next/standalone ./

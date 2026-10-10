@@ -13,7 +13,7 @@ import SiteFooter from "../components/SiteFooter";
 import { fetchCurrentUser } from "../lib/auth";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 import { crisisCopy, type CrisisContext } from "../lib/crisisCopy";
-import { getStoredLanguage, setStoredLanguage } from "../lib/language";
+import { getStoredLanguage, setStoredLanguage, useDocumentLanguage } from "../lib/language";
 
 type CheckInDetail = {
   language: string;
@@ -76,6 +76,7 @@ export default function EmergencyClient() {
     ? (detail?.language === "اردو" ? "ur" : "en")
     : (context?.language === "ur" ? "ur" : "en"));
   const text = crisisCopy[language];
+  useDocumentLanguage(language === "ur" ? "اردو" : "English");
 
   function handleDownloadPdf() {
     if (!result) return;
@@ -98,10 +99,10 @@ export default function EmergencyClient() {
       <section className="resource-hero emergency-hero">
         <p className="eyebrow crisis-eyebrow">{text.eyebrow}</p>
         <h1>{text.title}</h1>
-        <p>{text.lede}</p>
+        <p>{context || result ? text.lede : text.ledeDirect}</p>
       </section>
-      <NatureBanner {...naturePhotos.softDawn} priority />
       <CrisisBanner language={language} />
+      <NatureBanner {...naturePhotos.softDawn} />
       <div className="emergency-actions">
         <Link className="result-primary" href="/therapist">{text.talkTherapist} <span>→</span></Link>
         <Link className="resource-back" href="/">{backHomeLabel[language]} ↗</Link>

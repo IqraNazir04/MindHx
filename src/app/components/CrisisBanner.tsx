@@ -11,10 +11,7 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
   const text = crisisCopy[language];
   return (
     <>
-      <section className="emergency-steps">
-        <p className="card-kicker">{text.stepsTitle}</p>
-        <ol>{text.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-      </section>
+      {/* Numbers first: the one thing someone in danger needs within reach. */}
       <section className="emergency-numbers" aria-label={text.callNow}>
         <p className="card-kicker">{text.callNow}</p>
         <div className="emergency-number-list">
@@ -37,6 +34,10 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
           ))}
         </div>
         <p className="emergency-helplines-note">{text.helplinesNote}</p>
+      </section>
+      <section className="emergency-steps">
+        <p className="card-kicker">{text.stepsTitle}</p>
+        <ol>{text.steps.map((step) => <li key={step}>{step}</li>)}</ol>
       </section>
       <div className="crisis-card emergency-notice">{text.notDiagnosis}</div>
       <section className="therapist-contact">

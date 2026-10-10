@@ -28,6 +28,16 @@ CRISIS = [
     "I wish I had never been born",
     "mujhe marna hai, ab jeena nahi chahta",
     "میں اپنی جان لینا چاہتا ہوں",
+    "I've been cutting again",
+    "I'm going to take all my pills tonight",
+    "I bought a rope",
+    "I wish I could sleep and never wake up",
+    "honestly kms",
+    "I want to unalive myself",
+    "I want to k1ll myself",
+    "what's the point of living",
+    "I won't be around much longer",
+    "I overdosed last year and I'm thinking about it again",
 ]
 
 NEGATIVE_CONCERN = [
@@ -54,6 +64,11 @@ BENIGN_LOOKALIKES = [
     "I'm taking my medication every morning now",
     "I walked by the sea today and felt alive",
     "I'd die laughing at that joke, it was so funny",
+    "this exam is killing me",
+    "I killed it at work today",
+    "I'm cutting back on sugar",
+    "I took all my exams this week",
+    "I need to cut my hair",
 ]
 
 NEUTRAL_OR_POSITIVE = [

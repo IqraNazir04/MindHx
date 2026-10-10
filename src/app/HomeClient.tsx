@@ -7,13 +7,15 @@ import NatureBanner from "./components/NatureBanner";
 import { naturePhotos } from "./components/naturePhotos";
 import SiteFooter from "./components/SiteFooter";
 import AccountChip from "./components/AccountChip";
+import SiteNav from "./components/SiteNav";
 import FeatureCarousel from "./components/FeatureCarousel";
 import InnovationGrid from "./components/InnovationGrid";
 import TreeScene from "./components/TreeScene";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
-import { fetchCheckInEligibility, isLoggedIn, saveCheckIn, type CheckInEligibility } from "./lib/auth";
+import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
+import { resetSaveProgress, saveResultToHistory } from "./lib/checkinHistory";
 import { loadQuestionnaireDraft } from "./lib/questionnaireDraft";
 import { useLanguage } from "./lib/language";
 import { API_BASE } from "./lib/api";
@@ -21,14 +23,14 @@ import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, 
 
 const copy = {
   English: {
-    eyebrow: "EARLY SIGNALS, HUMAN CARE", title: "Check in with yourself.", intro: "A quiet, private way to notice changes in how you're feeling. MindHx brings together your voice, words, and a short clinical questionnaire.", ready: "Session ready", private: "Private & secure", sound: "How you sound", soundDescription: "Share a short voice note in English or Urdu. We listen for changes in vocal patterns, not the words themselves.", record: "Record a voice note", stop: "Stop recording", listening: "Listening... tap to finish", processing: "Transcribing securely...", recordingHint: "Up to 60 seconds · Nothing is saved", transcriptReady: "Transcript added below", voiceError: "Microphone or transcription unavailable", words: "What you say", wordsDescription: "Write a little about how things have been lately. Be as brief or open as feels right.", placeholder: "I've been feeling...", optional: "Required", speakUrdu: "Hear this in Urdu", speaking: "Generating Urdu voice...", speechError: "Urdu voice generation unavailable", submitText: "Submit", submittingText: "Analyzing...", textSentiment: "Sentiment read", textSubmitHint: "Sent for analysis only - never saved to a database.", clinical: "Clinical check-in", clinicalDescription: "The PHQ-9 is a validated questionnaire used by healthcare professionals. Think about the last two weeks.", question: "QUESTION", back: "Back", next: "Next test", review: "Review answers", estimate: "LIVE ESTIMATE", picture: "Your combined picture", pictureDescription: "Complete your check-in to see how the signals come together.", seeCheckIn: "See my check-in", disclaimer: "MindHx is a screening and triage aid, not a diagnosis. Your results are a starting point for a conversation with a qualified professional.", modalEyebrow: "YOUR PRIVATE CHECK-IN", modalTitle: "Your signals are ready to review.", modalDescription: "MindHx combines the three signals into an explainable estimate. A professional should interpret this result with you.", modalScore: "estimated signal strength", continue: "Continue to results", bannerCaption: "Slow down. Notice the signal.", aboutEyebrow: "ABOUT MINDHX", aboutTitle: "Understanding MindHx", aboutTeaserBody: "Why this exists, how the three signals work together, what we never store, and who it's built for.", aboutTeaserCta: "Read the full story", startTests: "Start the tests", continueTests: "Continue the tests", reviewTests: "Review your answers",
+    eyebrow: "EARLY SIGNALS, HUMAN CARE", title: "Check in with yourself.", intro: "A quiet, private way to notice changes in how you're feeling. MindHx brings together your voice, words, and a short clinical questionnaire.", ready: "Session ready", private: "Private & secure", sound: "How you sound", soundDescription: "Share a short voice note in English or Urdu. We listen for changes in vocal patterns, not the words themselves.", record: "Record a voice note", stop: "Stop recording", listening: "Listening... tap to finish", processing: "Transcribing securely...", recordingHint: "Up to 60 seconds · Nothing is saved", transcriptReady: "Transcript added below", voiceError: "Microphone or transcription unavailable", micBlocked: "Microphone access was blocked. Allow the microphone for this site in your browser's address bar, then try again.", micMissing: "No microphone was found. Connect one, or type how you feel below.", micUnsupported: "This browser can't record audio here. Open the page in Chrome, Edge, Firefox or Safari, or type how you feel below.", transcriptionFailed: "Your voice note couldn't be written out right now. Your voice tone was still read - please try again, or type below.", transcriptionOff: "Voice-to-text isn't set up on this server, so your words weren't written out. Your voice tone was still read - you can type how you feel below.", words: "What you say", wordsDescription: "Write a little about how things have been lately. Be as brief or open as feels right.", placeholder: "I've been feeling...", optional: "Required", speakUrdu: "Hear this in Urdu", speaking: "Generating Urdu voice...", speechError: "Urdu voice generation unavailable", submitText: "Submit", submittingText: "Analyzing...", textSentiment: "Sentiment read", textSubmitHint: "Analysed right away. Kept only inside your saved check-in report, which you can delete from your dashboard.", clinical: "Clinical check-in", clinicalDescription: "The PHQ-9 is a validated questionnaire used by healthcare professionals. Think about the last two weeks.", question: "QUESTION", back: "Back", next: "Next test", review: "Review answers", estimate: "LIVE ESTIMATE", picture: "Your combined picture", pictureDescription: "Complete your check-in to see how the signals come together.", seeCheckIn: "See my check-in", startCheckIn: "Start my check-in", disclaimer: "MindHx is a screening and triage aid, not a diagnosis. Your results are a starting point for a conversation with a qualified professional.", modalEyebrow: "YOUR PRIVATE CHECK-IN", modalTitle: "Your signals are ready to review.", modalDescription: "MindHx combines the three signals into an explainable estimate. A professional should interpret this result with you.", modalScore: "estimated signal strength", continue: "Continue to results", bannerCaption: "Slow down. Notice the signal.", aboutEyebrow: "ABOUT MINDHX", aboutTitle: "Understanding MindHx", aboutTeaserBody: "Why this exists, how the three signals work together, what we keep and what we don't, and who it's built for.", aboutTeaserCta: "Read the full story", startTests: "Start the tests", continueTests: "Continue the tests", reviewTests: "Review your answers",
     heroTitleA: "Notice the signal.", heroTitleB: "Keep the human.", voiceOptional: "Optional", recordingHintFull: "Up to 60 seconds · stops automatically · the audio itself is never saved", voiceTone: "Voice tone", wordChoice: "Word-choice breakdown", signInToView: "Sign in or create an account to view your results.",
     contextKicker: "PRIVATE SESSION CONTEXT", contextReady: "Your context is ready for this session.", contextPrompt: "Personal context helps MindHx tailor support.", contextBody: "Only age range, optional gender, relationship status, and life context are used, in memory, for this session - they are not saved to your account.", contextEdit: "Edit context", contextSet: "Set session context",
     modalContextTitle: "Share only what helps.", modalContextBody: "These fields are optional except age range. They stay in memory for this session and are not saved to your account.", ageRange: "Age range", genderOptional: "Gender (optional)", relationship: "Relationship status", lifeContext: "Life context (optional)", preferNot: "Prefer not to say", updateContext: "Update session context", continuePrivately: "Continue privately", modalAuthA: "Sign in", modalAuthOr: "or", modalAuthB: "create an account", modalAuthC: "to view your check-in results and save your history.", closeLabel: "Close", openProfile: "Open private profile",
     options: { Woman: "Woman", Man: "Man", "Non-binary": "Non-binary", "Prefer not to say": "Prefer not to say", Single: "Single", Partnered: "Partnered", Married: "Married", Student: "Student", Working: "Working", Retired: "Retired", "Between roles": "Between roles", Caregiving: "Caregiving" }
   },
   اردو: {
-    eyebrow: "ابتدائی اشارے، انسانی نگہداشت", title: "اپنا حال جانچیں۔", intro: "اپنی کیفیت میں آنے والی تبدیلیوں کو سمجھنے کا ایک پُرسکون اور نجی طریقہ۔ MindHx آپ کی آواز، الفاظ اور مختصر طبی سوالنامے کو یکجا کرتا ہے۔", ready: "سیشن تیار ہے", private: "نجی اور محفوظ", sound: "آپ کی آواز", soundDescription: "انگریزی یا اردو میں ایک مختصر صوتی پیغام ریکارڈ کریں۔ ہم الفاظ کے بجائے آواز کے انداز میں آنے والی تبدیلیوں کو دیکھتے ہیں۔", record: "صوتی پیغام ریکارڈ کریں", stop: "ریکارڈنگ روکیں", listening: "سن رہے ہیں... مکمل کرنے کے لیے دبائیں", processing: "محفوظ طریقے سے متن تیار کیا جا رہا ہے...", recordingHint: "60 سیکنڈ تک · کچھ محفوظ نہیں کیا جاتا", transcriptReady: "متن نیچے شامل کر دیا گیا ہے", voiceError: "مائیکروفون یا متن کی سہولت دستیاب نہیں", words: "آپ کے الفاظ", wordsDescription: "حال ہی میں آپ کیسا محسوس کر رہے ہیں، اس کے بارے میں کچھ لکھیں۔ جتنا مناسب لگے اتنا ہی لکھیں۔", placeholder: "میں محسوس کر رہا/رہی ہوں...", optional: "ضروری", speakUrdu: "یہ اردو میں سنیں", speaking: "اردو آواز تیار ہو رہی ہے...", speechError: "اردو آواز دستیاب نہیں", submitText: "جمع کریں", submittingText: "تجزیہ ہو رہا ہے...", textSentiment: "جذباتی کیفیت", textSubmitHint: "صرف تجزیے کے لیے بھیجا گیا - کبھی ڈیٹا بیس میں محفوظ نہیں کیا جاتا۔", clinical: "طبی جائزہ", clinicalDescription: "PHQ-9 ایک مستند سوالنامہ ہے جسے ماہرین صحت استعمال کرتے ہیں۔ گزشتہ دو ہفتوں کے بارے میں سوچیں۔", question: "سوال", back: "واپس", next: "اگلا ٹیسٹ", review: "جوابات کا جائزہ", estimate: "موجودہ اندازہ", picture: "آپ کی مجموعی کیفیت", pictureDescription: "اپنا جائزہ مکمل کریں تاکہ تمام اشارے ایک ساتھ دیکھے جا سکیں۔", seeCheckIn: "میرا جائزہ دیکھیں", disclaimer: "MindHx ایک ابتدائی اسکریننگ اور رہنمائی کا ذریعہ ہے، تشخیص نہیں۔ آپ کے نتائج کسی مستند ماہر سے گفتگو کا آغاز ہیں۔ سوالنامے کا اردو متن اس سیشن کے لیے ترجمہ کیا گیا ہے؛ حتمی الفاظ کے لیے انگریزی نسخہ ملاحظہ کریں۔", modalEyebrow: "آپ کا نجی جائزہ", modalTitle: "آپ کے اشارے جائزے کے لیے تیار ہیں۔", modalDescription: "MindHx تینوں اشاروں کو ایک قابلِ وضاحت اندازے میں یکجا کرتا ہے۔ اس نتیجے کی تشریح کسی ماہر کو آپ کے ساتھ کرنی چاہیے۔", modalScore: "اندازاً سگنل کی شدت", continue: "نتائج کی طرف جائیں", bannerCaption: "آہستہ چلیں۔ اشارے کو محسوس کریں۔", aboutEyebrow: "MindHx کے بارے میں", aboutTitle: "MindHx کو سمجھنا", aboutTeaserBody: "یہ کیوں موجود ہے، تینوں اشارے مل کر کیسے کام کرتے ہیں، ہم کیا کبھی محفوظ نہیں کرتے، اور یہ کس کے لیے بنایا گیا ہے۔", aboutTeaserCta: "مکمل کہانی پڑھیں", startTests: "ٹیسٹ شروع کریں", continueTests: "ٹیسٹ جاری رکھیں", reviewTests: "اپنے جوابات کا جائزہ لیں",
+    eyebrow: "ابتدائی اشارے، انسانی نگہداشت", title: "اپنا حال جانچیں۔", intro: "اپنی کیفیت میں آنے والی تبدیلیوں کو سمجھنے کا ایک پُرسکون اور نجی طریقہ۔ MindHx آپ کی آواز، الفاظ اور مختصر طبی سوالنامے کو یکجا کرتا ہے۔", ready: "سیشن تیار ہے", private: "نجی اور محفوظ", sound: "آپ کی آواز", soundDescription: "انگریزی یا اردو میں ایک مختصر صوتی پیغام ریکارڈ کریں۔ ہم الفاظ کے بجائے آواز کے انداز میں آنے والی تبدیلیوں کو دیکھتے ہیں۔", record: "صوتی پیغام ریکارڈ کریں", stop: "ریکارڈنگ روکیں", listening: "سن رہے ہیں... مکمل کرنے کے لیے دبائیں", processing: "محفوظ طریقے سے متن تیار کیا جا رہا ہے...", recordingHint: "60 سیکنڈ تک · کچھ محفوظ نہیں کیا جاتا", transcriptReady: "متن نیچے شامل کر دیا گیا ہے", voiceError: "مائیکروفون یا متن کی سہولت دستیاب نہیں", micBlocked: "مائیکروفون کی اجازت روک دی گئی ہے۔ براؤزر کے ایڈریس بار میں اس سائٹ کے لیے مائیکروفون کی اجازت دیں، پھر دوبارہ کوشش کریں۔", micMissing: "کوئی مائیکروفون نہیں ملا۔ مائیکروفون لگائیں، یا نیچے لکھ کر بتائیں کہ آپ کیسا محسوس کر رہے ہیں۔", micUnsupported: "یہ براؤزر یہاں آواز ریکارڈ نہیں کر سکتا۔ صفحہ Chrome، Edge، Firefox یا Safari میں کھولیں، یا نیچے لکھیں۔", transcriptionFailed: "آپ کا صوتی پیغام ابھی متن میں نہیں بدلا جا سکا۔ آپ کی آواز کا انداز پھر بھی جانچا گیا - دوبارہ کوشش کریں یا نیچے لکھیں۔", transcriptionOff: "اس سرور پر آواز سے متن کی سہولت فعال نہیں، اس لیے آپ کے الفاظ لکھے نہیں جا سکے۔ آپ کی آواز کا انداز پھر بھی جانچا گیا - آپ نیچے لکھ کر بتا سکتے ہیں کہ آپ کیسا محسوس کر رہے ہیں۔", words: "آپ کے الفاظ", wordsDescription: "حال ہی میں آپ کیسا محسوس کر رہے ہیں، اس کے بارے میں کچھ لکھیں۔ جتنا مناسب لگے اتنا ہی لکھیں۔", placeholder: "میں محسوس کر رہا/رہی ہوں...", optional: "ضروری", speakUrdu: "یہ اردو میں سنیں", speaking: "اردو آواز تیار ہو رہی ہے...", speechError: "اردو آواز دستیاب نہیں", submitText: "جمع کریں", submittingText: "تجزیہ ہو رہا ہے...", textSentiment: "جذباتی کیفیت", textSubmitHint: "فوراً تجزیہ کیا جاتا ہے۔ صرف آپ کی محفوظ شدہ جائزہ رپورٹ میں رکھا جاتا ہے، جسے آپ اپنے ڈیش بورڈ سے حذف کر سکتے ہیں۔", clinical: "طبی جائزہ", clinicalDescription: "PHQ-9 ایک مستند سوالنامہ ہے جسے ماہرین صحت استعمال کرتے ہیں۔ گزشتہ دو ہفتوں کے بارے میں سوچیں۔", question: "سوال", back: "واپس", next: "اگلا ٹیسٹ", review: "جوابات کا جائزہ", estimate: "موجودہ اندازہ", picture: "آپ کی مجموعی کیفیت", pictureDescription: "اپنا جائزہ مکمل کریں تاکہ تمام اشارے ایک ساتھ دیکھے جا سکیں۔", seeCheckIn: "میرا جائزہ دیکھیں", startCheckIn: "اپنا جائزہ شروع کریں", disclaimer: "MindHx ایک ابتدائی اسکریننگ اور رہنمائی کا ذریعہ ہے، تشخیص نہیں۔ آپ کے نتائج کسی مستند ماہر سے گفتگو کا آغاز ہیں۔ سوالنامے کا اردو متن اس سیشن کے لیے ترجمہ کیا گیا ہے؛ حتمی الفاظ کے لیے انگریزی نسخہ ملاحظہ کریں۔", modalEyebrow: "آپ کا نجی جائزہ", modalTitle: "آپ کے اشارے جائزے کے لیے تیار ہیں۔", modalDescription: "MindHx تینوں اشاروں کو ایک قابلِ وضاحت اندازے میں یکجا کرتا ہے۔ اس نتیجے کی تشریح کسی ماہر کو آپ کے ساتھ کرنی چاہیے۔", modalScore: "اندازاً سگنل کی شدت", continue: "نتائج کی طرف جائیں", bannerCaption: "آہستہ چلیں۔ اشارے کو محسوس کریں۔", aboutEyebrow: "MindHx کے بارے میں", aboutTitle: "MindHx کو سمجھنا", aboutTeaserBody: "یہ کیوں موجود ہے، تینوں اشارے مل کر کیسے کام کرتے ہیں، ہم کیا محفوظ کرتے ہیں اور کیا نہیں، اور یہ کس کے لیے بنایا گیا ہے۔", aboutTeaserCta: "مکمل کہانی پڑھیں", startTests: "ٹیسٹ شروع کریں", continueTests: "ٹیسٹ جاری رکھیں", reviewTests: "اپنے جوابات کا جائزہ لیں",
     heroTitleA: "اشارے کو پہچانیں۔", heroTitleB: "انسانی رابطہ برقرار رکھیں۔", voiceOptional: "اختیاری", recordingHintFull: "60 سیکنڈ تک · خود بخود رک جاتا ہے · آواز کبھی محفوظ نہیں کی جاتی", voiceTone: "آواز کا انداز", wordChoice: "الفاظ کے انتخاب کا جائزہ", signInToView: "نتائج دیکھنے کے لیے سائن ان کریں یا اکاؤنٹ بنائیں۔",
     contextKicker: "نجی سیشن کا سیاق", contextReady: "اس سیشن کے لیے آپ کا سیاق تیار ہے۔", contextPrompt: "ذاتی سیاق MindHx کو بہتر مدد دینے میں مدد کرتا ہے۔", contextBody: "صرف عمر کی حد، اور اختیاری طور پر جنس، ازدواجی حیثیت اور زندگی کی صورتحال، اسی سیشن کے دوران استعمال ہوتی ہیں - یہ آپ کے اکاؤنٹ میں محفوظ نہیں ہوتیں۔", contextEdit: "سیاق میں ترمیم کریں", contextSet: "سیشن کا سیاق طے کریں",
     modalContextTitle: "صرف وہی بتائیں جو مددگار ہو۔", modalContextBody: "عمر کی حد کے علاوہ یہ تمام خانے اختیاری ہیں۔ یہ صرف اسی سیشن کے دوران یادداشت میں رہتے ہیں اور آپ کے اکاؤنٹ میں محفوظ نہیں ہوتے۔", ageRange: "عمر کی حد", genderOptional: "جنس (اختیاری)", relationship: "ازدواجی حیثیت", lifeContext: "زندگی کی صورتحال (اختیاری)", preferNot: "بتانا نہیں چاہتے", updateContext: "سیشن کا سیاق اپ ڈیٹ کریں", continuePrivately: "نجی طور پر جاری رکھیں", modalAuthA: "سائن ان کریں", modalAuthOr: "یا", modalAuthB: "اکاؤنٹ بنائیں", modalAuthC: "تاکہ اپنے جائزے کے نتائج دیکھ سکیں اور اپنی تاریخ محفوظ کر سکیں۔", closeLabel: "بند کریں", openProfile: "نجی پروفائل کھولیں",
@@ -52,6 +54,11 @@ function cooldownMessage(eligibility: CheckInEligibility, isUrdu: boolean): stri
 }
 
 const MAX_RECORDING_MS = 60_000;
+
+// 75 -> "1:15"
+function formatRecordingTime(totalSeconds: number): string {
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
 const MAX_TYPED_TEXT = 500;
 
 // MediaRecorder formats differ by browser: Chrome/Firefox record WebM,
@@ -82,6 +89,8 @@ export default function HomeClient() {
   const [language, setLanguage] = useLanguage();
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  // Seconds since recording started, shown next to the stop button.
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -121,6 +130,22 @@ export default function HomeClient() {
       clearTimeout(timer);
     };
   }, [answers, gadAnswers, k10Answers, textSubmitResult, voiceFeatures]);
+  // A signed-in account already gave its age range (and optional details)
+  // at registration - prefill them rather than asking again. Anything set
+  // in this session wins.
+  useEffect(() => {
+    if (!isLoggedIn()) return;
+    fetchCurrentUser().then((user) => {
+      if (!user) return;
+      startTransition(() => setProfile((current) => ({
+        ...current,
+        ageRange: current.ageRange || user.age_range || "",
+        gender: current.gender || user.gender || "",
+        maritalStatus: current.maritalStatus || user.marital_status || "",
+        lifeContext: current.lifeContext || user.life_context || "",
+      })));
+    });
+  }, []);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
   const [resumeNotice, setResumeNotice] = useState("");
@@ -243,6 +268,13 @@ export default function HomeClient() {
     if (recordingTimer.current) clearTimeout(recordingTimer.current);
   }, []);
 
+  useEffect(() => {
+    if (!recording) return;
+    const startedAt = Date.now();
+    const tick = setInterval(() => setRecordingSeconds(Math.min(MAX_RECORDING_MS / 1000, Math.floor((Date.now() - startedAt) / 1000))), 250);
+    return () => clearInterval(tick);
+  }, [recording]);
+
   async function handleVoiceToggle() {
     if (recording) {
       stopRecording();
@@ -251,6 +283,12 @@ export default function HomeClient() {
 
     try {
       setVoiceError("");
+      // Missing entirely on insecure (non-https, non-localhost) pages and in
+      // embedded browsers such as an editor's preview pane.
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        setVoiceError(text.micUnsupported);
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const format = pickRecordingFormat();
       const recorder = format.mimeType ? new MediaRecorder(stream, { mimeType: format.mimeType }) : new MediaRecorder(stream);
@@ -268,11 +306,19 @@ export default function HomeClient() {
           formData.append("file", audioBlob, fileName);
           formData.append("language", language === "اردو" ? "ur" : "en");
           const response = await fetch(`${API_BASE}/transcribe`, { method: "POST", body: formData });
-          if (!response.ok) throw new Error("Transcription failed");
-          const result = await response.json() as { text: string };
-          setTranscript(result.text);
+          const notConfigured = response.status === 503 && /not configured/i.test((await response.clone().json().catch(() => ({})) as { detail?: string }).detail ?? "");
+          if (notConfigured) {
+            // No speech-to-text configured (OPENAI_API_KEY unset): say so,
+            // rather than implying the microphone is broken. Voice tone is
+            // still analysed below.
+            setVoiceError(text.transcriptionOff);
+          } else {
+            if (!response.ok) throw new Error("Transcription failed");
+            const result = await response.json() as { text: string };
+            setTranscript(result.text);
+          }
         } catch {
-          setVoiceError(text.voiceError);
+          setVoiceError(text.transcriptionFailed);
         } finally {
           setTranscribing(false);
         }
@@ -289,10 +335,19 @@ export default function HomeClient() {
       };
       mediaRecorder.current = recorder;
       recorder.start();
+      setRecordingSeconds(0);
       setRecording(true);
       recordingTimer.current = setTimeout(stopRecording, MAX_RECORDING_MS);
-    } catch {
-      setVoiceError(text.voiceError);
+    } catch (error) {
+      // Say which part failed, so a blocked permission isn't mistaken for a
+      // broken feature.
+      const name = error instanceof DOMException ? error.name : "";
+      setVoiceError(
+        name === "NotAllowedError" || name === "SecurityError" ? text.micBlocked
+          : name === "NotFoundError" || name === "OverconstrainedError" ? text.micMissing
+            : name === "NotSupportedError" ? text.micUnsupported
+              : text.voiceError,
+      );
     }
   }
 
@@ -395,34 +450,30 @@ export default function HomeClient() {
       // PHQ-9 and the crisis flags are always recomputed by /risk-assess from
       // the raw answers and text; textAnalysis is passed only so it doesn't
       // repeat the (possibly LLM-backed) text read for sentiment.
-      const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers, k10_answers: k10Answers.map((answer) => answer + 1), profile: { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode }, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
+      const riskResponse = await fetch(`${API_BASE}/risk-assess`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transcript, typed_text: typedText, language: languageCode, phq9_answers: answers, gad7_answers: gadAnswers.every((answer) => answer > -1) ? gadAnswers : null, k10_answers: k10Answers.every((answer) => answer > -1) ? k10Answers.map((answer) => answer + 1) : null, profile: { age_range: profile.ageRange, gender: profile.gender || null, marital_status: profile.maritalStatus || null, life_context: profile.lifeContext || null, preferred_language: languageCode }, text_analysis: textAnalysis ?? {}, voice_features: voiceFeatures }) });
       if (!riskResponse.ok) throw new Error("Risk assessment unavailable");
       const result = await riskResponse.json();
+      // A new result - saved below (scores + PDF report) to the user's
+      // history; see lib/checkinHistory.ts.
+      resetSaveProgress();
       sessionStorage.setItem("mindhx:last-result", JSON.stringify(result));
-      // Full per-question detail for the PDF export - browser-only, never sent
-      // to or stored on the backend (the account only ever gets the scores,
-      // bands, themes, and per-section summaries in `result`).
-      sessionStorage.setItem("mindhx:last-checkin-detail", JSON.stringify({
+      // Full per-question detail, transcript, and written text - used for the
+      // PDF report, which /results saves to the user's account.
+      const checkInDetail = {
         language,
         transcript,
         typedText,
         phq9: questions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][answers[index]] ?? null })),
         gad7: gadQuestions[languageKey].map((questionText, index) => ({ question: questionText, answer: answerOptions[languageKey][gadAnswers[index]] ?? null })),
         k10: k10Questions[languageKey].map((questionText, index) => ({ question: questionText, answer: k10Options[languageKey][k10Answers[index]] ?? null })),
-      }));
-      saveCheckIn({
-        riskScore: result.risk_score,
-        band: result.band,
-        routingDecision: result.routing_decision,
-        themes: result.themes ?? [],
-        components: result.components,
-        supportPlan: result.support_plan,
-        // A crisis check-in can reach here with GAD-7/K10 unfinished; only
-        // complete sets are saved (the backend rejects partial ones).
-        answers: isComplete && gadAnswers.every((answer) => answer > -1) && k10Answers.every((answer) => answer > -1)
-          ? { phq9: answers, gad7: gadAnswers, k10: k10Answers.map((answer) => answer + 1) }
-          : undefined,
-      });
+      };
+      sessionStorage.setItem("mindhx:last-checkin-detail", JSON.stringify(checkInDetail));
+      // Saved now rather than only when /results opens, since the stage page
+      // comes first and not everyone goes on to the full report. /results
+      // finds it already saved (or retries and shows the error if this failed).
+      fetchCurrentUser()
+        .then((user) => user && saveResultToHistory(result, { name: user.full_name, email: user.email }, checkInDetail))
+        .catch(() => {});
       router.push("/recommendations");
     } catch {
       if (crisisSource) {
@@ -456,7 +507,7 @@ export default function HomeClient() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><img className="brand-mark" src="/logo-mark.png" alt="" /><span>Mind<span className="brand-accent">Hx</span></span></div><nav className="topbar-nav" aria-label="MindHx resources"><Link href="/medication">Medication</Link><Link href="/ai">MindHx AI</Link><Link href="/meditation">Meditation</Link><Link href="/therapies">Therapies</Link><Link href="/therapist">Therapist</Link><Link href="/resources">Resources</Link><Link href="/emergency" className="topbar-nav-emergency">Emergency support</Link></nav><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
+      <header className="topbar"><div className="brand"><img className="brand-mark" src="/logo-mark.png" alt="" /><span>Mind<span className="brand-accent">Hx</span></span></div><SiteNav isUrdu={language === "اردو"} /><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
       <main className="workspace" dir={language === "اردو" ? "rtl" : "ltr"}>
         <section className="intro intro-banner">
           <TreeScene className="intro-tree-bg" />
@@ -466,7 +517,7 @@ export default function HomeClient() {
               <h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1>
               <p className="intro-copy">{text.intro}</p>
               <div className="hero-actions">
-                <button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.seeCheckIn} <span>↓</span></button>
+                <button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.startCheckIn} <span>↓</span></button>
                 <span className="status-pill"><span className="pulse" /> {text.ready}</span>
               </div>
               {cooldown && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")} <Link href="/dashboard">{language === "اردو" ? "ڈیش بورڈ دیکھیں" : "View your dashboard"} →</Link></p>}
@@ -476,7 +527,7 @@ export default function HomeClient() {
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2><p>{text.contextBody}</p></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
         <div className="signal-grid">
-          <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 01</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button><span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{voiceFeatures.emotion && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}</article>
+          <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 01</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button>{recording && <span className="recording-timer" role="timer" aria-label={language === "اردو" ? "ریکارڈنگ کا وقت" : "Recording time"}><span className="recording-timer-dot" aria-hidden="true" />{formatRecordingTime(recordingSeconds)} / {formatRecordingTime(MAX_RECORDING_MS / 1000)}</span>}<span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{voiceFeatures.emotion && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}</article>
           <article className="signal-card signal-card-words"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => { setTypedText(event.target.value); setTextSubmitResult(null); }} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
           <article className="signal-card signal-card-clinical">
             <div className="clinical-card-body">

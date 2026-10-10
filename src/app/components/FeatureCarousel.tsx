@@ -72,6 +72,7 @@ export default function FeatureCarousel({ isUrdu = false }: { isUrdu?: boolean }
             key={slide.href}
             type="button"
             className={`feature-carousel-dot ${index === active ? "active" : ""}`}
+            aria-current={index === active ? "true" : undefined}
             aria-label={`${isUrdu ? "سلائیڈ" : "Slide"} ${index + 1}`}
             onClick={() => setActive(index)}
           />

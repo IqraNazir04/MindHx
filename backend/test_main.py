@@ -1,5 +1,7 @@
 import asyncio
+import json
 
+import anthropic
 import httpx
 import numpy as np
 from fastapi.testclient import TestClient
@@ -13,6 +15,12 @@ from models import CheckIn
 
 init_db()
 client = TestClient(app)
+
+
+def _signed(record: dict) -> dict:
+    """A POST /checkins body for record, signed the way /risk-assess signs
+    its results (the endpoint no longer takes scores straight from the client)."""
+    return {"assessment_token": main.sign_assessment({"themes": [], **record})}
 
 
 def test_register_login_and_read_me() -> None:
@@ -166,7 +174,7 @@ def test_admin_users_list_shows_checkin_counts_and_requires_admin() -> None:
 
     # Two check-ins for the member, none for the admin - the count must be per-user.
     for _ in range(2):
-        client.post("/checkins", json={"risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed"}, headers=member_headers)
+        client.post("/checkins", json=_signed({"risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed"}), headers=member_headers)
 
     users_response = client.get("/admin/users", headers=admin_headers)
     assert users_response.status_code == 200
@@ -256,7 +264,7 @@ def test_reset_password_updates_password_and_single_use_token(monkeypatch) -> No
 
 
 def test_checkins_require_auth_and_round_trip() -> None:
-    unauthenticated_response = client.post("/checkins", json={"risk_score": 0.5, "band": "watch", "routing_decision": "no_referral_needed"})
+    unauthenticated_response = client.post("/checkins", json=_signed({"risk_score": 0.5, "band": "watch", "routing_decision": "no_referral_needed"}))
     assert unauthenticated_response.status_code == 401
 
     register_response = client.post("/auth/register", json={"email": "history-user@example.com", "password": "correct-horse-battery"})
@@ -277,11 +285,11 @@ def test_checkins_require_auth_and_round_trip() -> None:
     # something that needs its own rejection path.
     create_response = client.post(
         "/checkins",
-        json={
+        json=_signed({
             "risk_score": 0.42, "band": "watch", "routing_decision": "no_referral_needed", "themes": ["anxiety", "hardship"],
             "components": components, "support_plan": support_plan,
             "transcript": "this should be silently ignored, not stored", "typed_text": "same here",
-        },
+        }),
         headers=headers,
     )
     assert create_response.status_code == 201
@@ -361,7 +369,7 @@ def test_phq9_item_nine_short_circuits() -> None:
 
 
 def test_risk_assessment_returns_referral_for_elevated_phq() -> None:
-    response = client.post("/risk-assess", json={"phq9_answers": [2, 2, 2, 2, 2, 2, 2, 2, 0]})
+    response = client.post("/risk-assess", json={"phq9_answers": [2, 2, 2, 2, 2, 2, 2, 2, 0], "gad7_answers": [0] * 7, "k10_answers": [1] * 10})
     body = response.json()
     assert response.status_code == 200
     assert body["crisis_flag"] is False
@@ -369,6 +377,40 @@ def test_risk_assessment_returns_referral_for_elevated_phq() -> None:
     assert set(body["components"]) == {"phq9", "gad7", "k10", "text", "voice", "combined_signal", "attribution"}
     assert body["components"]["attribution"]["method"] == "additive_signal_attribution"
     assert {item["name"] for item in body["components"]["attribution"]["contributions"]} == {"phq9", "gad7", "k10", "text"}
+
+
+def test_unfinished_questionnaires_are_not_scored_as_symptom_free() -> None:
+    body = client.post("/risk-assess", json={"phq9_answers": [0] * 9, "typed_text": "I feel hopeless and alone"}).json()
+    assert body["components"]["gad7"] == {"signal": None, "score": None, "band": "not_answered"}
+    assert body["components"]["k10"]["band"] == "not_answered"
+    assert {item["name"] for item in body["components"]["attribution"]["contributions"]} == {"phq9", "text"}
+    assert "GAD-7 was not answered" in body["explanation"][1]
+
+
+def test_out_of_range_answers_are_rejected_not_clamped() -> None:
+    assert client.post("/score-phq9", json={"answers": [99, -5, 3, 3, 3, 3, 3, 3, 0]}).status_code == 422
+    assert client.post("/score-gad7", json={"answers": [4, 0, 0, 0, 0, 0, 0]}).status_code == 422
+    assert client.post("/score-k10", json={"answers": [0] * 10}).status_code == 422
+    assert client.post("/risk-assess", json={"phq9_answers": [0] * 9, "gad7_answers": [-1] * 7}).status_code == 422
+    assert client.post("/risk-assess", json={"phq9_answers": [0] * 9, "k10_answers": [0] * 10}).status_code == 422
+
+
+def test_saved_checkin_comes_from_the_signed_assessment_not_the_client() -> None:
+    headers = _auth(client.post("/auth/register", json={"email": "forged-checkin@example.com", "password": "correct-horse-battery"}).json()["access_token"])
+    forged = {"risk_score": 0.0, "band": "totally_fine", "routing_decision": "none", "components": {"phq9": {"score": -500}}}
+    assert client.post("/checkins", json=forged, headers=headers).status_code == 422
+    assert client.post("/checkins", json={"assessment_token": "not-a-token"}, headers=headers).status_code == 422
+    # A login token is signed with the same key but isn't an assessment.
+    assert client.post("/checkins", json={"assessment_token": headers["Authorization"].split()[1]}, headers=headers).status_code == 422
+
+    assessed = client.post("/risk-assess", json={
+        "phq9_answers": VALID_ANSWERS["phq9"], "gad7_answers": VALID_ANSWERS["gad7"], "k10_answers": VALID_ANSWERS["k10"], "typed_text": "work has been stressful",
+    }).json()
+    saved = client.post("/checkins", json={"assessment_token": assessed["assessment_token"]}, headers=headers)
+    assert saved.status_code == 201
+    body = saved.json()
+    assert body["risk_score"] == assessed["risk_score"] and body["band"] == assessed["band"]
+    assert body["answers"] == VALID_ANSWERS
 
 
 def test_gad7_and_k10_scores_route_to_structured_referral() -> None:
@@ -625,8 +667,8 @@ def test_ai_chat_uses_signed_in_users_trajectory_and_practices() -> None:
     token = register_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    client.post("/checkins", json={"risk_score": 0.15, "band": "low", "routing_decision": "no_referral_needed", "themes": []}, headers=headers)
-    client.post("/checkins", json={"risk_score": 0.45, "band": "elevated", "routing_decision": "refer", "themes": ["anxiety"]}, headers=headers)
+    client.post("/checkins", json=_signed({"risk_score": 0.15, "band": "low", "routing_decision": "no_referral_needed", "themes": []}), headers=headers)
+    client.post("/checkins", json=_signed({"risk_score": 0.45, "band": "elevated", "routing_decision": "refer", "themes": ["anxiety"]}), headers=headers)
     client.post("/mood-checkins", json={"mood": 4}, headers=headers)
     client.post("/mood-checkins", json={"mood": 2}, headers=headers)
     client.post("/helpful-practices", json={"practice_name": "5-4-3-2-1 grounding"}, headers=headers)
@@ -769,10 +811,10 @@ def test_combined_score_reaches_full_range_without_a_voice_note() -> None:
 
 def test_checkin_themes_are_limited_to_known_values() -> None:
     headers = {"Authorization": f"Bearer {client.post('/auth/register', json={'email': 'themes@example.com', 'password': 'correct-horse-battery'}).json()['access_token']}"}
-    response = client.post("/checkins", json={
+    response = client.post("/checkins", json=_signed({
         "risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed",
         "themes": ["anxiety", "x" * 150, "anxiety", "grief"],
-    }, headers=headers)
+    }), headers=headers)
     assert response.status_code == 201
     assert response.json()["themes"] == ["anxiety", "grief"]
 
@@ -906,6 +948,64 @@ def test_admin_user_list_includes_last_login() -> None:
     assert rows["last-login-admin@example.com"]["last_login_at"]
 
 
+# --- Saved PDF reports ---
+
+FAKE_PDF = b"%PDF-1.3\n% MindHx test report\n%%EOF\n"
+
+
+def _new_checkin(token: str) -> str:
+    return client.post("/checkins", json=_signed({"risk_score": 0.3, "band": "watch", "routing_decision": "no_referral_needed"}), headers=_auth(token)).json()["id"]
+
+
+def test_checkin_report_can_be_saved_downloaded_replaced_and_deleted() -> None:
+    token = client.post("/auth/register", json={"email": "report@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    check_in_id = _new_checkin(token)
+    assert client.get("/checkins", headers=_auth(token)).json()[0]["has_report"] is False
+
+    upload = client.put(f"/checkins/{check_in_id}/report", files={"file": ("report.pdf", FAKE_PDF, "application/pdf")}, headers=_auth(token))
+    assert upload.status_code == 201
+    assert client.get("/checkins", headers=_auth(token)).json()[0]["has_report"] is True
+
+    download = client.get(f"/checkins/{check_in_id}/report", headers=_auth(token))
+    assert download.status_code == 200
+    assert download.content == FAKE_PDF
+    assert download.headers["content-type"] == "application/pdf"
+    assert "attachment" in download.headers["content-disposition"] and ".pdf" in download.headers["content-disposition"]
+    assert download.headers["cache-control"] == "no-store"
+
+    replacement = FAKE_PDF + b"% v2\n"
+    client.put(f"/checkins/{check_in_id}/report", files={"file": ("report.pdf", replacement, "application/pdf")}, headers=_auth(token))
+    assert client.get(f"/checkins/{check_in_id}/report", headers=_auth(token)).content == replacement
+
+    assert client.delete(f"/checkins/{check_in_id}/report", headers=_auth(token)).status_code == 204
+    assert client.get(f"/checkins/{check_in_id}/report", headers=_auth(token)).status_code == 404
+    # The check-in itself (scores) stays in history.
+    history = client.get("/checkins", headers=_auth(token)).json()
+    assert len(history) == 1 and history[0]["has_report"] is False
+
+
+def test_checkin_reports_are_private_to_their_owner() -> None:
+    owner = client.post("/auth/register", json={"email": "report-owner@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    other = client.post("/auth/register", json={"email": "report-other@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    check_in_id = _new_checkin(owner)
+    client.put(f"/checkins/{check_in_id}/report", files={"file": ("r.pdf", FAKE_PDF, "application/pdf")}, headers=_auth(owner))
+
+    assert client.get(f"/checkins/{check_in_id}/report").status_code == 401
+    assert client.get(f"/checkins/{check_in_id}/report", headers=_auth(other)).status_code == 404
+    assert client.put(f"/checkins/{check_in_id}/report", files={"file": ("r.pdf", FAKE_PDF, "application/pdf")}, headers=_auth(other)).status_code == 404
+    assert client.delete(f"/checkins/{check_in_id}/report", headers=_auth(other)).status_code == 404
+    assert client.get(f"/checkins/{check_in_id}/report", headers=_auth(owner)).status_code == 200
+
+
+def test_checkin_report_rejects_non_pdf_and_oversized_uploads() -> None:
+    token = client.post("/auth/register", json={"email": "report-bad@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    check_in_id = _new_checkin(token)
+    not_pdf = client.put(f"/checkins/{check_in_id}/report", files={"file": ("x.pdf", b"<html>nope</html>", "application/pdf")}, headers=_auth(token))
+    assert not_pdf.status_code == 400
+    too_big = client.put(f"/checkins/{check_in_id}/report", files={"file": ("x.pdf", b"%PDF-" + b"0" * (main.MAX_REPORT_BYTES + 1), "application/pdf")}, headers=_auth(token))
+    assert too_big.status_code == 413
+
+
 VALID_ANSWERS = {"phq9": [1, 2, 0, 3, 1, 0, 2, 1, 0], "gad7": [2, 2, 1, 0, 1, 3, 0], "k10": [1, 2, 3, 4, 5, 1, 2, 3, 4, 5]}
 
 
@@ -914,13 +1014,13 @@ def test_checkin_answers_are_saved_and_only_admins_can_read_them() -> None:
     member_token = client.post("/auth/register", json={"email": "answers-member@example.com", "password": "correct-horse-battery"}).json()["access_token"]
     member_headers = _auth(member_token)
 
-    with_answers = client.post("/checkins", json={"risk_score": 0.4, "band": "elevated", "routing_decision": "refer", "answers": VALID_ANSWERS}, headers=member_headers)
+    with_answers = client.post("/checkins", json=_signed({"risk_score": 0.4, "band": "elevated", "routing_decision": "refer", "answers": VALID_ANSWERS}), headers=member_headers)
     assert with_answers.status_code == 201
     # The member sees their own answers in their own history.
     assert with_answers.json()["answers"] == VALID_ANSWERS
     assert client.get("/checkins", headers=member_headers).json()[0]["answers"] == VALID_ANSWERS
     # A check-in saved without answers (older client, or incomplete questionnaires) still saves.
-    assert client.post("/checkins", json={"risk_score": 0.1, "band": "low", "routing_decision": "no_referral_needed"}, headers=member_headers).status_code == 201
+    assert client.post("/checkins", json=_signed({"risk_score": 0.1, "band": "low", "routing_decision": "no_referral_needed"}), headers=member_headers).status_code == 201
 
     member_id = client.get("/auth/me", headers=member_headers).json()["id"]
     assert client.get(f"/admin/users/{member_id}/checkins").status_code == 401
@@ -947,7 +1047,7 @@ def test_checkin_answers_are_validated_item_by_item() -> None:
         {"phq9": VALID_ANSWERS["phq9"], "gad7": VALID_ANSWERS["gad7"]},  # missing a questionnaire
     ]
     for answers in invalid:
-        assert client.post("/checkins", json={**base, "answers": answers}, headers=headers).status_code == 422
+        assert client.post("/checkins", json=_signed({**base, "answers": answers}), headers=headers).status_code == 422
 
 
 def test_checkins_are_limited_to_one_per_cooldown_window(monkeypatch) -> None:
@@ -959,8 +1059,8 @@ def test_checkins_are_limited_to_one_per_cooldown_window(monkeypatch) -> None:
     fresh = client.get("/checkins/eligibility", headers=headers).json()
     assert fresh["can_check_in"] is True and fresh["next_available_at"] is None and fresh["cooldown_days"] == 7
 
-    assert client.post("/checkins", json=body, headers=headers).status_code == 201
-    blocked = client.post("/checkins", json=body, headers=headers)
+    assert client.post("/checkins", json=_signed(body), headers=headers).status_code == 201
+    blocked = client.post("/checkins", json=_signed(body), headers=headers)
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) > 6 * 86400
     waiting = client.get("/checkins/eligibility", headers=headers).json()
@@ -980,12 +1080,27 @@ def test_checkins_are_limited_to_one_per_cooldown_window(monkeypatch) -> None:
     finally:
         db.close()
     assert client.get("/checkins/eligibility", headers=headers).json()["can_check_in"] is True
-    assert client.post("/checkins", json=body, headers=headers).status_code == 201
+    assert client.post("/checkins", json=_signed(body), headers=headers).status_code == 201
 
     # Other accounts aren't affected by this one's cooldown.
     other = _auth(client.post("/auth/register", json={"email": "cooldown-other@example.com", "password": "correct-horse-battery"}).json()["access_token"])
-    assert client.post("/checkins", json=body, headers=other).status_code == 201
+    assert client.post("/checkins", json=_signed(body), headers=other).status_code == 201
 
+
+def test_checkin_keeps_both_its_answers_and_its_report() -> None:
+    token = client.post("/auth/register", json={"email": "answers-and-report@example.com", "password": "correct-horse-battery"}).json()["access_token"]
+    check_in_id = client.post("/checkins", json=_signed({
+        "risk_score": 0.4, "band": "elevated", "routing_decision": "refer", "answers": VALID_ANSWERS,
+    }), headers=_auth(token)).json()["id"]
+    client.put(f"/checkins/{check_in_id}/report", files={"file": ("r.pdf", FAKE_PDF, "application/pdf")}, headers=_auth(token))
+
+    entry = client.get("/checkins", headers=_auth(token)).json()[0]
+    assert entry["answers"] == VALID_ANSWERS
+    assert entry["has_report"] is True
+    # Deleting the report keeps the answers.
+    client.delete(f"/checkins/{check_in_id}/report", headers=_auth(token))
+    entry = client.get("/checkins", headers=_auth(token)).json()[0]
+    assert entry["answers"] == VALID_ANSWERS and entry["has_report"] is False
 
 def test_combined_estimate_matches_final_risk_assessment_and_ignores_incomplete_scales() -> None:
     phq9 = [1, 1, 1, 1, 1, 1, 1, 1, 0]
@@ -1163,3 +1278,142 @@ def test_admin_login_is_separate_and_refuses_non_admin_accounts() -> None:
     assert accepted.status_code == 200
     token = accepted.json()["access_token"]
     assert client.get("/admin/documents", headers={"Authorization": f"Bearer {token}"}).status_code == 200
+
+
+def test_common_and_trivial_passwords_are_rejected() -> None:
+    for weak in ["12345678", "password", "Password123", "aaaaaaaa", "!!!!@@@@##"]:
+        response = client.post("/auth/register", json={"email": f"weak-{abs(hash(weak))}@example.com", "password": weak})
+        assert response.status_code == 400, weak
+    assert client.post("/auth/register", json={"email": "strong-enough@example.com", "password": "maple-river-42"}).status_code == 201
+
+
+def test_saving_the_same_assessment_twice_returns_the_same_checkin(monkeypatch) -> None:
+    # e.g. the check-in page's save is retried by /results after a reload.
+    monkeypatch.setenv("CHECKIN_COOLDOWN_DAYS", "7")
+    headers = _auth(client.post("/auth/register", json={"email": "retry-save@example.com", "password": "correct-horse-battery"}).json()["access_token"])
+    token = client.post("/risk-assess", json={"phq9_answers": [1] * 8 + [0], "gad7_answers": [1] * 7, "k10_answers": [2] * 10}).json()["assessment_token"]
+    first = client.post("/checkins", json={"assessment_token": token}, headers=headers)
+    second = client.post("/checkins", json={"assessment_token": token}, headers=headers)
+    assert first.status_code == 201 and second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert len(client.get("/checkins", headers=headers).json()) == 1
+    # A different result inside the window is still refused.
+    other = client.post("/risk-assess", json={"phq9_answers": [0] * 9, "gad7_answers": [0] * 7, "k10_answers": [1] * 10}).json()["assessment_token"]
+    assert client.post("/checkins", json={"assessment_token": other}, headers=headers).status_code == 429
+
+
+class _FakeClaude:
+    """Stands in for anthropic.AsyncAnthropic: records each request and
+    returns the queued JSON reply (or raises the queued error)."""
+
+    def __init__(self, reply=None, error=None) -> None:
+        self.calls: list[dict] = []
+        self._reply, self._error = reply, error
+        fake = self
+
+        class _Messages:
+            async def create(self, **kwargs):
+                fake.calls.append(kwargs)
+                if fake._error:
+                    raise fake._error
+                block = type("Block", (), {"type": "text", "text": json.dumps(fake._reply)})()
+                return type("Response", (), {"stop_reason": "end_turn", "content": [block]})()
+
+        self.beta = type("Beta", (), {"messages": _Messages()})()
+
+
+def _use_claude(monkeypatch, fake: "_FakeClaude") -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(main, "_anthropic_client", lambda: fake)
+
+
+def test_analyze_text_uses_claude_with_a_schema_and_keeps_the_crisis_floor(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"sentiment": "neutral", "keyword_flags": [], "crisis_language": False, "anxiety_level": 0.2, "stress_level": 0.3, "depression_indicator": 0.9})
+    _use_claude(monkeypatch, fake)
+    body = client.post("/analyze-text", json={"text": "I want to kill myself", "language": "en"}).json()
+    assert body["provider"] == "claude"
+    assert body["crisis_language"] is True  # Claude saying False can't clear it
+    assert body["depression_indicator"] == 0.9
+    request = fake.calls[0]
+    assert request["model"] == main.claude_model()
+    assert request["output_config"]["format"]["schema"] == main.TRIAGE_CLASSIFICATION_SCHEMA
+    assert request["fallbacks"] == "default"
+
+
+def test_chat_uses_claude_and_maps_schema_placeholders(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"action": "respond", "message": "Grounding can help shift attention to your senses.", "offer_exercise": "none", "suggested_cta": {"label": "x", "href": "none"}})
+    _use_claude(monkeypatch, fake)
+    body = client.post("/ai/chat", json={
+        "message": "I feel anxious before exams", "language": "en", "risk_clear": True,
+        "history": [{"role": "assistant", "content": "Hi, how can I help?"}, {"role": "user", "content": "hello"}],
+    }).json()
+    assert body["generation"]["provider"] == "claude"
+    assert body["message"].startswith("Grounding")
+    assert "exercise" not in body and "suggested_cta" not in body
+    messages = fake.calls[0]["messages"]
+    assert messages[0]["role"] == "user"  # a leading assistant turn is dropped for Claude
+
+
+def test_claude_failure_falls_back_without_error(monkeypatch) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    outage = anthropic.InternalServerError("overloaded", response=httpx.Response(529, request=request), body=None)
+    _use_claude(monkeypatch, _FakeClaude(error=outage))
+    text = client.post("/analyze-text", json={"text": "I feel hopeless and alone", "language": "en"}).json()
+    assert text["provider"] == "heuristic" and text["sentiment"] == "negative"
+    chat = client.post("/ai/chat", json={"message": "what is CBT?", "language": "en", "risk_clear": True}).json()
+    assert chat["generation"]["provider"] == "approved-rag-library"
+
+
+def test_qwen_is_used_when_claude_fails(monkeypatch) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    outage = anthropic.InternalServerError("overloaded", response=httpx.Response(529, request=request), body=None)
+    _use_claude(monkeypatch, _FakeClaude(error=outage))
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    posted_to: list[str] = []
+    replies = iter([
+        {"sentiment": "negative", "keyword_flags": [], "crisis_language": False, "anxiety_level": 0.6, "stress_level": 0.5, "depression_indicator": 0.4},
+        {"action": "respond", "message": "Exam stress is common; a short grounding exercise can help.", "offer_exercise": None, "suggested_cta": None},
+    ])
+
+    class FakeResponse:
+        def __init__(self, content: dict) -> None:
+            self._content = content
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": json.dumps(self._content)}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, url, *args, **kwargs) -> FakeResponse:
+            posted_to.append(url)
+            return FakeResponse(next(replies))
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    text = client.post("/analyze-text", json={"text": "Exams make me anxious", "language": "en"}).json()
+    chat = client.post("/ai/chat", json={"message": "I feel anxious before exams", "language": "en", "risk_clear": True}).json()
+    assert text["provider"] == "qwen"
+    assert chat["generation"]["provider"] == "qwen"
+    assert all("dashscope" in url for url in posted_to) and len(posted_to) == 2
+
+
+def test_unmatched_message_gets_no_default_reference_card(monkeypatch) -> None:
+    fake = _FakeClaude(reply={"action": "respond", "message": "That sounds like a good kind of energy - what's coming up for you?", "offer_exercise": "none", "suggested_cta": {"label": "x", "href": "none"}})
+    _use_claude(monkeypatch, fake)
+    for message in ["i am excited, what should i do", "how can I sleep better?"]:
+        body = client.post("/ai/chat", json={"message": message, "language": "en", "risk_clear": True}).json()
+        assert body["sources"] == [] and body["intent"] == "general", (message, body)
+    assert "(No reference material matched this message.)" in fake.calls[-1]["messages"][-1]["content"]
+    # A real topic still brings its article.
+    body = client.post("/ai/chat", json={"message": "what is CBT therapy?", "language": "en", "risk_clear": True}).json()
+    assert [source["id"] for source in body["sources"]] == ["therapy"]

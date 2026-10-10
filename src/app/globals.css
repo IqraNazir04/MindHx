@@ -41,13 +41,28 @@ button { cursor:pointer; }
 .topbar-nav { display:flex; align-items:center; gap:18px; flex:1; overflow-x:auto; }
 .topbar-nav a { color:var(--muted); text-decoration:none; font-size:12px; white-space:nowrap; }
 .topbar-nav a:hover { color:var(--blue); }
-.topbar-nav a.topbar-nav-emergency { color:var(--red); font-weight:600; }
+.topbar-nav { min-width:0; }
+/* Emergency support stays outside the scrolling nav, so it is never clipped
+   and stays reachable at every width. */
+.topbar-emergency { flex:0 0 auto; display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:16px; border:1px solid rgba(201,76,76,.35); background:rgba(201,76,76,.08); color:var(--red); font-size:12px; font-weight:600; text-decoration:none; white-space:nowrap; }
+.topbar-emergency:hover { background:rgba(201,76,76,.14); }
+.topbar-emergency-short { display:none; }
+.nav-menu { position:relative; flex:0 0 auto; display:none; }
+.nav-menu-button { width:40px; height:40px; border:1px solid var(--line-cool); border-radius:10px; background:var(--surface); color:var(--navy); font-size:18px; cursor:pointer; }
+.nav-menu-panel { position:absolute; top:calc(100% + 8px); inset-inline-end:0; z-index:30; min-width:200px; display:flex; flex-direction:column; padding:8px; border:1px solid var(--line); border-radius:14px; background:var(--surface); box-shadow:0 18px 40px rgba(23,42,70,.16); }
+.nav-menu-panel a { display:block; padding:12px 14px; border-radius:9px; color:var(--navy); text-decoration:none; font-size:15px; }
+.nav-menu-panel a:hover, .nav-menu-panel a:focus-visible { background:var(--blue-soft); }
+.nav-menu-panel a.nav-menu-emergency { color:var(--red); font-weight:600; }
+.visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .topbar-right { display:flex; align-items:center; gap:26px; font-size:13px; color:var(--muted); flex:0 0 auto; }
 .privacy { display:flex; align-items:center; gap:7px; }
 .dot,.pulse { width:7px; height:7px; border-radius:50%; background:var(--teal); display:inline-block; }
 .language { border:0; color:var(--blue); background:none; }
 .avatar { width:31px; height:31px; border:1px solid var(--line-cool); border-radius:50%; background:var(--blue-soft); color:var(--blue); font-weight:600; }
-@media (max-width:960px) { .topbar-nav { display:none; } }
+@media (max-width:960px) { .topbar-nav { display:none; } .nav-menu { display:block; } }
+@media (max-width:560px) { .topbar-emergency-full { display:none; } .topbar-emergency-short { display:inline; } .topbar-emergency { padding:0 10px; } .topbar { gap:10px; } .topbar-right { gap:12px; } }
+/* Narrow phones: the logo mark alone, so the emergency link and menu fit. */
+@media (max-width:420px) { .topbar .brand > span:not(.brand-mark) { display:none; } .topbar-right { gap:8px; } }
 @media (max-width:720px) { .topbar { padding:0 20px; }.privacy { display:none; } }
 .workspace { max-width:1240px; margin:0 auto; padding:56px 30px 44px; position:relative; }
 .eyebrow,.card-kicker,.question-number { color:var(--blue); font:500 10px 'DM Mono',monospace; letter-spacing:1.6px; margin:0 0 12px; }
@@ -163,6 +178,10 @@ button { cursor:pointer; }
 .record-button,.next-button,.check-in-button { border:0; border-radius:7px; background:var(--blue); color:#fff; padding:12px 17px; font-size:13px; transition:.2s; }
 .record-button:hover,.next-button:hover,.check-in-button:hover { background:var(--blue-deep); transform:translateY(-1px); }
 .record-button.recording { background:var(--red); }
+.recording-timer { display:inline-flex; align-items:center; gap:7px; margin-inline-start:12px; color:var(--red); font:500 13px 'DM Mono',monospace; font-variant-numeric:tabular-nums; }
+.recording-timer-dot { width:8px; height:8px; border-radius:50%; background:var(--red); animation:recording-pulse 1.2s ease-in-out infinite; }
+@keyframes recording-pulse { 50% { opacity:.3; } }
+@media (prefers-reduced-motion:reduce) { .recording-timer-dot { animation:none; } }
 .check-in-button:disabled { opacity:.6; cursor:wait; }
 .record-icon { display:inline-block; width:9px; height:9px; border-radius:50%; background:#ffc078; margin-right:9px; }
 .microcopy,.text-footer { display:block; color:var(--muted); font-size:11px; margin-top:11px; }
@@ -229,9 +248,11 @@ textarea::placeholder { color:#9aa6b4; }
 .feature-slide p { margin:0; max-width:460px; color:var(--muted); font-size:13.5px; line-height:1.6; }
 .feature-slide-cta { margin-top:6px; color:var(--blue); font:600 12.5px 'DM Mono',monospace; text-decoration:none; }
 .feature-slide-cta:hover { text-decoration:underline; }
-.feature-carousel-dots { display:flex; justify-content:center; gap:8px; margin-top:24px; }
-.feature-carousel-dot { width:8px; height:8px; padding:0; border-radius:50%; border:0; background:var(--line-cool); }
-.feature-carousel-dot.active { background:var(--blue); width:22px; border-radius:5px; transition:width .2s ease; }
+.feature-carousel-dots { display:flex; justify-content:center; gap:0; margin-top:16px; }
+/* A 24px tap target around the small visible dot (drawn by ::before). */
+.feature-carousel-dot { display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 8px; border:0; background:none; cursor:pointer; }
+.feature-carousel-dot::before { content:""; display:block; width:8px; height:8px; border-radius:50%; background:var(--line-cool); }
+.feature-carousel-dot.active::before { background:var(--blue); width:22px; border-radius:5px; transition:width .2s ease; }
 
 /* ---------- Home / innovation grid ---------- */
 .innovation-grid-section { margin:56px 0 0; padding-top:40px; border-top:1px solid var(--line); }
@@ -628,6 +649,18 @@ textarea::placeholder { color:#9aa6b4; }
 @media (max-width:720px) { .profile-panel { flex-direction:column; align-items:flex-start; text-align:left; } }
 .dashboard-error,.dashboard-loading { position:relative; z-index:1; max-width:1120px; margin:0 auto; color:var(--muted); font-size:13px; }
 .dashboard-empty { position:relative; z-index:1; max-width:1120px; margin:0 auto; display:flex; flex-direction:column; align-items:flex-start; gap:16px; color:var(--muted); font-size:13px; }
+.results-save-status { position:relative; z-index:1; max-width:1120px; margin:0 auto 22px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 16px; padding:13px 18px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--navy); font-size:13px; line-height:1.5; }
+.results-save-status.is-saved { border-color:#bfe0cf; background:#eef8f2; }
+.results-save-status.is-error { border-color:#efc2bf; background:var(--red-soft); color:#8b3535; }
+.results-save-status a, .results-save-status button { color:var(--navy); font:600 12px 'DM Sans',sans-serif; white-space:nowrap; }
+.results-save-status button { border:1px solid currentColor; border-radius:999px; background:#fff; padding:6px 14px; cursor:pointer; }
+.dashboard-report-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 14px; padding:10px 18px 14px; border-top:1px dashed var(--line); color:var(--muted); font-size:12px; }
+.dashboard-report-row > div { display:flex; gap:8px; flex-wrap:wrap; }
+.dashboard-report-row button { border:1px solid var(--line); border-radius:999px; background:var(--surface-soft); color:var(--navy); padding:7px 13px; font:600 11px 'DM Sans',sans-serif; cursor:pointer; }
+.dashboard-report-row button:hover { border-color:var(--navy); }
+.dashboard-report-row button:disabled { opacity:.6; cursor:default; }
+.dashboard-report-row .dashboard-report-delete { background:none; color:#8b3535; }
+.dashboard-report-row .assessment-error { flex-basis:100%; margin:0; }
 .login-history { position:relative; z-index:1; max-width:900px; margin:40px auto 0; padding:22px; border:1px solid var(--line); border-radius:12px; background:var(--surface); }
 .login-history-heading { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
 .login-history-heading h2 { margin:4px 0 6px; color:var(--navy); font:500 24px 'Playfair Display',serif; }
@@ -780,9 +813,9 @@ textarea::placeholder { color:#9aa6b4; }
 .site-footer-wordmark { display:flex; align-items:center; gap:10px; color:#edf5fb; font-size:19px; font-weight:700; margin-bottom:14px; }
 .site-footer-brand p { color:#8fa8bb; font-size:12px; line-height:1.65; margin:0; }
 .site-footer-columns { display:flex; gap:50px; flex-wrap:wrap; }
-.site-footer-columns > div { display:flex; flex-direction:column; gap:11px; }
+.site-footer-columns > div { display:flex; flex-direction:column; gap:7px; }
 .site-footer-heading { color:#79b8e9; font:10px 'DM Mono',monospace; letter-spacing:1px; text-transform:uppercase; margin:0 0 3px; }
-.site-footer-columns a { color:#c7d5e2; font-size:13px; text-decoration:none; }
+.site-footer-columns a { color:#c7d5e2; font-size:13px; text-decoration:none; display:inline-flex; align-items:center; min-height:24px; }
 .site-footer-columns a:hover { color:#fff; text-decoration:underline; }
 .site-footer-emergency { color:#f0989c !important; }
 .site-footer-bottom { max-width:1120px; margin:0 auto; padding:20px 6vw 30px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; color:#6f8399; font-size:11px; }
@@ -855,4 +888,10 @@ textarea::placeholder { color:#9aa6b4; }
 
 /* Admin-published posts in the Meditation and Therapies sections */
 .admin-post-card-image { display:block; width:100%; height:150px; object-fit:cover; border-radius:10px; margin:0 0 14px; }
+
+.chat-escalation-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+
+/* Minimum 24px tap targets for small standalone links and buttons. */
+.topbar-account-link, .language, .resource-back, .feature-slide-cta, .chat-source a, .resource-links a { display:inline-flex; align-items:center; min-height:24px; }
+.language { cursor:pointer; padding:0 4px; }
 .admin-upload-hint { margin:0 0 18px; color:var(--muted); font-size:12px; }

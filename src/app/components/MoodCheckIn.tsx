@@ -26,6 +26,7 @@ export default function MoodCheckIn({ prompt, thanks, onSelect }: Props) {
             key={mood}
             type="button"
             className={`mood-checkin-face ${selected === mood ? "selected" : ""}`}
+            aria-pressed={selected === mood}
             onClick={() => handleSelect(mood)}
             aria-label={`Mood ${mood} of 5`}
           >

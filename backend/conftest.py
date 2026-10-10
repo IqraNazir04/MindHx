@@ -21,6 +21,12 @@ os.environ["RATE_LIMITS"] = "off"
 # Most tests save several check-ins for one account back to back; the
 # cooldown test turns the 7-day limit back on for itself.
 os.environ["CHECKIN_COOLDOWN_DAYS"] = "0"
+# Blank (not unset) so the backend/.env loader can't fill in real keys -
+# tests must never make paid API calls. Tests that need a provider set a
+# fake key and mock the client themselves.
+os.environ["ANTHROPIC_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["DASHSCOPE_API_KEY"] = ""
 
 
 @atexit.register

@@ -24,6 +24,8 @@ type ChatMessage = {
   exercise?: Exercise;
   suggestedCta?: SuggestedCta;
   isEscalation?: boolean;
+  // Where to get help, sent with an escalation (emergency support first).
+  resources?: { title: string; link: string }[];
 };
 
 type ScreeningContext = {
@@ -160,7 +162,7 @@ export default function AiClient() {
       if (!response.ok) throw new Error("Chat unavailable");
       const body = await response.json();
       if (body.status === "escalate") {
-        setMessages((current) => [...current, { role: "assistant", content: body.message, isEscalation: true }]);
+        setMessages((current) => [...current, { role: "assistant", content: body.message, isEscalation: true, resources: body.resources }]);
       } else {
         setMessages((current) => [...current, {
           role: "assistant",
@@ -202,6 +204,11 @@ export default function AiClient() {
           {messages.map((entry, index) => (
             <div key={index} className={`chat-bubble ${entry.role} ${entry.isEscalation ? "escalation" : ""}`}>
               <p>{entry.content}</p>
+              {entry.resources && entry.resources.length > 0 && (
+                <div className="chat-escalation-links">
+                  {entry.resources.map((resource) => <Link key={resource.link} href={resource.link} className={resource.link === "/emergency" ? "result-primary result-primary-orange" : "result-primary"}>{resource.title} <span>→</span></Link>)}
+                </div>
+              )}
               {entry.sources?.map((source) => (
                 <article key={source.id} className="chat-source">
                   <h3>{source.title}</h3>

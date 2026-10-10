@@ -4,7 +4,7 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
-import { scaleExplanation, stageFor, type ScaleKey } from "../lib/resultsGuidance";
+import { scaleExplanation, scoreText, stageFor, type ScaleKey } from "../lib/resultsGuidance";
 import type { Result } from "../components/CheckInResultsBody";
 
 const STAGE_STEPS = ["Minimal", "Mild", "Moderate", "Severe", "Crisis"];
@@ -51,10 +51,10 @@ export default function RecommendationsClient() {
 
   const stage = stageFor(result);
   const components = result.components;
-  const scales: { key: ScaleKey; name: string; score: number; max: number; band?: string }[] = [
+  const scales: { key: ScaleKey; name: string; score: number | null; max: number; band?: string }[] = [
     { key: "phq9", name: "PHQ-9 (low mood)", score: components?.phq9.score ?? 0, max: 27, band: components?.phq9.band },
-    { key: "gad7", name: "GAD-7 (anxiety)", score: components?.gad7.score ?? 0, max: 21, band: components?.gad7.band },
-    { key: "k10", name: "K10 (overall distress)", score: components?.k10.score ?? 0, max: 50, band: components?.k10.band },
+    { key: "gad7", name: "GAD-7 (anxiety)", score: components ? components.gad7.score : 0, max: 21, band: components?.gad7.band },
+    { key: "k10", name: "K10 (overall distress)", score: components ? components.k10.score : 0, max: 50, band: components?.k10.band },
   ];
 
   return (
@@ -79,7 +79,7 @@ export default function RecommendationsClient() {
       <section className="detail-rows stage-scores">
         {scales.map((scale) => (
           <div className="detail-row" key={scale.key}>
-            <div className="detail-row-head"><b>{scale.name}</b><span className="detail-value">{scale.score} / {scale.max}</span>{scale.band && <span className="detail-band">{scale.band.replaceAll("_", " ")}</span>}</div>
+            <div className="detail-row-head"><b>{scale.name}</b><span className="detail-value">{scoreText(scale.score, scale.max)}</span>{scale.band && <span className="detail-band">{scale.band.replaceAll("_", " ")}</span>}</div>
             <p>{scaleExplanation(scale.key, scale.band)}</p>
           </div>
         ))}

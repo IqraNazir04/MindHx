@@ -1,7 +1,8 @@
-// Builds a doctor-shareable PDF summary of a MindHx check-in, entirely in
-// the browser - the PDF is generated from data already on the results page
-// and never sent to or stored on the backend, consistent with the app's
-// "we only ever save score/band/themes" privacy model.
+// Builds a doctor-shareable PDF report of a MindHx check-in, in the
+// browser, from data already on the results page. For signed-in users the
+// generated file is also saved to their account (see lib/checkinHistory.ts)
+// so they can download it again from their dashboard - e.g. to show a
+// doctor - and delete it there.
 //
 // Includes every signal graph (as vector bars, not screenshots) plus, when
 // per-question detail is available, the full transcript, written
@@ -9,16 +10,17 @@
 // was selected - so a clinician can see exactly what was asked and chosen,
 // not just the aggregate score.
 import { jsPDF } from "jspdf";
+import { routingLabel } from "./resultsGuidance";
 
-type ResultForPdf = {
+export type ResultForPdf = {
   risk_score: number;
   band: string;
   routing_decision: string;
   themes?: string[];
   components?: {
     phq9: { score: number; band: string };
-    gad7: { score: number; band: string };
-    k10: { score: number; band: string };
+    gad7: { score: number | null; band: string };
+    k10: { score: number | null; band: string };
     text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null };
     voice: { available: boolean; signal: number | null; note: string; emotion?: { calm: number; stress: number; anger: number; fatigue: number; depression_indicator: number } | null };
     attribution?: {
@@ -33,7 +35,7 @@ type ResultForPdf = {
   };
 };
 
-type CheckInDetailForPdf = {
+export type CheckInDetailForPdf = {
   language: string;
   transcript: string;
   typedText: string;
@@ -42,7 +44,7 @@ type CheckInDetailForPdf = {
   k10: { question: string; answer: string | null }[];
 };
 
-type PreparedFor = { name?: string | null; email?: string | null };
+export type PreparedFor = { name?: string | null; email?: string | null };
 
 const MARGIN = 18;
 const PAGE_WIDTH = 210; // A4, mm
@@ -50,6 +52,15 @@ const PAGE_HEIGHT = 297;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 
 export function downloadResultsPdf(result: ResultForPdf, preparedFor: PreparedFor = {}, detail?: CheckInDetailForPdf): void {
+  buildResultsPdf(result, preparedFor, detail).save(`mindhx-checkin-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+// The same report as a Blob, for saving to the user's account.
+export function resultsPdfBlob(result: ResultForPdf, preparedFor: PreparedFor = {}, detail?: CheckInDetailForPdf): Blob {
+  return buildResultsPdf(result, preparedFor, detail).output("blob");
+}
+
+function buildResultsPdf(result: ResultForPdf, preparedFor: PreparedFor, detail?: CheckInDetailForPdf): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = MARGIN;
 
@@ -264,7 +275,7 @@ export function downloadResultsPdf(result: ResultForPdf, preparedFor: PreparedFo
   heading("Combined signal");
   keyValueRow("Score", `${Math.round(result.risk_score * 100)} / 100`);
   keyValueRow("Band", result.band.replaceAll("_", " "));
-  keyValueRow("Routing", result.routing_decision.replaceAll("_", " "));
+  keyValueRow("Routing", routingLabel(result.routing_decision));
   if (result.themes && result.themes.length > 0) {
     keyValueRow("Themes", result.themes.map((theme) => theme.replaceAll("_", " ")).join(", "));
   }
@@ -273,10 +284,12 @@ export function downloadResultsPdf(result: ResultForPdf, preparedFor: PreparedFo
   // Component breakdown + graphs
   const components = result.components;
   if (components) {
+    // GAD-7/K10 have no score when they weren't finished (a crisis check-in).
+    const scoreOf = (scale: { score: number | null }, max: number) => scale.score === null ? "Not answered" : `${scale.score} / ${max}`;
     heading("Signal breakdown");
     keyValueRow("PHQ-9 (depression)", `${components.phq9.score} / 27 - ${components.phq9.band.replaceAll("_", " ")}`);
-    keyValueRow("GAD-7 (anxiety)", `${components.gad7.score} / 21 - ${components.gad7.band.replaceAll("_", " ")}`);
-    keyValueRow("K10 (distress)", `${components.k10.score} / 50 - ${components.k10.band.replaceAll("_", " ")}`);
+    keyValueRow("GAD-7 (anxiety)", components.gad7.score === null ? "Not answered" : `${components.gad7.score} / 21 - ${components.gad7.band.replaceAll("_", " ")}`);
+    keyValueRow("K10 (distress)", components.k10.score === null ? "Not answered" : `${components.k10.score} / 50 - ${components.k10.band.replaceAll("_", " ")}`);
     keyValueRow("Text signal", `${components.text.sentiment} (${Math.round(components.text.signal * 100)}%)`);
     keyValueRow("Voice signal", components.voice.available ? `${Math.round((components.voice.signal ?? 0) * 100)}%` : "Not available");
     spacer(3);
@@ -292,13 +305,13 @@ export function downloadResultsPdf(result: ResultForPdf, preparedFor: PreparedFo
         // WinAnsiEncoding, which (like the arrow character before) doesn't
         // cover that symbol either.
         icon: "G", iconColor: [44, 111, 186], iconBg: [229, 240, 251], label: "GAD-7",
-        value: `${components.gad7.score} / 21`, sub: components.gad7.band.replaceAll("_", " "),
-        barFraction: components.gad7.score / 21, barColor: [44, 111, 186],
+        value: scoreOf(components.gad7, 21), sub: components.gad7.band.replaceAll("_", " "),
+        barFraction: (components.gad7.score ?? 0) / 21, barColor: [44, 111, 186],
       },
       {
         icon: "K", iconColor: [47, 143, 110], iconBg: [227, 246, 238], label: "K10",
-        value: `${components.k10.score} / 50`, sub: components.k10.band.replaceAll("_", " "),
-        barFraction: components.k10.score / 50, barColor: [47, 143, 110],
+        value: scoreOf(components.k10, 50), sub: components.k10.band.replaceAll("_", " "),
+        barFraction: (components.k10.score ?? 0) / 50, barColor: [47, 143, 110],
       },
       {
         icon: "Aa", iconColor: [44, 111, 186], iconBg: [229, 240, 251], label: "WORDS",
@@ -408,10 +421,9 @@ export function downloadResultsPdf(result: ResultForPdf, preparedFor: PreparedFo
   ensureSpace(14);
   spacer(8);
   paragraph(
-    "This PDF was generated locally in your browser from your MindHx check-in results. MindHx does not store or transmit this document - only the score, band, and themes above are ever saved to your account.",
+    "This report was generated in your browser from your MindHx check-in. A copy is saved to your MindHx account so you can download it again from your dashboard, where you can also delete it at any time.",
     { size: 8.5, color: [140, 150, 165] }
   );
 
-  const filenameDate = new Date().toISOString().slice(0, 10);
-  doc.save(`mindhx-checkin-${filenameDate}.pdf`);
+  return doc;
 }

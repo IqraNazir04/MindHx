@@ -14,7 +14,8 @@ Usage (from the repo root, with the same DATABASE_URL the API uses):
 import getpass
 import sys
 
-from auth import hash_password
+import envfile  # noqa: F401  - must load .env before modules read settings
+from auth import hash_password, password_weakness
 from database import SessionLocal, init_db
 from models import User
 
@@ -64,6 +65,10 @@ def run_create_admin() -> int:
     password = getpass.getpass("Admin password (min 8 characters): ")
     if len(password) < 8 or len(password) > 72:
         print("Password must be between 8 and 72 characters.")
+        return 1
+    weakness = password_weakness(password)
+    if weakness:
+        print(weakness)
         return 1
     if password != getpass.getpass("Repeat password: "):
         print("Passwords don't match.")
