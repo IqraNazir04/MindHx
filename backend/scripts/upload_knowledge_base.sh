@@ -47,9 +47,37 @@ if [ -z "$TOKEN" ]; then
 fi
 echo "Logged in."
 
+# Uploading never retires the previous version of a document - each run would
+# otherwise just pile another copy of the same title on top of the last,
+# leaving stale (possibly pre-fix) chunks active and retrievable alongside
+# the fresh ones. Before each upload, delete any existing document with the
+# exact same title so a re-run truly replaces it instead of accumulating.
+retire_existing() {
+  local title="$1"
+  local existing
+  existing="$(curl -sS "$BASE_URL/admin/documents" -H "Authorization: Bearer $TOKEN")"
+  local ids
+  ids="$(printf '%s' "$existing" | TITLE="$title" python3 -c '
+import json, os, sys
+title = os.environ["TITLE"]
+docs = json.load(sys.stdin)
+for doc in docs:
+    if doc.get("title") == title:
+        print(doc["id"])
+')"
+  if [ -n "$ids" ]; then
+    while IFS= read -r doc_id; do
+      [ -z "$doc_id" ] && continue
+      echo "  Retiring previous version ($doc_id) ..."
+      curl -sS -o /dev/null -X DELETE "$BASE_URL/admin/documents/$doc_id" -H "Authorization: Bearer $TOKEN"
+    done <<< "$ids"
+  fi
+}
+
 upload() {
   local filename="$1" title="$2" intent="$3" source_name="$4"
   echo "Uploading $filename (intent=$intent) ..."
+  retire_existing "$title"
   local http_code
   http_code="$(curl -sS -o /tmp/mindhx_upload_resp.json -w '%{http_code}' -X POST "$BASE_URL/admin/documents" \
     -H "Authorization: Bearer $TOKEN" \
