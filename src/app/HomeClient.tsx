@@ -16,7 +16,7 @@ import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBa
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
 import { resetSaveProgress, saveResultToHistory } from "./lib/checkinHistory";
-import { loadQuestionnaireDraft } from "./lib/questionnaireDraft";
+import { loadQuestionnaireDraft, loadSignalsDraft, saveSignalsDraft } from "./lib/questionnaireDraft";
 import { useLanguage } from "./lib/language";
 import { API_BASE } from "./lib/api";
 import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, k10QuestionsEn, questions, questionsEn } from "./lib/questionnaires";
@@ -99,6 +99,9 @@ export default function HomeClient() {
   const [textSubmitting, setTextSubmitting] = useState(false);
   const [textSubmitError, setTextSubmitError] = useState("");
   const [textSubmitResult, setTextSubmitResult] = useState<({ sentiment: string } & TextMoodScores) | null>(null);
+  // True once the saved voice/text draft has been restored on mount; until
+  // then the empty initial values must not be written over it.
+  const [signalsRestored, setSignalsRestored] = useState(false);
   // Live "Your combined picture" estimate: asked of the backend (same signal
   // definitions and weights as the final /risk-assess), so text and voice count
   // here too. A scale only counts once fully answered, and text only once it's
@@ -177,10 +180,20 @@ export default function HomeClient() {
       gadAnswers: Array(gadQuestionsEn.length).fill(-1),
       k10Answers: Array(k10QuestionsEn.length).fill(-1),
     });
+    // The voice note and written reflection, kept the same way so going to
+    // the questionnaire and back doesn't lose them.
+    const signals = loadSignalsDraft();
     startTransition(() => {
       setAnswers(draft.answers);
       setGadAnswers(draft.gadAnswers);
       setK10Answers(draft.k10Answers);
+      if (signals) {
+        setTranscript(signals.transcript);
+        setTypedText(signals.typedText);
+        setVoiceFeatures(signals.voiceFeatures as typeof voiceFeatures);
+        setTextSubmitResult(signals.textSubmitResult as typeof textSubmitResult);
+      }
+      setSignalsRestored(true);
     });
 
     if (!loggedIn) return;
@@ -240,6 +253,11 @@ export default function HomeClient() {
       setTextSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    if (!signalsRestored) return;
+    saveSignalsDraft({ transcript, typedText, voiceFeatures, textSubmitResult });
+  }, [signalsRestored, transcript, typedText, voiceFeatures, textSubmitResult]);
 
   async function createPrivateSession() {
     if (!profile.ageRange) {
