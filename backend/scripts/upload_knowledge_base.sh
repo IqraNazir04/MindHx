@@ -28,10 +28,17 @@ read -r -s -p "Admin password: " ADMIN_PASSWORD
 echo
 
 echo "Logging in to $BASE_URL ..."
+# Built via python3's json.dumps, not bash string interpolation - a password
+# containing a '"', '\', '$', or backtick would otherwise corrupt the JSON
+# body (or get partially shell-expanded) before it ever reaches curl.
+LOGIN_PAYLOAD="$(ADMIN_EMAIL="$ADMIN_EMAIL" ADMIN_PASSWORD="$ADMIN_PASSWORD" python3 -c '
+import json, os
+print(json.dumps({"email": os.environ["ADMIN_EMAIL"], "password": os.environ["ADMIN_PASSWORD"]}))
+')"
 LOGIN_RESPONSE="$(curl -sS -X POST "$BASE_URL/admin/login" \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}")"
-unset ADMIN_PASSWORD
+  -d "$LOGIN_PAYLOAD")"
+unset ADMIN_PASSWORD LOGIN_PAYLOAD
 
 TOKEN="$(printf '%s' "$LOGIN_RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])' 2>/dev/null || true)"
 if [ -z "$TOKEN" ]; then
