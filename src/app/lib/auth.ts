@@ -9,6 +9,7 @@
 
 import { API_BASE } from "./api";
 import type { Result } from "../components/CheckInResultsBody";
+import { CHECKIN_DRAFT_STORAGE_KEYS } from "./questionnaireDraft";
 
 const TOKEN_KEY = "mindhx:auth-token";
 
@@ -130,7 +131,7 @@ export async function login(email: string, password: string): Promise<string> {
 // an unfinished draft, and local mood/practice notes. Cleared on sign-out
 // so the next person to use this browser (a shared or family device) can't
 // open /results and see the previous person's check-in under their own name.
-const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail", "mindhx:last-result-saved", "mindhx:last-checkin-answers", "mindhx:crisis-context", "mindhx:pending-checkin"];
+const PRIVATE_SESSION_KEYS = ["mindhx:last-result", "mindhx:last-checkin-detail", "mindhx:last-result-saved", "mindhx:last-checkin-answers", "mindhx:crisis-context", "mindhx:pending-checkin", ...CHECKIN_DRAFT_STORAGE_KEYS];
 const PRIVATE_LOCAL_KEYS = ["mindhx:mood-checkins", "mindhx:helpful-practices"];
 
 export function logout(): void {

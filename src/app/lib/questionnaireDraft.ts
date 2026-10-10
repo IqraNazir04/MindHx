@@ -36,3 +36,42 @@ export function saveQuestionnaireDraft(draft: QuestionnaireDraft): void {
     // persist across navigation; answering still works within this page.
   }
 }
+
+// The home page's other two signals - the voice note's transcript and tone
+// reading, and the written reflection with its word-choice reading - so they
+// survive going to /questionnaire and back, just like the answers above.
+const SIGNALS_DRAFT_KEY = "mindhx:signals-draft";
+
+// Cleared on sign-out (see lib/auth.ts), since they hold what the person said.
+export const CHECKIN_DRAFT_STORAGE_KEYS = [QUESTIONNAIRE_DRAFT_KEY, SIGNALS_DRAFT_KEY];
+
+export type SignalsDraft = {
+  transcript: string;
+  typedText: string;
+  voiceFeatures: Record<string, unknown>;
+  textSubmitResult: Record<string, unknown> | null;
+};
+
+export function loadSignalsDraft(): SignalsDraft | null {
+  try {
+    const raw = sessionStorage.getItem(SIGNALS_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      transcript: typeof parsed.transcript === "string" ? parsed.transcript : "",
+      typedText: typeof parsed.typedText === "string" ? parsed.typedText : "",
+      voiceFeatures: parsed.voiceFeatures && typeof parsed.voiceFeatures === "object" ? parsed.voiceFeatures : {},
+      textSubmitResult: parsed.textSubmitResult && typeof parsed.textSubmitResult === "object" ? parsed.textSubmitResult : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveSignalsDraft(draft: SignalsDraft): void {
+  try {
+    sessionStorage.setItem(SIGNALS_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Storage unavailable - the signals just won't persist across navigation.
+  }
+}
