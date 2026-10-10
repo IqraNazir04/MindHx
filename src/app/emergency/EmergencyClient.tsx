@@ -42,8 +42,8 @@ export default function EmergencyClient() {
     // (set right before landing here, or from an earlier check-in this
     // session), show them alongside the emergency info instead of a bare
     // safety page - the same content /results shows for a crisis result.
-    // mindhx:last-result is only ever set after HomeClient's login check
-    // passes, so its presence alone means this is safe to show.
+    // HomeClient clears it before a crisis check-in and only sets it once
+    // that check-in has been scored, so it's never an older check-in's.
     const storedResult = sessionStorage.getItem("mindhx:last-result");
     if (storedResult) {
       try {
