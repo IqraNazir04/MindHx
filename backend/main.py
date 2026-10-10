@@ -514,6 +514,12 @@ RAG_INTENT_KEYWORDS = {
     ),
     "family_stigma": ("family", "shame", "stigma", "log kya kahenge", "khandaan", "خاندان", "شرم", "بدنامی", "لوگ کیا کہیں گے"),
     "exam_pressure": ("exam", "test", "study", "studies", "university", "admission", "job pressure", "deadline", "امتحان", "پڑھائی", "داخلہ", "نوکری کا دباؤ"),
+    "safety": ("suicid", "self harm", "self-harm", "kill myself", "warning sign", "safety plan", "worried about someone", "خودکشی", "خود کو نقصان", "حفاظتی منصوبہ"),
+    "stress": ("stress", "burnout", "burn out", "overwhelm", "تناؤ", "دباؤ"),
+    "meditation": ("meditat", "breathing exercise", "mindful", "grounding", "relax", "مراقبہ", "سانس"),
+    "grief": ("grief", "grieving", "bereave", "passed away", "miscarriage", "mourning", "غم", "انتقال"),
+    "pain": ("chronic pain", "pain management", "body pain", "فائبرومیالجیا", "درد"),
+    "conditions": ("insomnia", "ocd", "ptsd", "bipolar", "postpartum", "panic attack", "psychosis", "اندرا", "نیند نہیں آتی"),
 }
 UPLOAD_INTENTS = set(RAG_INTENT_KEYWORDS) | {"general"}
 UPLOAD_CHUNK_CHARS = 900
@@ -1153,8 +1159,9 @@ def _parse_triage_classification(content: str) -> Optional[dict]:
 
 
 # Claude is used for text classification and the grounded chat whenever
-# ANTHROPIC_API_KEY is set, with OpenAI (if configured) as the fallback and
-# the local heuristics/template behind both. Speech-to-text and embeddings
+# ANTHROPIC_API_KEY is set; the OpenAI-compatible provider from
+# _llm_provider() (Qwen, else OpenAI) is the fallback, and the local
+# heuristics/template sit behind both. Speech-to-text and embeddings
 # stay on OpenAI - Claude has no transcription or embeddings endpoint.
 def claude_model() -> str:
     return os.getenv("ANTHROPIC_MODEL", "claude-opus-5-5")
@@ -1242,14 +1249,33 @@ async def analyze_with_claude(text: str, language: str) -> Optional[dict]:
     return _parse_triage_classification(json.dumps(result)) if result is not None else None
 
 
-async def analyze_with_openai(text: str, language: str) -> Optional[dict]:
-    """Classify check-in text with OpenAI's chat completions API."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+def _llm_provider() -> Optional[tuple[str, str, str, str]]:
+    """Picks the chat-completions provider for /analyze-text and /ai/chat: Qwen on
+    Alibaba Cloud Model Studio (its OpenAI-compatible API) when DASHSCOPE_API_KEY is
+    set, else OpenAI. Both speak the same request/response shape, so callers only
+    need the (provider, model, url, api_key) this returns - or None if neither is
+    configured, in which case callers fall back to their non-LLM path."""
+    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
+    if dashscope_key:
+        base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+        model = os.getenv("DASHSCOPE_CHAT_MODEL", "qwen-plus")
+        return "qwen", model, f"{base_url}/chat/completions", dashscope_key
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if openai_key:
+        model = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+        return "openai", model, "https://api.openai.com/v1/chat/completions", openai_key
+    return None
+
+
+async def analyze_with_llm(text: str, language: str) -> Optional[dict]:
+    """Classify check-in text with the configured provider's chat completions API."""
+    provider_info = _llm_provider()
+    if provider_info is None:
         return None
+    provider, model, url, api_key = provider_info
 
     payload = {
-        "model": os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+        "model": model,
         "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [
@@ -1260,14 +1286,14 @@ async def analyze_with_openai(text: str, language: str) -> Optional[dict]:
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             content = response.json()["choices"][0]["message"]["content"]
     except httpx.HTTPStatusError as error:
-        logger.error("OpenAI /analyze-text returned %s: %s", error.response.status_code, error.response.text[:500])
+        logger.error("%s /analyze-text returned %s: %s", provider, error.response.status_code, error.response.text[:500])
         return None
     except (httpx.HTTPError, KeyError, TypeError, IndexError) as error:
-        logger.error("OpenAI /analyze-text request failed: %r", error)
+        logger.error("%s /analyze-text request failed: %r", provider, error)
         return None
     return _parse_triage_classification(content)
 
@@ -2232,8 +2258,9 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
     llm_result = await analyze_with_claude(text, payload.language)
     provider = "claude" if llm_result else None
     if llm_result is None:
-        llm_result = await analyze_with_openai(text, payload.language)
-        provider = "openai" if llm_result else None
+        llm_result = await analyze_with_llm(text, payload.language)
+        provider_info = _llm_provider()
+        provider = provider_info[0] if llm_result and provider_info else None
     merged = {
         **heuristic_result,
         **(llm_result or {}),
@@ -2280,9 +2307,12 @@ CHAT_SYSTEM_PROMPT = """You are MindHx's grounded support assistant for early-st
 
 STRICT RULES, no exceptions:
 - Never diagnose, never name or imply a diagnosis, never prescribe or recommend medication, dosages, or brand names.
-- Never provide crisis counseling or safety planning - that is handled elsewhere. If anything in the conversation reads as risk, do not improvise; keep your reply brief and defer to a professional.
+- Never provide crisis counseling or safety planning - that is handled elsewhere. If anything in the conversation reads as risk, even an indirect signal like hopelessness, feeling trapped, or being "done" with things, do not improvise or keep discussing the original topic; keep your reply brief, gentle, and defer to a professional.
 - Only use facts from the "Reference material" and "Situational context" you are given. Do not invent facts, statistics, studies, or advice beyond that material. If the reference material doesn't cover something, say so plainly rather than guessing.
-- Keep replies short and warm (2-5 sentences), not clinical or lecture-like.
+- The reference material's [bracketed ids] and document titles are for your own grounding only - never mention, quote, or show them to the user. Weave the content into your own natural sentences rather than copying passages verbatim. If asked where something comes from, describe it in plain language (e.g. "that's based on WHO and NICE guidance"), never as a citation list.
+- Keep replies short and warm (2-5 sentences), not clinical or lecture-like. Lead by acknowledging what the person said in their own terms before offering information or a technique - don't open with education or a bullet list when someone is upset. Close with at most one concrete next step rather than a menu of options, and vary your closing line instead of repeating the same sign-off every time.
+- Be emotionally intelligent, not just polite: name the specific feeling you pick up on rather than defaulting to generic acknowledgement ("that sounds like it's not just tiring, it's lonely" beats "I hear that you're going through a hard time"). Notice what's implied as well as what's said - contradictions, minimizing language, a feeling under the facts - and gently reflect it back rather than only answering the surface question. Let mixed or conflicting feelings (relief and guilt, love and resentment, relief that something ended and grief that it did) be normal, not something to resolve into one clean emotion. Match the emotional weight of what they shared - don't breeze past something big, and don't make something small sound like a crisis.
+- Match the person's tone: mirror their formality and their mix of English/Urdu/Roman Urdu rather than switching styles unprompted. Avoid false cheerfulness, toxic-positivity phrases ("just think positive", "everything happens for a reason"), generic stock empathy lines as a substitute for specific acknowledgement ("that must be hard" with nothing else), and excessive hedging. Never pad a clear short answer with filler, and never just repeat the user's own words back as the entire reply.
 - If the user's message is vague (e.g. "I don't feel good", "not okay", "stressed"), do not guess what's wrong - ask exactly ONE short clarifying question instead, unless the conversation history shows you already asked a clarifying question on this topic and got an answer.
 - Situational context (risk band, questionnaire scores, mood trend, screening history) is background, not something to recite or diagnose from. Let it quietly shape tone and depth: e.g. more caution and a gentler pace for a rising trend or elevated band, a lighter touch for a stable low score - never mention the numbers themselves back to the user.
 - If an interactive exercise fits the moment and is available in the reference material, offer to walk through it right now rather than only describing it.
@@ -2324,12 +2354,12 @@ async def compose_chat_reply(
     mood_checkins: list[int],
     helpful_practices: list[str],
 ) -> Optional[dict]:
-    """Composes a grounded, guarded chat reply with Claude (or OpenAI when
-    Claude isn't configured or fails). Returns None on any failure or
-    unsafe/malformed output, so the caller can fall back to the deterministic
-    template response - the chat never goes unanswered, it just loses the
-    conversational layer."""
-    if not os.getenv("ANTHROPIC_API_KEY") and not os.getenv("OPENAI_API_KEY"):
+    """Composes a grounded, guarded chat reply with Claude, falling back to the
+    OpenAI-compatible provider from _llm_provider() (Qwen on Alibaba Cloud Model
+    Studio, else OpenAI). Returns None on any failure or unsafe/malformed
+    output, so the caller can fall back to the deterministic template response -
+    the chat never goes unanswered, it just loses the conversational layer."""
+    if not os.getenv("ANTHROPIC_API_KEY") and _llm_provider() is None:
         return None
 
     context_lines = []
@@ -2375,8 +2405,9 @@ async def compose_chat_reply(
     )
     if claude_result is not None:
         result, provider, model = _from_chat_schema(claude_result), "claude", claude_model()
-    elif os.getenv("OPENAI_API_KEY"):
-        result, provider, model = await _chat_with_openai(turns, user_content), "openai", os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    elif (provider_info := _llm_provider()) is not None:
+        provider, model = provider_info[0], provider_info[1]
+        result = await _chat_with_compatible_api(provider_info, turns, user_content)
     if result is None:
         return None
 
@@ -2434,24 +2465,26 @@ def _from_chat_schema(result: dict) -> dict:
     return result
 
 
-async def _chat_with_openai(turns: list[dict], user_content: str) -> Optional[dict]:
+async def _chat_with_compatible_api(provider_info: tuple[str, str, str, str], turns: list[dict], user_content: str) -> Optional[dict]:
+    """One chat completion from an OpenAI-compatible provider (Qwen or OpenAI)."""
+    provider, model, url, api_key = provider_info
     payload = {
-        "model": os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+        "model": model,
         "temperature": 0,
         "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": CHAT_SYSTEM_PROMPT}, *turns, {"role": "user", "content": user_content}],
     }
-    headers = {"Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}", "Content-Type": "application/json"}
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            response = await client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
             result = json.loads(response.json()["choices"][0]["message"]["content"])
     except httpx.HTTPStatusError as error:
-        logger.error("OpenAI /ai/chat returned %s: %s", error.response.status_code, error.response.text[:500])
+        logger.error("%s /ai/chat returned %s: %s", provider, error.response.status_code, error.response.text[:500])
         return None
     except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError) as error:
-        logger.error("OpenAI /ai/chat request failed: %r", error)
+        logger.error("%s /ai/chat request failed: %r", provider, error)
         return None
     return result if isinstance(result, dict) else None
 

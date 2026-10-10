@@ -1362,3 +1362,46 @@ def test_claude_failure_falls_back_without_error(monkeypatch) -> None:
     assert text["provider"] == "heuristic" and text["sentiment"] == "negative"
     chat = client.post("/ai/chat", json={"message": "what is CBT?", "language": "en", "risk_clear": True}).json()
     assert chat["generation"]["provider"] == "approved-rag-library"
+
+
+def test_qwen_is_used_when_claude_fails(monkeypatch) -> None:
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    outage = anthropic.InternalServerError("overloaded", response=httpx.Response(529, request=request), body=None)
+    _use_claude(monkeypatch, _FakeClaude(error=outage))
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+    posted_to: list[str] = []
+    replies = iter([
+        {"sentiment": "negative", "keyword_flags": [], "crisis_language": False, "anxiety_level": 0.6, "stress_level": 0.5, "depression_indicator": 0.4},
+        {"action": "respond", "message": "Exam stress is common; a short grounding exercise can help.", "offer_exercise": None, "suggested_cta": None},
+    ])
+
+    class FakeResponse:
+        def __init__(self, content: dict) -> None:
+            self._content = content
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": json.dumps(self._content)}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, url, *args, **kwargs) -> FakeResponse:
+            posted_to.append(url)
+            return FakeResponse(next(replies))
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    text = client.post("/analyze-text", json={"text": "Exams make me anxious", "language": "en"}).json()
+    chat = client.post("/ai/chat", json={"message": "I feel anxious before exams", "language": "en", "risk_clear": True}).json()
+    assert text["provider"] == "qwen"
+    assert chat["generation"]["provider"] == "qwen"
+    assert all("dashscope" in url for url in posted_to) and len(posted_to) == 2

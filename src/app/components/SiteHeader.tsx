@@ -18,7 +18,7 @@ export default function SiteHeader({ backHref = "/", backLabel, language = "Engl
   return (
     <header className="site-header-sticky">
       <div className="resource-header" dir={isUrdu ? "rtl" : "ltr"}>
-        <Link href="/" className="results-brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></Link>
+        <Link href="/" className="results-brand"><img className="brand-mark" src="/logo-mark.png" alt="" /><span>Mind<span className="brand-accent">Hx</span></span></Link>
         <SiteNav isUrdu={isUrdu} />
         <div className="resource-header-right">
           {right}

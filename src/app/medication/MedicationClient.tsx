@@ -1,26 +1,15 @@
 "use client";
 
+import Link from "next/link";
+import { startTransition, useEffect, useState } from "react";
+import { fetchPublishedResources, type ResourceRecord } from "../lib/admin";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
 import { useLanguage } from "../lib/language";
-
-const entries = [
-  {
-    en: { name: "SSRIs", use: "Commonly prescribed for depression and some anxiety disorders.", details: "A prescriber determines the medicine, dose, timing, and follow-up. Nausea, sleep changes, and other effects can occur." },
-    ur: { name: "ایس ایس آر آئیز", use: "عام طور پر ڈپریشن اور کچھ اضطرابی امراض کے لیے تجویز کی جاتی ہیں۔", details: "دوا، خوراک، وقت، اور فالو اپ ایک تجویز کنندہ طے کرتا ہے۔ متلی، نیند میں تبدیلی، اور دیگر اثرات ہو سکتے ہیں۔" },
-  },
-  {
-    en: { name: "Short-term anxiety medicines", use: "Some medicines may be used for acute symptoms under close clinical supervision.", details: "Dependence, sedation, and interactions are important considerations. These are not suitable for everyone." },
-    ur: { name: "قلیل مدتی اضطراب کی ادویات", use: "کچھ ادویات شدید علامات کے لیے قریبی طبی نگرانی میں استعمال ہو سکتی ہیں۔", details: "انحصار، غنودگی، اور دیگر ادویات کے ساتھ تعامل اہم امور ہیں۔ یہ سب کے لیے موزوں نہیں۔" },
-  },
-  {
-    en: { name: "Sleep-related treatment", use: "Sleep problems may be addressed through behavioral care, medical review, or medication when appropriate.", details: "A clinician should check other causes, current medicines, and safety before recommending treatment." },
-    ur: { name: "نیند سے متعلق علاج", use: "نیند کے مسائل رویے پر مبنی نگہداشت، طبی جائزے، یا ضرورت پڑنے پر ادویات کے ذریعے حل کیے جا سکتے ہیں۔", details: "علاج تجویز کرنے سے پہلے ایک معالج کو دیگر اسباب، موجودہ ادویات، اور حفاظت کی جانچ کرنی چاہیے۔" },
-  },
-];
+import { medications } from "./data";
 
 const copy = {
   English: {
@@ -29,9 +18,7 @@ const copy = {
     titleLine2: "for an informed conversation.",
     intro: "General reference information only. MindHx does not prescribe, personalize, or recommend medication. Always speak with a licensed prescriber before starting, stopping, or changing any medication.",
     reference: "REFERENCE",
-    generallyUsedFor: "Generally used for",
-    considerations: "Important considerations",
-    footer: "Talk to a licensed prescriber before making changes.",
+    learnMore: "Learn more",
   },
   اردو: {
     eyebrow: "01 / ادویات کی معلومات",
@@ -39,14 +26,18 @@ const copy = {
     titleLine2: "ایک باخبر گفتگو کے لیے۔",
     intro: "صرف عمومی حوالہ جاتی معلومات۔ MindHx ادویات تجویز، ذاتی نوعیت، یا سفارش نہیں کرتا۔ کوئی بھی دوا شروع کرنے، روکنے، یا تبدیل کرنے سے پہلے ہمیشہ ایک مستند تجویز کنندہ سے بات کریں۔",
     reference: "حوالہ",
-    generallyUsedFor: "عام طور پر استعمال ہوتی ہے",
-    considerations: "اہم امور",
-    footer: "تبدیلی کرنے سے پہلے ایک مستند تجویز کنندہ سے بات کریں۔",
+    learnMore: "مزید جانیں",
   },
 };
 
 export default function MedicationClient() {
   const [language, setLanguage] = useLanguage();
+  const [adminPosts, setAdminPosts] = useState<ResourceRecord[]>([]);
+  useEffect(() => {
+    fetchPublishedResources("medication")
+      .then((list) => startTransition(() => setAdminPosts(list)))
+      .catch(() => {});
+  }, []);
   const text = copy[language];
   const isUrdu = language === "اردو";
 
@@ -64,20 +55,30 @@ export default function MedicationClient() {
         </section>
       </div>
       <section className="reference-grid">
-        {entries.map((entry) => {
-          const content = entry[isUrdu ? "ur" : "en"];
+        {medications.map((medication) => {
+          const content = medication[isUrdu ? "ur" : "en"];
           return (
-            <article key={content.name}>
-              <p className="card-kicker">{text.reference}</p>
-              <h2>{content.name}</h2>
-              <b>{text.generallyUsedFor}</b>
-              <p>{content.use}</p>
-              <b>{text.considerations}</b>
-              <p>{content.details}</p>
-              <footer>{text.footer}</footer>
-            </article>
+            <Link key={medication.slug} href={`/medication/${medication.slug}`} className="reference-card-link">
+              <article>
+                <p className="card-kicker">{text.reference}</p>
+                <h2>{content.name}</h2>
+                <p className="reference-card-summary">{content.use}</p>
+                <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
+              </article>
+            </Link>
           );
         })}
+        {adminPosts.map((post) => (
+          <Link key={post.slug} href={`/medication/post/${post.slug}`} className="reference-card-link">
+            <article>
+              {post.image_data_url && <img className="admin-post-card-image" src={post.image_data_url} alt="" />}
+              <p className="card-kicker">{text.reference}</p>
+              <h2>{post.title}</h2>
+              <p className="reference-card-summary">{post.summary}</p>
+              <footer>{text.learnMore} <span className="footer-arrow">→</span></footer>
+            </article>
+          </Link>
+        ))}
       </section>
     </main>
     <SiteFooter language={language} />

@@ -507,7 +507,7 @@ export default function HomeClient() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div><SiteNav isUrdu={language === "اردو"} /><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
+      <header className="topbar"><div className="brand"><img className="brand-mark" src="/logo-mark.png" alt="" /><span>Mind<span className="brand-accent">Hx</span></span></div><SiteNav isUrdu={language === "اردو"} /><div className="topbar-right"><span className="privacy"><span className="dot" /> {text.private}</span><AccountChip language={language === "اردو" ? "اردو" : "English"} /><button className="language" onClick={() => setLanguage(language === "English" ? "اردو" : "English")}>◎ {language}</button><button className="avatar" onClick={() => setShowProfile(true)} aria-label={text.openProfile}>{sessionToken ? "✓" : "A"}</button></div></header>
       <main className="workspace" dir={language === "اردو" ? "rtl" : "ltr"}>
         <section className="intro intro-banner">
           <TreeScene className="intro-tree-bg" />

@@ -26,6 +26,7 @@ os.environ["CHECKIN_COOLDOWN_DAYS"] = "0"
 # fake key and mock the client themselves.
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
+os.environ["DASHSCOPE_API_KEY"] = ""
 
 
 @atexit.register

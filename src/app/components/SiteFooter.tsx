@@ -32,7 +32,7 @@ export default function SiteFooter({ language = "English" }: Props) {
     <footer className="site-footer" dir={isUrdu ? "rtl" : "ltr"}>
       <div className="site-footer-inner">
         <div className="site-footer-brand">
-          <div className="site-footer-wordmark"><span className="brand-mark">M</span><span>Mind<span className="brand-accent">Hx</span></span></div>
+          <div className="site-footer-wordmark"><img className="brand-mark" src="/logo-mark.png" alt="" /><span>Mind<span className="brand-accent">Hx</span></span></div>
           <p>{text.tagline}</p>
         </div>
         <nav className="site-footer-columns" aria-label="MindHx site links">
