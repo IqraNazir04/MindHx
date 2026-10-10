@@ -23,7 +23,7 @@ button { cursor:pointer; }
    at the same pixel size, and negative letter-spacing (tuned for Playfair)
    causes its strokes to crowd each other. */
 [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
-  font-family:'Noto Nastaliq Urdu','DM Sans',sans-serif;
+  font-family:'Noto Nastaliq Urdu','DM Sans',sans-serif !important;
   line-height:1.95 !important;
   letter-spacing:0 !important;
 }
@@ -429,7 +429,7 @@ textarea::placeholder { color:#9aa6b4; }
    a link to the dashboard) and drops the name. */
 @media (max-width:800px) {
   .site-header-sticky { margin:0 -20px; padding:0 20px; }
-  .resource-header { height:auto; min-height:64px; padding:10px 0; gap:12px; }
+  .resource-header { height:auto; min-height:64px; padding:10px 0; gap:12px; flex-wrap:wrap; }
   .resource-header-right { flex:1 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end; gap:8px 14px; }
   .resource-header .account-chip-name { display:none; }
 }

@@ -78,6 +78,7 @@ export const crisisCopy: Record<CrisisLanguage, {
   findHelp: string;
   findHelpBody: string;
   talkTherapist: string;
+  fullResultsNote: string;
 }> = {
   en: {
     callNow: "Call now (Pakistan)",
@@ -98,6 +99,7 @@ export const crisisCopy: Record<CrisisLanguage, {
     findHelp: "Find help",
     findHelpBody: "Search for a local crisis line, emergency service, or hospital emergency department in your country. If you already have a therapist, psychiatrist, or doctor, contact them directly.",
     talkTherapist: "Talk to a professional",
+    fullResultsNote: "Your full results and PDF are available below - bring them to whoever you reach out to.",
   },
   ur: {
     callNow: "ابھی کال کریں (پاکستان)",
@@ -118,5 +120,6 @@ export const crisisCopy: Record<CrisisLanguage, {
     findHelp: "مدد تلاش کریں",
     findHelpBody: "اپنے ملک میں کسی مقامی بحرانی ہیلپ لائن، ہنگامی سروس، یا ہسپتال کے ایمرجنسی شعبے کو تلاش کریں۔ اگر آپ کا پہلے سے کوئی معالج، ماہرِ نفسیات، یا ڈاکٹر ہے تو براہِ راست ان سے رابطہ کریں۔",
     talkTherapist: "کسی ماہر سے بات کریں",
+    fullResultsNote: "آپ کے مکمل نتائج اور PDF نیچے دستیاب ہیں - انہیں اپنے ساتھ لے جائیں جس سے بھی آپ رابطہ کریں۔",
   },
 };

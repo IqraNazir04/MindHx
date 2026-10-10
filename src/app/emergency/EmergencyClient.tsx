@@ -109,8 +109,8 @@ export default function EmergencyClient() {
       </div>
       {result && (
         <>
-          <p className="results-crisis-note">Your full results and PDF are available below - bring them to whoever you reach out to.</p>
-          <CheckInResultsBody result={result} onDownloadPdf={handleDownloadPdf} onReturnToCheckIn={() => router.push("/")} />
+          <p className="results-crisis-note">{text.fullResultsNote}</p>
+          <CheckInResultsBody result={result} onDownloadPdf={handleDownloadPdf} onReturnToCheckIn={() => router.push("/")} language={language === "ur" ? "اردو" : "English"} />
         </>
       )}
     </main>

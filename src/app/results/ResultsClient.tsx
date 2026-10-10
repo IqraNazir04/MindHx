@@ -14,6 +14,7 @@ import { fetchCurrentUser, isLoggedIn } from "../lib/auth";
 import { downloadResultsPdf, type PreparedFor } from "../lib/resultsPdf";
 import { crisisCopy } from "../lib/crisisCopy";
 import { isSavedToHistory, saveResultToHistory } from "../lib/checkinHistory";
+import { useLanguage } from "../lib/language";
 
 type CheckInDetail = {
   language: string;
@@ -43,6 +44,25 @@ const saveCopy = {
   },
 };
 
+const pageCopy = {
+  English: {
+    eyebrow: "MINDHX / RESULTS",
+    notReadyTitle: "Your check-in is not ready yet.",
+    notReadyBody: "Complete the private assessment first, then return here to review your signals.",
+    back: "Back to check-in",
+    privateSession: "Private session result",
+    caption: "A clearer picture, from higher ground.",
+  },
+  اردو: {
+    eyebrow: "MindHx / نتائج",
+    notReadyTitle: "آپ کا جائزہ ابھی تیار نہیں ہے۔",
+    notReadyBody: "پہلے نجی جائزہ مکمل کریں، پھر اپنے اشارے دیکھنے کے لیے یہاں واپس آئیں۔",
+    back: "چیک ان پر واپس",
+    privateSession: "نجی سیشن کا نتیجہ",
+    caption: "ایک واضح تصویر، بلند مقام سے۔",
+  },
+};
+
 async function saveWithStatus(result: Result, preparedFor: PreparedFor, detail: CheckInDetail | null, setStatus: (status: SaveStatus) => void, setErrorDetail: (detail: string) => void) {
   setStatus("saving");
   setErrorDetail("");
@@ -58,6 +78,7 @@ async function saveWithStatus(result: Result, preparedFor: PreparedFor, detail: 
 
 export default function ResultsClient() {
   const router = useRouter();
+  const [language, setLanguage] = useLanguage();
   const [result, setResult] = useState<Result | null>(null);
   const [detail, setDetail] = useState<CheckInDetail | null>(null);
   const [preparedFor, setPreparedFor] = useState<PreparedFor>({});
@@ -78,6 +99,11 @@ export default function ResultsClient() {
     const storedDetail = storedDetailRaw ? JSON.parse(storedDetailRaw) as CheckInDetail : null;
     if (storedDetail) {
       startTransition(() => setDetail(storedDetail));
+      // Default the display language to whichever one this check-in was
+      // actually answered in - the person can still switch manually from
+      // here via the header toggle, same as every other page.
+      const detailLanguage = storedDetail.language === "اردو" ? "اردو" : "English";
+      if (detailLanguage !== language) startTransition(() => setLanguage(detailLanguage));
     }
     fetchCurrentUser().then((user) => {
       if (!user) return;
@@ -89,6 +115,9 @@ export default function ResultsClient() {
       if (isSavedToHistory()) startTransition(() => setSaveStatus("saved"));
       else saveWithStatus(storedResult, prepared, storedDetail, setSaveStatus, setSaveErrorDetail);
     });
+    // Only meant to run once, against whatever the language was at mount -
+    // a later manual toggle must not be stomped by this effect re-running.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   function handleDownloadPdf() {
@@ -96,22 +125,36 @@ export default function ResultsClient() {
     downloadResultsPdf(result, preparedFor, detail ?? undefined);
   }
 
+  const isUrdu = language === "اردو";
+  const text = pageCopy[language];
+
   if (!result) {
-    return <><main className="results-page empty-results"><p className="eyebrow">MINDHX / RESULTS</p><h1>Your check-in is not ready yet.</h1><p>Complete the private assessment first, then return here to review your signals.</p><button className="result-primary" onClick={() => router.push("/")}>Back to check-in <span>→</span></button></main><SiteFooter /></>;
+    return (
+      <>
+      <main className="results-page empty-results" dir={isUrdu ? "rtl" : "ltr"}>
+        <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={text.back} />
+        <p className="eyebrow">{text.eyebrow}</p>
+        <h1>{text.notReadyTitle}</h1>
+        <p>{text.notReadyBody}</p>
+        <button className="result-primary" onClick={() => router.push("/")}>{text.back} <span>→</span></button>
+      </main>
+      <SiteFooter language={language} />
+      </>
+    );
   }
 
   const isCrisis = Boolean(result.crisis_flag || result.band === "crisis");
-  const bannerLanguage = detail?.language === "اردو" ? "ur" : "en";
+  const bannerLanguage = isUrdu ? "ur" : "en";
   const crisisText = crisisCopy[bannerLanguage];
   const saveText = saveCopy[bannerLanguage];
 
   return (
     <>
-    <main className="results-page">
+    <main className="results-page" dir={isUrdu ? "rtl" : "ltr"}>
       <DoodleSpeechBubble className="doodle doodle-blue doodle-float" style={{ top: "90px", left: "3%" }} />
       <DoodleSun className="doodle doodle-orange doodle-float-slow" style={{ top: "60px", right: "3%" }} />
       <DoodleLeaf className="doodle doodle-teal doodle-sway" style={{ top: "50%", left: "1%", width: "26px", height: "auto" }} />
-      <SiteHeader right={<span className="results-private"><i /> Private session result</span>} backLabel="Back to check-in" />
+      <SiteHeader right={<span className="results-private"><i /> {text.privateSession}</span>} backLabel={text.back} language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} />
       {isCrisis && (
         <section className="resource-hero emergency-hero" dir={bannerLanguage === "ur" ? "rtl" : "ltr"}>
           <p className="eyebrow crisis-eyebrow">{crisisText.eyebrow}</p>
@@ -119,14 +162,14 @@ export default function ResultsClient() {
           <p>{crisisText.lede}</p>
         </section>
       )}
-      <NatureBanner {...naturePhotos.mountainRange} caption="A clearer picture, from higher ground." priority />
+      <NatureBanner {...naturePhotos.mountainRange} caption={text.caption} priority />
       {isCrisis && (
         <>
           <CrisisBanner language={bannerLanguage} />
           <div className="emergency-actions">
             <Link className="result-primary" href="/therapist">{crisisText.talkTherapist} <span>→</span></Link>
           </div>
-          <p className="results-crisis-note">Your full results and PDF are still available below - bring them to whoever you reach out to.</p>
+          <p className="results-crisis-note">{crisisText.fullResultsNote}</p>
         </>
       )}
       {saveStatus !== "idle" && (
@@ -141,9 +184,9 @@ export default function ResultsClient() {
           )}
         </div>
       )}
-      <CheckInResultsBody result={result} onDownloadPdf={handleDownloadPdf} onReturnToCheckIn={() => router.push("/")} />
+      <CheckInResultsBody result={result} onDownloadPdf={handleDownloadPdf} onReturnToCheckIn={() => router.push("/")} language={language} />
     </main>
-    <SiteFooter />
+    <SiteFooter language={language} />
     </>
   );
 }
