@@ -562,6 +562,11 @@ RETRIEVAL_STOPWORDS = frozenset({
     "tell", "than", "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through", "too", "under",
     "until", "very", "was", "were", "what", "when", "where", "which", "while", "who", "whom", "why", "will", "with", "would",
     "you", "your", "yours", "tomorrow", "today", "know", "think", "want", "need", "help", "lately", "really", "always",
+    # Near-zero signal in this corpus specifically - every mental-health
+    # passage talks about "feeling" something, so on its own it matches
+    # almost any chunk regardless of actual topic (unlike a word such as
+    # "anxiety", which is genuinely topical).
+    "feel", "feels", "feeling", "feelings",
 })
 
 # Words that mean the same thing in everyday language and in clinical guidance,
@@ -592,10 +597,9 @@ def _expanded_terms(text: str) -> set[str]:
     return expanded
 
 
-def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
-    """Splits a document into passages of roughly `size` characters, on paragraph
-    boundaries where possible, so a long PDF is searchable end to end rather than
-    only its first few hundred words."""
+def _pack_paragraphs(text: str, size: int) -> list[str]:
+    """Packs paragraphs into passages of roughly `size` characters, splitting on
+    paragraph boundaries where possible."""
     paragraphs = [part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()]
     chunks: list[str] = []
     current = ""
@@ -613,6 +617,40 @@ def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
             current = f"{current}\n\n{paragraph}" if current else paragraph
     if current:
         chunks.append(current)
+    return chunks
+
+
+# The curated knowledge_base/*.md files mark each self-contained passage with
+# a "<!-- chunk: id=... | ... -->" comment (one topic/context per passage,
+# e.g. a single motivational-messages context or a single condition). These
+# boundaries are authored on purpose and must be respected: packing by raw
+# character count alone (the fallback below) can glue unrelated topics - say,
+# a crisis-adjacent message and an unrelated Urdu stress tip - into one chunk,
+# which then gets retrieved as a block even when only one part matches the
+# query. The marker line itself is metadata for this splitter only and is
+# stripped before storage, so it never reaches the chat prompt or the
+# "Open reference" card shown to users.
+_CHUNK_MARKER_PATTERN = re.compile(r"(?m)^<!--\s*chunk:.*?-->[ \t]*\n?")
+
+
+def chunk_document_text(text: str, size: int = UPLOAD_CHUNK_CHARS) -> list[str]:
+    """Splits a document into retrievable passages, on its own authored chunk
+    markers when present, else on paragraph boundaries up to roughly `size`
+    characters - so a long PDF is still searchable end to end."""
+    markers = list(_CHUNK_MARKER_PATTERN.finditer(text))
+    if not markers:
+        return _pack_paragraphs(text, size)
+
+    chunks: list[str] = []
+    preamble = text[:markers[0].start()].strip()
+    if preamble:
+        chunks.extend(_pack_paragraphs(preamble, size))
+    for index, marker in enumerate(markers):
+        end = markers[index + 1].start() if index + 1 < len(markers) else len(text)
+        piece = text[marker.end():end].strip()
+        if not piece:
+            continue
+        chunks.extend(_pack_paragraphs(piece, size) if len(piece) > size else [piece])
     return chunks
 
 
@@ -699,7 +737,14 @@ async def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
 
     scored: list[tuple[float, int, ReferenceChunk, ReferenceDocument]] = []
     for chunk, document in chunk_rows:
-        overlap = len(query_terms & _expanded_terms(chunk.text))
+        # Synonym expansion only runs on the query side, to catch the message
+        # phrasing a concept differently from the corpus - expanding the
+        # chunk side too would let one generic, high-frequency word in a
+        # chunk (e.g. "motivation") pull in its entire synonym group (here,
+        # 13 depression-related words including "low", "alone", "empty"),
+        # falsely matching nearly every unrelated chunk that happens to
+        # contain any one of them.
+        overlap = len(query_terms & _terms(chunk.text))
         topic_match = document.intent in topics
         similarity = cosine_similarity(query_vector, json.loads(chunk.embedding)) if query_vector and chunk.embedding else None
         relevant = (similarity is not None and similarity >= SEMANTIC_MIN_SIMILARITY) or overlap > 0 or topic_match

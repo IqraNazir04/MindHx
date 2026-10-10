@@ -531,6 +531,9 @@ textarea::placeholder { color:#9aa6b4; }
 .exercise-stepper-button { padding:9px 18px; font-size:12px; }
 .chat-helped-note { margin:10px 0 0; color:var(--teal); font-size:12px; }
 
+.breathing-circle-wrap { display:flex; align-items:center; justify-content:center; height:88px; margin-bottom:6px; }
+.breathing-circle { width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), var(--teal) 70%); box-shadow:0 0 0 1px rgba(47,143,110,.25), 0 8px 24px rgba(47,143,110,.35); transition-property:transform; transition-timing-function:ease-in-out; }
+
 .emergency-hero { padding-bottom:20px; }
 .emergency-hero p:last-child { color:#8b3535; }
 .emergency-notice { position:relative; z-index:1; max-width:900px; margin:22px auto 0; }
