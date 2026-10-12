@@ -11,7 +11,7 @@ import { useLanguage } from "../lib/language";
 
 const copy = {
   English: {
-    eyebrow: "03 / CLINICAL CHECK-IN",
+    eyebrow: "01 / CLINICAL CHECK-IN",
     titleLine1: "Three short,",
     titleLine2: "validated questionnaires.",
     intro: "PHQ-9, GAD-7, and K10 are the same validated questionnaires healthcare professionals already use. Answer honestly - there are no right answers, only a clearer picture.",
@@ -21,7 +21,7 @@ const copy = {
     next: "Next test",
   },
   اردو: {
-    eyebrow: "03 / طبی جائزہ",
+    eyebrow: "01 / طبی جائزہ",
     titleLine1: "تین مختصر،",
     titleLine2: "مستند سوالنامے۔",
     intro: "PHQ-9، GAD-7، اور K10 وہی مستند سوالنامے ہیں جو ماہرین صحت پہلے سے استعمال کرتے ہیں۔ ایمانداری سے جواب دیں - کوئی صحیح یا غلط جواب نہیں، صرف ایک واضح تصویر ہے۔",
@@ -96,7 +96,7 @@ export default function QuestionnaireClient() {
         <ClinicalSignalGraphic />
         <div className="card-heading">
           <div>
-            <p className="card-kicker">SIGNAL 03 · {completedScales} / 3 COMPLETE</p>
+            <p className="card-kicker">SIGNAL 01 · {completedScales} / 3 COMPLETE</p>
             <h2>{text.clinical}</h2>
           </div>
           <span className="progress-label">{activeAnswers.filter((answer) => answer > -1).length} / {activeQuestions.length}</span>

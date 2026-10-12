@@ -218,6 +218,7 @@ export default function AiClient() {
               ))}
               {entry.exercise && (
                 <ExerciseStepper
+                  id={entry.exercise.id}
                   name={entry.exercise.name}
                   steps={entry.exercise.steps}
                   startLabel={text.exerciseStart}

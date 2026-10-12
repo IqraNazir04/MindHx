@@ -1,53 +1,114 @@
 ---
 title: Supportive and Motivational Messages
-domain: general
+domain: messages
 version: 1.0
-note: short, warm messages for everyday low moments; not a substitute for crisis response (see safety protocol) or treatment of diagnosable conditions
+note: All messages are original to this corpus. Use them as a closing line or encouragement, never as a substitute for clinical content or the safety protocol.
 ---
 
-<!-- chunk: id=motiv_001 | domain=general | type=supportive_message | risk=low | audience=general | lang=en -->
-## On hard days
+<!-- chunk: id=msg_000 | domain=messages | type=message | risk=low | audience=general | lang=en -->
+## Principles for encouragement
 
-- "You don't have to feel okay today for today to count. Showing up like this is already something."
-- "This feeling is real, and it is also not permanent, even when it feels like it will last forever."
-- "You've gotten through hard days before, even ones you weren't sure you'd get through. That matters."
-- "It's okay to just survive today. Tomorrow can ask more of you; today doesn't have to."
+Good encouragement validates before it motivates. Avoid toxic positivity ("just stay positive", "others have it worse", "everything happens for a reason"), which can make people feel unheard. Effective messages acknowledge the difficulty, highlight effort rather than outcome, point to one small next step, and remind the person they are not alone. Choose a message that matches the user's context tag, and keep it to one or two sentences.
 
-<!-- chunk: id=motiv_002 | domain=general | type=supportive_message | risk=low | audience=general | lang=en -->
-## On effort and progress
+<!-- chunk: id=msg_001 | domain=messages | type=message | risk=low | audience=general | lang=en | context=stress -->
+## Stress and overwhelm
 
-- "Progress in how you feel is rarely a straight line. A harder day doesn't erase the better ones you've had."
-- "Small steps still count as moving. You don't need a big leap today."
-- "Doing one small thing for yourself today, even if it's tiny, is not nothing."
-- "You're allowed to be proud of getting through something that was quietly really hard, even if no one else saw it."
+- You don't have to solve everything today. Pick the one thing that matters most and let the rest wait.
+- Feeling overwhelmed means you're carrying a lot, not that you're failing at carrying it.
+- A short pause is not lost time. It's how you get your clarity back.
+- Breathe out slowly. You've handled hard days before, and you're handling this one right now.
+- Rest is part of the work, not a reward you have to earn.
 
-<!-- chunk: id=motiv_003 | domain=general | type=supportive_message | risk=low | audience=general | lang=en -->
-## On self-worth and self-criticism
+<!-- chunk: id=msg_002 | domain=messages | type=message | risk=moderate | audience=general | lang=en | context=low_mood -->
+## Low mood and depression
 
-- "The way you're talking to yourself right now sounds harsher than how you'd talk to someone you love. You deserve that same kindness."
-- "Struggling with something doesn't make you weak or broken. It makes you a person going through something hard."
-- "Needing help is not a failure. It's one of the most practical things a person can do."
-- "You are allowed to take up space with your feelings, even the inconvenient ones."
+- Getting through today counts, even if all you did was get through it.
+- Depression tells you nothing will change. That's a symptom talking, not the truth.
+- You don't need to feel motivated to take a small step. Sometimes the step comes first and the feeling follows.
+- Reaching out when everything feels heavy takes real strength. I'm glad you did.
+- Small things are not small right now. A shower, a meal, a message to a friend: each one matters.
 
-<!-- chunk: id=motiv_004 | domain=general | type=supportive_message | risk=low | audience=general | lang=en -->
-## On asking for help and not being alone
+<!-- chunk: id=msg_003 | domain=messages | type=message | risk=low | audience=general | lang=en | context=anxiety -->
+## Anxiety and panic
 
-- "You don't have to carry this by yourself, even if it feels like you do right now."
-- "Reaching out, even just to one person, is a brave and reasonable thing to do."
-- "Whatever you're going through, people have gone through versions of it and found their way to something better, often with support."
-- "It's okay if the people around you don't fully understand. There are people trained to help who will take this seriously."
+- This feeling is intense, and it will pass. Your body knows how to come back down.
+- A worried thought is not a prediction. You can notice it without following it.
+- You've survived every anxious moment so far. This one is no different.
+- Feel your feet on the ground. You're here, right now, and right now you are okay.
 
-<!-- chunk: id=motiv_005 | domain=general | type=supportive_message | risk=low | audience=muslim | lang=en -->
-## For users who reference faith (offer only if the user brings up faith; never assume)
+<!-- chunk: id=msg_004 | domain=messages | type=message | risk=moderate | audience=general | lang=en | context=grief -->
+## Grief
 
-- "Many people find comfort in the idea that hardship is not the end of the story, and that relief can come in ways we don't expect."
-- "It's okay for faith to feel steady and shaky at different times during hard periods. That's a very human experience."
-- "Du'a, patience, and seeking help from people and professionals aren't in competition with each other; many people draw on all of them."
+- There's no right way or right timeline to grieve. Your grief is as unique as your love for them.
+- Missing them this much shows how much they mattered.
+- Some days will be heavier than others. Go gently with yourself on the heavy ones.
+- Laughing or having a good day doesn't mean you've forgotten them.
 
-<!-- chunk: id=motiv_006 | domain=general | type=guideline | risk=low | audience=assistant | lang=en -->
-## How MindHx should use these messages
+<!-- chunk: id=msg_005 | domain=messages | type=message | risk=low | audience=general | lang=en | context=pain -->
+## Living with pain
 
-These lines are meant to accompany genuine listening, not replace it. Use at most one or two per reply, matched to what the user actually said, never as a generic stock reply to distress. Never follow a disclosed crisis, self-harm, or suicidal statement with only a motivational message; the safety protocol (acknowledge, assess, provide helplines/escalation as needed) always comes first, and a supportive line can follow once safety has been addressed, not instead of it. Avoid toxic positivity: don't tell someone to "just think positive," "it could be worse," or "everything happens for a reason" — validate the difficulty before offering any encouragement. Keep messages short; long inspirational paragraphs read as dismissive when someone is in pain.
+- Your pain is real, and so is your ability to keep building a life around it.
+- On flare days, doing less is not giving up. It's pacing.
+- Progress with pain is rarely a straight line. A bad day doesn't erase the good ones.
+- You are more than your pain, even when it's loudest.
 
-### Sources
-- Written for MindHx based on common supportive-listening and motivational-interviewing principles (Miller WR, Rollnick S, *Motivational Interviewing*, 3rd ed., 2012); adapted for tone and cultural fit rather than drawn from a single external citation.
+<!-- chunk: id=msg_006 | domain=messages | type=message | risk=low | audience=general | lang=en | context=self_compassion -->
+## Self-criticism and self-compassion
+
+- Talk to yourself the way you'd talk to someone you love who was going through this.
+- Making a mistake is something you did, not who you are.
+- You're allowed to be a work in progress and still be worthy of kindness.
+
+<!-- chunk: id=msg_007 | domain=messages | type=message | risk=low | audience=general | lang=en | context=help_seeking -->
+## Encouraging help-seeking
+
+- Asking for help is not a sign of weakness. It's a sign you're taking yourself seriously.
+- Talking to a professional is like seeing a doctor for any other health concern. You deserve that care.
+- You don't have to wait until things are unbearable to reach out.
+- Seeing a therapist isn't about something being wrong with you. It's about getting support for something hard.
+
+<!-- chunk: id=msg_008 | domain=messages | type=message | risk=low | audience=general | lang=en | context=progress -->
+## Celebrating progress
+
+- Look how far you've come from where you started. That took effort.
+- You showed up for yourself today. That's worth noticing.
+- Consistency beats intensity. Every small practice adds up.
+
+<!-- chunk: id=msg_009 | domain=messages | type=message | risk=high | audience=general | lang=en | context=crisis -->
+## Crisis messages (always paired with safety_004 and safety_005)
+
+- I'm really glad you told me. You don't have to go through this alone, and you deserve support right now.
+- What you're feeling is incredibly painful, and it can change with help. Can you reach out to someone near you, or call one of these numbers now?
+- Your life matters. Please stay with me while you contact someone who can help.
+
+<!-- chunk: id=msg_010 | domain=messages | type=message | risk=low | audience=general | lang=ur | context=general -->
+## اردو پیغامات (Urdu messages)
+
+**ذہنی دباؤ (Stress)**
+- آج سب کچھ حل کرنا ضروری نہیں۔ ایک قدم کافی ہے۔
+- آہستہ سانس باہر نکالیں۔ آپ پہلے بھی مشکل دن گزار چکے ہیں، یہ دن بھی گزر جائے گا۔
+- آرام کرنا کمزوری نہیں، یہ بھی کام کا حصہ ہے۔
+
+**اداسی (Low mood)**
+- آج کا دن گزار لینا بھی ایک کامیابی ہے۔
+- چھوٹے قدم بھی اہم ہیں۔ ایک کھانا، ایک فون کال، ایک چہل قدمی۔
+- مدد مانگنا ہمت کی نشانی ہے۔
+
+**غم (Grief)**
+- غم کا کوئی صحیح وقت یا طریقہ نہیں ہوتا۔ اپنے ساتھ نرمی برتیں۔
+- انہیں یاد کرنا اس بات کی نشانی ہے کہ وہ آپ کے لیے کتنے اہم تھے۔
+
+**گھبراہٹ (Anxiety)**
+- یہ احساس شدید ہے، لیکن یہ گزر جائے گا۔ اپنے پاؤں زمین پر محسوس کریں۔
+
+**مدد حاصل کرنا (Help-seeking)**
+- ماہرِ نفسیات سے بات کرنا ویسا ہی ہے جیسے کسی بھی بیماری کے لیے ڈاکٹر سے ملنا۔ آپ اس دیکھ بھال کے حقدار ہیں۔
+
+<!-- chunk: id=msg_011 | domain=messages | type=message | risk=low | audience=general | lang=ur-Latn | context=general -->
+## Roman Urdu messages
+
+- Aaj sab kuch hal karna zaroori nahi. Bas ek qadam kaafi hai.
+- Aap akelay nahi hain. Madad maangna himmat ki nishani hai.
+- Yeh mushkil waqt hai, lekin yeh hamesha nahi rahega.
+- Apne aap se waise baat karein jaise kisi apne pyare se karte hain.
+- Gham ka koi sahi waqt nahi hota. Apne saath narmi baratain.

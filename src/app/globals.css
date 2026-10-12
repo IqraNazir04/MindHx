@@ -23,7 +23,7 @@ button { cursor:pointer; }
    at the same pixel size, and negative letter-spacing (tuned for Playfair)
    causes its strokes to crowd each other. */
 [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3 {
-  font-family:'Noto Nastaliq Urdu','DM Sans',sans-serif;
+  font-family:'Noto Nastaliq Urdu','DM Sans',sans-serif !important;
   line-height:1.95 !important;
   letter-spacing:0 !important;
 }
@@ -429,7 +429,7 @@ textarea::placeholder { color:#9aa6b4; }
    a link to the dashboard) and drops the name. */
 @media (max-width:800px) {
   .site-header-sticky { margin:0 -20px; padding:0 20px; }
-  .resource-header { height:auto; min-height:64px; padding:10px 0; gap:12px; }
+  .resource-header { height:auto; min-height:64px; padding:10px 0; gap:12px; flex-wrap:wrap; }
   .resource-header-right { flex:1 1 auto; min-width:0; flex-wrap:wrap; justify-content:flex-end; gap:8px 14px; }
   .resource-header .account-chip-name { display:none; }
 }
@@ -506,7 +506,7 @@ textarea::placeholder { color:#9aa6b4; }
 /* Conversation thread */
 .chat-thread { display:flex; flex-direction:column; gap:14px; max-height:520px; overflow-y:auto; padding:4px 2px; margin-bottom:14px; }
 .chat-bubble { max-width:85%; padding:13px 16px; border-radius:13px; font-size:13px; line-height:1.55; }
-.chat-bubble p { margin:0; }
+.chat-bubble p { margin:0; white-space:pre-line; }
 .chat-bubble.user { align-self:flex-end; background:var(--blue-soft); color:var(--navy); border-bottom-right-radius:3px; }
 .chat-bubble.assistant { align-self:flex-start; background:var(--surface-soft); border:1px solid var(--line); color:var(--navy); border-bottom-left-radius:3px; }
 .chat-bubble.escalation { background:var(--red-soft); border:1px solid rgba(200,79,79,.3); color:#8b3535; }
@@ -530,6 +530,9 @@ textarea::placeholder { color:#9aa6b4; }
 .exercise-stepper-progress { color:var(--muted); font-size:11px; }
 .exercise-stepper-button { padding:9px 18px; font-size:12px; }
 .chat-helped-note { margin:10px 0 0; color:var(--teal); font-size:12px; }
+
+.breathing-circle-wrap { display:flex; align-items:center; justify-content:center; height:88px; margin-bottom:6px; }
+.breathing-circle { width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), var(--teal) 70%); box-shadow:0 0 0 1px rgba(47,143,110,.25), 0 8px 24px rgba(47,143,110,.35); transition-property:transform; transition-timing-function:ease-in-out; }
 
 .emergency-hero { padding-bottom:20px; }
 .emergency-hero p:last-child { color:#8b3535; }
