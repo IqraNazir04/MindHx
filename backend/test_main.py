@@ -746,6 +746,75 @@ def test_password_reset_signs_out_existing_sessions(monkeypatch) -> None:
     assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
 
 
+def _fake_google(monkeypatch, claims_by_credential: dict) -> None:
+    """Turns Google sign-in on with a stand-in verifier: each fake credential
+    maps to the claims Google would have returned (unknown ones fail)."""
+    monkeypatch.setattr(main, "GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
+    monkeypatch.setattr(main, "verify_google_id_token", lambda credential: claims_by_credential.get(credential))
+
+
+def test_google_sign_in_is_off_without_a_client_id(monkeypatch) -> None:
+    monkeypatch.setattr(main, "GOOGLE_CLIENT_ID", None)
+    assert client.get("/auth/config").json() == {"google_client_id": None}
+    assert client.post("/auth/google", json={"credential": "anything"}).status_code == 503
+
+
+def test_google_sign_in_creates_then_reuses_a_passwordless_account(monkeypatch) -> None:
+    _fake_google(monkeypatch, {"new-user": {"sub": "g-100", "email": "New.Google@Example.com", "email_verified": True, "name": "Ayesha Khan"}})
+    assert client.get("/auth/config").json()["google_client_id"] == "test-client.apps.googleusercontent.com"
+
+    first = client.post("/auth/google", json={"credential": "new-user"})
+    assert first.status_code == 200
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {first.json()['access_token']}"}).json()
+    assert me["email"] == "new.google@example.com"
+    assert me["full_name"] == "Ayesha Khan"
+    assert me["has_password"] is False and me["google_linked"] is True
+
+    second = client.post("/auth/google", json={"credential": "new-user"})
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {second.json()['access_token']}"}).json()["id"] == me["id"]
+    sessions = client.get("/auth/sessions", headers={"Authorization": f"Bearer {second.json()['access_token']}"}).json()
+    assert sorted(session["method"] for session in sessions) == ["google", "google_register"]
+
+    # No password exists to change or to sign in with.
+    change = client.post("/auth/change-password", json={"current_password": "x", "new_password": "brand-new-password"}, headers={"Authorization": f"Bearer {second.json()['access_token']}"})
+    assert change.status_code == 400
+    assert client.post("/auth/login", json={"email": "new.google@example.com", "password": "anything-at-all"}).status_code == 401
+
+
+def test_google_sign_in_rejects_bad_or_unverified_tokens(monkeypatch) -> None:
+    _fake_google(monkeypatch, {"unverified": {"sub": "g-200", "email": "unverified@example.com", "email_verified": False}})
+    assert client.post("/auth/google", json={"credential": "forged"}).status_code == 401
+    assert client.post("/auth/google", json={"credential": "unverified"}).status_code == 401
+
+
+def test_first_google_sign_in_to_a_password_account_retires_the_password(monkeypatch) -> None:
+    sent_emails = []
+    monkeypatch.setattr(main, "send_email", lambda **kwargs: sent_emails.append(kwargs))
+    old_token = client.post("/auth/register", json={"email": "linked@example.com", "password": "original-password"}).json()["access_token"]
+    _fake_google(monkeypatch, {
+        "owner": {"sub": "g-300", "email": "linked@example.com", "email_verified": True},
+        "someone-else": {"sub": "g-301", "email": "linked@example.com", "email_verified": True},
+    })
+
+    google_token = client.post("/auth/google", json={"credential": "owner"}).json()["access_token"]
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {google_token}"}).json()
+    assert me["has_password"] is False and me["google_linked"] is True
+    # Whoever set the old password (possibly not the address's owner) is out.
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {old_token}"}).status_code == 401
+    assert client.post("/auth/login", json={"email": "linked@example.com", "password": "original-password"}).status_code == 401
+    # A second Google account can't take over the same address.
+    assert client.post("/auth/google", json={"credential": "someone-else"}).status_code == 409
+
+    # The owner can set a password again by email, and then use either.
+    client.post("/auth/forgot-password", json={"email": "linked@example.com"})
+    reset_token = sent_emails[-1]["text_body"].split("token=")[1].split()[0]
+    assert client.post("/auth/reset-password", json={"token": reset_token, "new_password": "brand-new-password"}).status_code == 200
+    login = client.post("/auth/login", json={"email": "linked@example.com", "password": "brand-new-password"})
+    assert login.status_code == 200
+    assert client.get("/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"}).json()["has_password"] is True
+    assert client.post("/auth/google", json={"credential": "owner"}).status_code == 200
+
+
 def test_resource_update_rejects_nulls_for_required_fields() -> None:
     headers = {"Authorization": f"Bearer {_register_admin('null-admin@example.com')}"}
     resource_id = client.post("/admin/resources", json={"resource_type": "general", "slug": "null-check", "title": "T", "image_data_url": "data:image/jpeg;base64,AAAA"}, headers=headers).json()["id"]

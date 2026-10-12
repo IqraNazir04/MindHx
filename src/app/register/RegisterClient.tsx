@@ -7,6 +7,7 @@ import SiteHeader from "../components/SiteHeader";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 import { register, safeNextPath } from "../lib/auth";
 import { useLanguage } from "../lib/language";
 
@@ -40,6 +41,7 @@ const copy = {
     failed: "Account creation failed.",
     haveAccount: "Already have an account?",
     signIn: "Sign in",
+    or: "or create one with email",
   },
   اردو: {
     back: "چیک ان پر واپس",
@@ -68,6 +70,7 @@ const copy = {
     failed: "اکاؤنٹ نہیں بن سکا۔",
     haveAccount: "پہلے سے اکاؤنٹ ہے؟",
     signIn: "سائن ان کریں",
+    or: "یا ای میل سے اکاؤنٹ بنائیں",
   },
 };
 
@@ -136,6 +139,7 @@ export default function RegisterClient() {
       </section>
       <NatureBanner {...naturePhotos.forestPath} priority />
       <form className="auth-form" onSubmit={handleSubmit}>
+        <GoogleSignInButton mode="signup_with" urdu={language === "اردو"} dividerLabel={text.or} onSignedIn={() => router.push(nextPath)} onError={setError} />
         <label>
           <span>{text.email} <em className="required-mark">{text.required}</em></span>
           <input type="email" dir="ltr" required value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="you@example.com" />

@@ -16,7 +16,7 @@ import QuestionnaireAnswersList from "../components/QuestionnaireAnswersList";
 import { downloadResultsPdf } from "../lib/resultsPdf";
 
 const BAND_LABEL: Record<string, string> = { low: "Low", watch: "Watch", elevated: "Elevated", crisis: "Crisis" };
-const SESSION_METHOD_LABEL: Record<string, string> = { login: "Signed in", register: "Account created", password_change: "Signed in after password change" };
+const SESSION_METHOD_LABEL: Record<string, string> = { login: "Signed in", register: "Account created", password_change: "Signed in after password change", google: "Signed in with Google", google_register: "Account created with Google" };
 const SESSION_STATUS_LABEL: Record<string, string> = {
   active: "Active",
   expired: "Expired",
@@ -24,6 +24,7 @@ const SESSION_STATUS_LABEL: Record<string, string> = {
   revoked: "Signed out remotely",
   password_change: "Ended by password change",
   password_reset: "Ended by password reset",
+  google_link: "Ended when Google sign-in was linked",
 };
 const LOGIN_HISTORY_PREVIEW = 5;
 
@@ -136,7 +137,9 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
             <input type="file" accept="image/*" onChange={handleAvatarChange} disabled={uploadingAvatar} />
           </label>
           <div className="profile-avatar-actions">
-            <button onClick={() => setShowChangePassword(true)} type="button">Change password</button>
+            {user.has_password
+              ? <button onClick={() => setShowChangePassword(true)} type="button">Change password</button>
+              : <Link href="/forgot-password" title="You sign in with Google. Set a password by email to sign in with either.">Set a password</Link>}
             <button onClick={handleSignOut} type="button">Sign out</button>
           </div>
         </div>

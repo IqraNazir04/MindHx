@@ -67,7 +67,13 @@ def init_db() -> None:
         "avatar_data_url": "TEXT",
         "is_admin": "BOOLEAN DEFAULT FALSE",
         "token_version": "INTEGER NOT NULL DEFAULT 0",
+        "google_sub": "VARCHAR(255)",
+        "has_password": "BOOLEAN NOT NULL DEFAULT TRUE",
     })
+    # ADD COLUMN can't carry the model's unique index; create_all only adds it
+    # for a users table it creates from scratch.
+    with engine.begin() as conn:
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_sub ON users (google_sub)"))
     _ensure_columns("check_ins", {
         "assessment_id": "VARCHAR(36)",
         "details_json": "TEXT",

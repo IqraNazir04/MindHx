@@ -16,6 +16,9 @@ from typing import Optional
 
 import bcrypt
 import jwt
+from google.auth.exceptions import GoogleAuthError
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWTError
@@ -40,6 +43,11 @@ LOGIN_HISTORY_RETENTION_DAYS = int(os.getenv("LOGIN_HISTORY_RETENTION_DAYS", "90
 # last_seen_at is refreshed at most this often, so an active session costs
 # one extra write every few minutes rather than one per request.
 LAST_SEEN_UPDATE_INTERVAL = timedelta(minutes=5)
+
+# OAuth client ID from Google Cloud Console (APIs & Services > Credentials,
+# type "Web application"). Unset means "Sign in with Google" is off: the
+# frontend hides the button and POST /auth/google answers 503.
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip() or None
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -94,6 +102,24 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 # same bcrypt work either way and its timing doesn't reveal which emails are
 # registered.
 _DUMMY_PASSWORD_HASH = bcrypt.hashpw(secrets.token_bytes(16), bcrypt.gensalt()).decode("utf-8")
+
+
+def unusable_password_hash() -> str:
+    """A hash for accounts that sign in only with Google: of a random secret
+    that is never stored or shown, so no password can ever match it."""
+    return hash_password(secrets.token_urlsafe(32))
+
+
+def verify_google_id_token(credential: str) -> Optional[dict]:
+    """The claims of a Google ID token from the "Sign in with Google" button,
+    or None unless it's validly signed by Google, unexpired, and issued for
+    GOOGLE_CLIENT_ID (verify_oauth2_token checks all three, plus issuer)."""
+    if not GOOGLE_CLIENT_ID:
+        return None
+    try:
+        return google_id_token.verify_oauth2_token(credential, google_requests.Request(), GOOGLE_CLIENT_ID)
+    except (ValueError, GoogleAuthError):
+        return None
 
 
 def authenticate(user: Optional["User"], password: str) -> bool:

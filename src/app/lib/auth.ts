@@ -63,6 +63,9 @@ export type CurrentUser = {
   preferred_language: string | null;
   avatar_data_url: string | null;
   is_admin: boolean;
+  // False for accounts that only sign in with Google (no password set yet).
+  has_password: boolean;
+  google_linked: boolean;
   created_at: string;
 };
 export type CheckInRecord = {
@@ -119,6 +122,33 @@ export async function login(email: string, password: string): Promise<string> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
+  });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  const result = await response.json() as { access_token: string };
+  setToken(result.access_token);
+  return result.access_token;
+}
+
+// The OAuth client ID for "Sign in with Google", or null when the backend
+// has none configured (the button is then hidden).
+export async function fetchGoogleClientId(): Promise<string | null> {
+  try {
+    const response = await fetch(`${API_BASE}/auth/config`);
+    if (!response.ok) return null;
+    const config = await response.json() as { google_client_id: string | null };
+    return config.google_client_id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Exchanges the ID token from Google's button for a MindHx session - signs
+// in, or creates the account on first use.
+export async function loginWithGoogle(credential: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/auth/google`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ credential }),
   });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
   const result = await response.json() as { access_token: string };
@@ -328,14 +358,14 @@ export async function deleteCheckInReport(checkInId: string): Promise<void> {
 
 export type LoginSessionRecord = {
   id: string;
-  method: "login" | "register" | "password_change" | string;
+  method: "login" | "register" | "password_change" | "google" | "google_register" | string;
   device: string;
   user_agent: string | null;
   ip_address: string | null;
   created_at: string;
   last_seen_at: string;
   ended_at: string | null;
-  status: "active" | "expired" | "logout" | "revoked" | "password_change" | "password_reset" | string;
+  status: "active" | "expired" | "logout" | "revoked" | "password_change" | "password_reset" | "google_link" | string;
   active: boolean;
   current: boolean;
 };

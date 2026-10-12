@@ -57,6 +57,14 @@ class User(Base):
     # so tokens issued before the change stop working immediately instead of
     # living out their expiry.
     token_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Google's stable account id ("sub" claim) once this account has signed in
+    # with Google. Matched before email, so a later change of the Google
+    # account's address still finds the same MindHx account.
+    google_sub: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True, nullable=True)
+    # False for accounts that only sign in with Google: hashed_password then
+    # holds a hash of a random secret nobody knows. Setting a password (via
+    # forgot-password) flips it back to True.
+    has_password: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     check_ins: Mapped[list["CheckIn"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -184,7 +192,7 @@ class LoginSession(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    method: Mapped[str] = mapped_column(String(20), nullable=False, default="login")  # "login" | "register" | "password_change"
+    method: Mapped[str] = mapped_column(String(20), nullable=False, default="login")  # "login" | "register" | "password_change" | "google" | "google_register"
     ip_address: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
@@ -193,7 +201,7 @@ class LoginSession(Base):
     # Set on sign-out, on "sign out this device" from the history list, or
     # when a password change/reset signs out other sessions.
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    end_reason: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # "logout" | "revoked" | "password_change" | "password_reset"
+    end_reason: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # "logout" | "revoked" | "password_change" | "password_reset" | "google_link"
 
 
 class CheckInReport(Base):

@@ -32,6 +32,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from auth import (
+    GOOGLE_CLIENT_ID,
     JWT_ALGORITHM,
     JWT_SECRET_KEY,
     PASSWORD_RESET_EXPIRE_MINUTES,
@@ -50,6 +51,8 @@ from auth import (
     password_too_long,
     password_weakness,
     start_login_session,
+    unusable_password_hash,
+    verify_google_id_token,
     verify_password,
 )
 from database import get_db, init_db
@@ -277,6 +280,11 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=72)
+
+
+class GoogleLoginRequest(BaseModel):
+    # The ID token (a JWT) the "Sign in with Google" button hands the page.
+    credential: str = Field(min_length=1, max_length=4096)
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -1316,6 +1324,8 @@ def _serialize_user(user: User) -> dict:
         "preferred_language": user.preferred_language,
         "avatar_data_url": user.avatar_data_url,
         "is_admin": user.is_admin,
+        "has_password": user.has_password,
+        "google_linked": user.google_sub is not None,
         "created_at": user.created_at.isoformat(),
     }
 
@@ -1395,6 +1405,62 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)
     if not authenticate(user, payload.password):
         raise HTTPException(status_code=401, detail="Incorrect email or password")
     return {"access_token": start_login_session(db, user, request, "login"), "token_type": "bearer"}
+
+
+@app.get("/auth/config")
+def auth_config() -> dict:
+    """Public sign-in settings for the login/register pages. The Google client
+    ID isn't a secret (it's in every page that shows the Google button);
+    null means Google sign-in is off and the button stays hidden."""
+    return {"google_client_id": GOOGLE_CLIENT_ID}
+
+
+@app.post("/auth/google", dependencies=[Depends(rate_limit("google-login", 10, 300))])
+def google_login(payload: GoogleLoginRequest, request: Request, db: Session = Depends(get_db)) -> dict:
+    """Sign in (or create an account) with a Google ID token. Matches the
+    account by Google id first, then by email, so someone who registered
+    with a password can also use Google for the same address."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Google sign-in isn't available right now.")
+    claims = verify_google_id_token(payload.credential)
+    if not claims or not claims.get("sub"):
+        raise HTTPException(status_code=401, detail="Google sign-in failed. Please try again.")
+    email = (claims.get("email") or "").lower()
+    # Google only vouches for the address when email_verified is true; without
+    # that, matching on it could hand someone another person's account.
+    if not email or claims.get("email_verified") is not True:
+        raise HTTPException(status_code=401, detail="Your Google account's email address isn't verified.")
+
+    google_sub = str(claims["sub"])
+    user = db.query(User).filter(User.google_sub == google_sub).first()
+    method = "google"
+    if not user:
+        user = db.query(User).filter(User.email == email).first()
+        if user and user.google_sub:
+            raise HTTPException(status_code=409, detail="This email is already linked to a different Google account.")
+        if user:
+            # First Google sign-in to an existing account. Registration never
+            # verified that whoever chose this account's password owns the
+            # address - Google just did. So the old password is retired and
+            # every session ended: otherwise someone could register a
+            # victim's email in advance, wait for them to sign in with Google
+            # and use the account, then read it with the password they set.
+            # The owner can set a new password through forgot-password.
+            user.google_sub = google_sub
+            if user.has_password:
+                user.hashed_password = unusable_password_hash()
+                user.has_password = False
+            user.token_version = (user.token_version or 0) + 1
+            end_login_sessions(db, user.id, "google_link")
+            db.commit()
+        else:
+            name = (claims.get("name") or "").strip()[:120] or None
+            user = User(email=email, hashed_password=unusable_password_hash(), has_password=False, google_sub=google_sub, full_name=name)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            method = "google_register"
+    return {"access_token": start_login_session(db, user, request, method), "token_type": "bearer"}
 
 
 @app.post("/admin/login", dependencies=[Depends(rate_limit("admin-login", 10, 300))])
@@ -1572,6 +1638,7 @@ def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db))
         raise invalid
 
     user.hashed_password = hash_password(payload.new_password)
+    user.has_password = True
     user.token_version = (user.token_version or 0) + 1  # Sign out every existing session.
     end_login_sessions(db, user.id, "password_reset")
     reset_token.used_at = datetime.now(timezone.utc)
@@ -1602,6 +1669,8 @@ def change_password(payload: ChangePasswordRequest, request: Request, auth: Auth
     reset flow (see /auth/forgot-password) - requires the current password
     so it can't be used by someone who's merely stolen a live session."""
     current_user = auth.user
+    if not current_user.has_password:
+        raise HTTPException(status_code=400, detail="You sign in with Google, so there's no current password. Set one through \"Forgot password\" instead.")
     if not verify_password(payload.current_password, current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Current password is incorrect")
     _require_acceptable_new_password(payload.new_password)
