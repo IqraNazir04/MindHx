@@ -177,7 +177,7 @@ function AdminDashboard({ admin }: { admin: CurrentUser }) {
           <div className="admin-resource-list">
             {resources.map((resource) => (
               <article className="admin-resource-row" key={resource.id}>
-                {resource.image_data_url && <img className="admin-resource-thumb" src={resource.image_data_url} alt="" />}
+                {resource.image_data_url && <img className="admin-resource-thumb" src={resource.image_data_url} alt={resource.title} />}
                 <div>
                   <b>{resource.title}</b>
                   <span className="admin-resource-meta">{resource.resource_type} · /{resource.slug} · {resource.published ? "published" : "draft"}</span>
@@ -323,7 +323,7 @@ function ResourceFormModal({ initial, onClose, onSaved }: { initial: ResourceRec
           </label>
           <label>
             <span>Image (optional)</span>
-            {imageDataUrl && <img className="admin-image-preview" src={imageDataUrl} alt="" />}
+            {imageDataUrl && <img className="admin-image-preview" src={imageDataUrl} alt="Uploaded image preview" />}
             <input type="file" accept="image/*" onChange={handleImageChange} disabled={uploadingImage} />
             {imageDataUrl && <button type="button" className="admin-image-remove" onClick={() => setImageDataUrl(null)}>Remove image</button>}
           </label>

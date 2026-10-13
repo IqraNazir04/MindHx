@@ -51,7 +51,7 @@ export default function ResourcePostDetail({ slug, section }: { slug: string; se
             <h1>{post.title}</h1>
             {post.summary && <p>{post.summary}</p>}
           </section>
-          {post.image_data_url && <img className="resource-hero-image" src={post.image_data_url} alt="" />}
+          {post.image_data_url && <img className="resource-hero-image" src={post.image_data_url} alt={post.title} />}
           <section className="admin-section">
             <div className="resource-body">{post.body.split("\n").map((paragraph, index) => paragraph.trim() && <p key={index}>{paragraph}</p>)}</div>
           </section>

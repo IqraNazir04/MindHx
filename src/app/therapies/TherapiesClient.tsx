@@ -73,7 +73,7 @@ export default function TherapiesClient() {
         {adminPosts.map((post) => (
           <Link key={post.slug} href={`/therapies/post/${post.slug}`} className="reference-card-link">
             <article>
-              {post.image_data_url && <img className="admin-post-card-image" src={post.image_data_url} alt="" />}
+              {post.image_data_url && <img className="admin-post-card-image" src={post.image_data_url} alt={post.title} />}
               <p className="card-kicker">{text.approach}</p>
               <h2>{post.title}</h2>
               <p className="reference-card-summary">{post.summary}</p>

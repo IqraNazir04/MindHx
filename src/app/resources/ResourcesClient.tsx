@@ -80,7 +80,7 @@ export default function ResourcesClient() {
             return (
               <Link key={resource.id} href={`/resources/${resource.slug}`} className="reference-card-link">
                 <article>
-                  {resource.image_data_url && <img className="reference-card-image" src={resource.image_data_url} alt="" />}
+                  {resource.image_data_url && <img className="reference-card-image" src={resource.image_data_url} alt={resource.title} />}
                   <p className="card-kicker">{typeLabel ? (isUrdu ? typeLabel.ur : typeLabel.en) : resource.resource_type}</p>
                   <h2>{resource.title}</h2>
                   <p className="reference-card-summary">{resource.summary}</p>

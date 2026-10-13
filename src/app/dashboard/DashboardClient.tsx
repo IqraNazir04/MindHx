@@ -44,6 +44,7 @@ const copy = {
     titleB: (email: string) => `for ${email}.`,
     intro: "Every check-in is saved here: your combined score, signal breakdown, support plan, and your answer to each questionnaire item (which the MindHx team can review). Its full PDF report - including what you said and wrote - is saved too, visible only to you, so you can download it any time and show it to your doctor. You can delete a saved report whenever you like.",
     uploading: "Uploading…",
+    profilePhotoAlt: "Your profile photo",
     changePhoto: "Change photo",
     changePassword: "Change password",
     setPassword: "Set a password",
@@ -78,6 +79,7 @@ const copy = {
     titleB: (email: string) => `${email} کے لیے۔`,
     intro: "ہر چیک ان یہاں محفوظ ہے: آپ کا مجموعی اسکور، اشاروں کی تفصیل، معاون منصوبہ، اور سوالنامے کے ہر سوال کا آپ کا جواب (جسے MindHx ٹیم دیکھ سکتی ہے)۔ اس کی مکمل PDF رپورٹ بھی - جس میں آپ نے جو کہا اور لکھا وہ شامل ہے - محفوظ کی جاتی ہے، جو صرف آپ کو نظر آتی ہے، تاکہ آپ اسے کسی بھی وقت ڈاؤن لوڈ کر کے اپنے ڈاکٹر کو دکھا سکیں۔ آپ محفوظ شدہ رپورٹ جب چاہیں حذف کر سکتے ہیں۔",
     uploading: "اپ لوڈ ہو رہا ہے…",
+    profilePhotoAlt: "آپ کی پروفائل تصویر",
     changePhoto: "تصویر تبدیل کریں",
     changePassword: "پاس ورڈ تبدیل کریں",
     setPassword: "پاس ورڈ بنائیں",
@@ -214,7 +216,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
       <section className="profile-panel">
         <div className="profile-avatar-wrap">
           {user.avatar_data_url
-            ? <img className="profile-avatar" src={user.avatar_data_url} alt="" />
+            ? <img className="profile-avatar" src={user.avatar_data_url} alt={text.profilePhotoAlt} />
             : <div className="profile-avatar-placeholder">{initial}</div>}
           <label className="profile-avatar-edit">
             {uploadingAvatar ? text.uploading : text.changePhoto}
