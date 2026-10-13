@@ -77,6 +77,8 @@ export const crisisCopy: Record<CrisisLanguage, {
   helplinesNote: string;
   findHelp: string;
   findHelpBody: string;
+  readyTitle: string;
+  readyBody: string;
   talkTherapist: string;
   fullResultsNote: string;
 }> = {
@@ -98,6 +100,8 @@ export const crisisCopy: Record<CrisisLanguage, {
     helplinesNote: "Pakistan doesn't yet have a round-the-clock mental health crisis line. Outside these hours, use the emergency numbers above or go to the nearest hospital emergency department.",
     findHelp: "Find help",
     findHelpBody: "Search for a local crisis line, emergency service, or hospital emergency department in your country. If you already have a therapist, psychiatrist, or doctor, contact them directly.",
+    readyTitle: "If you can, have ready",
+    readyBody: "Your location, a brief description of what's happening, and the name of anyone who can stay with you. You don't need to have everything figured out before you call.",
     talkTherapist: "Talk to a professional",
     fullResultsNote: "Your full results and PDF are available below - bring them to whoever you reach out to.",
   },
@@ -119,6 +123,8 @@ export const crisisCopy: Record<CrisisLanguage, {
     helplinesNote: "پاکستان میں ابھی چوبیس گھنٹے کام کرنے والی ذہنی صحت کی بحرانی ہیلپ لائن موجود نہیں۔ ان اوقات کے علاوہ، اوپر دیے گئے ہنگامی نمبروں پر کال کریں یا قریبی ہسپتال کے ایمرجنسی شعبے میں جائیں۔",
     findHelp: "مدد تلاش کریں",
     findHelpBody: "اپنے ملک میں کسی مقامی بحرانی ہیلپ لائن، ہنگامی سروس، یا ہسپتال کے ایمرجنسی شعبے کو تلاش کریں۔ اگر آپ کا پہلے سے کوئی معالج، ماہرِ نفسیات، یا ڈاکٹر ہے تو براہِ راست ان سے رابطہ کریں۔",
+    readyTitle: "اگر ممکن ہو تو تیار رکھیں",
+    readyBody: "اپنا مقام، جو کچھ ہو رہا ہے اس کی مختصر وضاحت، اور اس شخص کا نام جو آپ کے ساتھ رہ سکتا ہے۔ کال کرنے سے پہلے سب کچھ طے کرنا ضروری نہیں۔",
     talkTherapist: "کسی ماہر سے بات کریں",
     fullResultsNote: "آپ کے مکمل نتائج اور PDF نیچے دستیاب ہیں - انہیں اپنے ساتھ لے جائیں جس سے بھی آپ رابطہ کریں۔",
   },

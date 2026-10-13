@@ -1,4 +1,10 @@
 import { crisisCopy, emergencyNumbers, mentalHealthHelplines, type CrisisLanguage } from "../lib/crisisCopy";
+import { StepIcon, type StepIconKey } from "./StepIcons";
+
+// One icon per "Right now" step, in the fixed order crisisCopy.steps is
+// always written in (call for immediate danger, reach out to a helpline or
+// trusted person, remove access to means, follow up with a professional).
+const STEP_ICONS: StepIconKey[] = ["headsetCoach", "twoPeople", "shield", "stethoscope"];
 
 // The crisis/emergency steps + notice + find-help content - shared by the
 // standalone /emergency page and the banner embedded at the top of
@@ -37,13 +43,17 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
       </section>
       <section className="emergency-steps">
         <p className="card-kicker">{text.stepsTitle}</p>
-        <ol>{text.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+        <ol>{text.steps.map((step, index) => <li key={step}><StepIcon icon={STEP_ICONS[index] ?? "shield"} /><span>{step}</span></li>)}</ol>
       </section>
-      <div className="crisis-card emergency-notice">{text.notDiagnosis}</div>
+      <div className="crisis-card emergency-notice"><StepIcon icon="gauge" /><span>{text.notDiagnosis}</span></div>
       <section className="therapist-contact">
         <div>
           <p className="card-kicker">{text.findHelp}</p>
           <p>{text.findHelpBody}</p>
+        </div>
+        <div className="resource-note">
+          <b>{text.readyTitle}</b>
+          <p>{text.readyBody}</p>
         </div>
       </section>
     </>
