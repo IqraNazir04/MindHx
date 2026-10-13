@@ -861,9 +861,9 @@ textarea::placeholder { color:#9aa6b4; }
 .therapy-options a { color:var(--blue-deep); font-size:14px; font-weight:600; text-decoration:none; }
 .therapy-options a:hover { text-decoration:underline; }
 .therapy-options span { display:block; margin-top:4px; color:var(--muted); font-size:12.5px; line-height:1.5; }
-.recommend-also { display:flex; flex-wrap:wrap; gap:14px 22px; margin-top:20px; }
-.recommend-also a { color:var(--blue); font-size:13px; text-decoration:none; }
-.recommend-also a:hover { text-decoration:underline; }
+.recommend-also { display:flex; flex-wrap:wrap; gap:12px; margin-top:20px; }
+.recommend-also a { display:inline-flex; align-items:center; gap:6px; color:var(--blue); font-weight:600; font-size:13px; text-decoration:none; padding:10px 16px; border-radius:8px; border:1px solid var(--line-cool); background:var(--blue-soft); transition:.2s; }
+.recommend-also a:hover { background:var(--blue); color:#fff; border-color:var(--blue); transform:translateY(-1px); box-shadow:0 8px 16px -8px var(--shadow); }
 @media (max-width:720px) { .detail-rows { grid-template-columns:1fr; } .recommend-card { padding:22px 20px; } }
 
 /* Stage page (after See my check-in) */
