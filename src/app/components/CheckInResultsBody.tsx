@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import TextMoodBars from "./TextMoodBars";
 import { bandLabel, buildRecommendation, routingLabel, scaleExplanation, scoreText, themeLabel, type Lang } from "../lib/resultsGuidance";
@@ -136,7 +137,7 @@ export default function CheckInResultsBody({
 
   return (
     <>
-      <section className="results-hero"><div><p className="eyebrow">{text.eyebrowCheckin}</p><h1>{text.titleA}<br /><em>{text.titleB}</em></h1><p className="results-lede">{text.lede}</p><button className="result-primary" type="button" onClick={onDownloadPdf}>{text.downloadPdf} <span>↓</span></button><p className="results-pdf-hint">{text.pdfHint}</p></div><div className="result-score-card"><p className="card-kicker">{text.combinedSignal}</p><div className="result-score-ring"><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{bandLabel(result.band, language)}</b><small>{routingLabel(result.routing_decision, language)}</small></div></section>
+      <section className="results-hero"><div><p className="eyebrow">{text.eyebrowCheckin}</p><h1>{text.titleA}<br /><em>{text.titleB}</em></h1><p className="results-lede">{text.lede}</p><button className="result-primary" type="button" onClick={onDownloadPdf}>{text.downloadPdf} <span>↓</span></button><p className="results-pdf-hint">{text.pdfHint}</p></div><div className="result-score-card"><p className="card-kicker">{text.combinedSignal}</p><div className="result-score-ring" style={{ "--score": score } as CSSProperties}><strong>{score}</strong><span>/ 100</span></div><b className={`result-band ${result.band}`}>{bandLabel(result.band, language)}</b><small>{routingLabel(result.routing_decision, language)}</small></div></section>
 
       <section className="result-section detail-results"><div className="result-section-heading"><p className="eyebrow">{text.eyebrowDetail}</p><h2>{text.detailTitle}</h2><p>{text.detailIntro}</p></div>
         <div className="detail-rows">

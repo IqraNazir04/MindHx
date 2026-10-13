@@ -228,7 +228,7 @@ textarea::placeholder { color:#9aa6b4; }
 
 .bottom-row { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--line); margin-top:35px; padding-top:27px; }
 .score-preview { display:flex; align-items:center; gap:17px; }
-.score-ring { display:grid; place-items:center; width:66px; height:66px; border-radius:50%; background:conic-gradient(var(--orange) 0deg,var(--orange) 190deg,var(--line) 190deg); position:relative; }
+.score-ring { display:grid; place-items:center; width:66px; height:66px; border-radius:50%; background:conic-gradient(var(--orange) calc(var(--score, 0) * 3.6deg),var(--line) 0); position:relative; }
 .score-ring:after { content:''; position:absolute; inset:5px; background:var(--background); border-radius:50%; }
 .score-ring strong,.score-ring span { z-index:1; position:relative; }
 .score-ring strong { font-size:18px; color:var(--navy); }
@@ -337,7 +337,7 @@ textarea::placeholder { color:#9aa6b4; }
 .results-crisis-note { position:relative; z-index:1; max-width:900px; margin:14px auto 0; color:var(--muted); font-size:12px; text-align:center; }
 .result-score-card { width:250px; padding:22px; text-align:center; border:1px solid var(--line-cool); border-radius:15px; background:var(--surface); box-shadow:0 18px 45px var(--shadow); }
 .result-score-card .card-kicker { text-align:left; }
-.result-score-ring { width:148px; height:148px; margin:20px auto 14px; display:grid; place-items:center; border-radius:50%; background:conic-gradient(var(--orange) 0deg,var(--orange) 137deg,var(--line) 137deg); position:relative; }
+.result-score-ring { width:148px; height:148px; margin:20px auto 14px; display:grid; place-items:center; border-radius:50%; background:conic-gradient(var(--orange) calc(var(--score, 0) * 3.6deg),var(--line) 0); position:relative; }
 .result-score-ring:after { content:''; position:absolute; inset:9px; border-radius:50%; background:var(--surface); }
 .result-score-ring strong,.result-score-ring span { z-index:1; position:relative; }
 .result-score-ring strong { font-size:45px; color:var(--navy); }
