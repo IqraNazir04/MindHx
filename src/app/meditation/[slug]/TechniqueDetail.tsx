@@ -50,7 +50,9 @@ export default function TechniqueDetail({ technique }: { technique: Technique })
           <div className="theme-row">{technique.relatedThemes.map((theme) => <span key={theme}>{theme.replaceAll("_", " ")}</span>)}</div>
         </section>
       )}
-      <Link className="result-primary" href="/meditation">{text.back} <span>→</span></Link>
+      <div className="technique-actions">
+        <Link className="result-primary" href="/meditation">{text.back} <span>→</span></Link>
+      </div>
     </main>
     <SiteFooter language={language} />
     </>
