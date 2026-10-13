@@ -62,7 +62,7 @@ export default function BrandPage() {
       <DoodleWave className="doodle doodle-teal doodle-sway" style={{ top: "55%", left: "2%" }} />
       <SiteHeader backLabel="Back to check-in" />
       <div className="resource-hero-banner">
-        <NatureBanner {...naturePhotos.mountainLake} priority />
+        <NatureBanner {...naturePhotos.greenFern} priority />
         <section className="resource-hero">
           <p className="eyebrow">BRAND</p>
           <h1>Color system<br /><em>for every touchpoint.</em></h1>

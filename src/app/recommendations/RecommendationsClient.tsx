@@ -4,6 +4,8 @@ import Link from "next/link";
 import { startTransition, useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import SiteFooter from "../components/SiteFooter";
+import NatureBanner from "../components/NatureBanner";
+import { naturePhotos } from "../components/naturePhotos";
 import { bandLabel, scaleExplanation, scoreText, stageFor, type ScaleKey } from "../lib/resultsGuidance";
 import type { Result } from "../components/CheckInResultsBody";
 import { useLanguage } from "../lib/language";
@@ -108,11 +110,14 @@ export default function RecommendationsClient() {
     <>
     <main className="resource-page stage-page" dir={isUrdu ? "rtl" : "ltr"}>
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={text.back} />
-      <section className="resource-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{stage.stageTitle}<br /><em>{text.yourNextSteps}</em></h1>
-        <p>{stage.summary}</p>
-      </section>
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.grassDewBokeh} priority />
+        <section className="resource-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{stage.stageTitle}<br /><em>{text.yourNextSteps}</em></h1>
+          <p>{stage.summary}</p>
+        </section>
+      </div>
 
       <div className="stage-ladder" aria-label="Stage scale">
         {STAGE_STEPS.map((step, index) => (

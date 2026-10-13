@@ -128,4 +128,52 @@ export const naturePhotos = {
     photographerName: "Johannes Plenio",
     photographerUrl: "https://unsplash.com/@jplenio",
   },
+  grassField: {
+    src: "https://images.unsplash.com/photo-1553307236-8783cc0a3b9e",
+    alt: "A lush green grass field stretching into the distance",
+    photographerName: "Muhammad Kamal Azizi",
+    photographerUrl: "https://unsplash.com/@kamalazizi",
+  },
+  greenFoliage: {
+    src: "https://images.unsplash.com/photo-1520121401995-928cd50d4e27",
+    alt: "Close-up of vibrant green plant leaves",
+    photographerName: "Ash Amplifies",
+    photographerUrl: "https://unsplash.com/@ashamplifies",
+  },
+  riverTrees: {
+    src: "https://images.unsplash.com/photo-1584282479918-1ea22427dc0f",
+    alt: "Green trees lining the bank of a calm river",
+    photographerName: "Nils Leonhardt",
+    photographerUrl: "https://unsplash.com/@ambasteir",
+  },
+  pineForest: {
+    src: "https://images.unsplash.com/photo-1488330890490-c291ecf62571",
+    alt: "Tall green pine trees reaching toward a daytime sky",
+    photographerName: "Andrew Coelho",
+    photographerUrl: "https://unsplash.com/@andrewcoelho",
+  },
+  leafDew: {
+    src: "https://images.unsplash.com/photo-1487017931017-0e0d9e02bb0c",
+    alt: "Water droplets resting on a green leaf",
+    photographerName: "Scott Webb",
+    photographerUrl: "https://unsplash.com/@scottwebb",
+  },
+  greenFern: {
+    src: "https://images.unsplash.com/photo-1497250681960-ef046c08a56e",
+    alt: "A green fern plant with delicate, textured fronds",
+    photographerName: "Teemu Paananen",
+    photographerUrl: "https://unsplash.com/@xteemu",
+  },
+  grassDewBokeh: {
+    src: "https://images.unsplash.com/photo-1568832359672-e36cf5d74f54",
+    alt: "Dew drops on blades of grass with soft golden light in the background",
+    photographerName: "Johannes Plenio",
+    photographerUrl: "https://unsplash.com/@jplenio",
+  },
+  freshLeaves: {
+    src: "https://images.unsplash.com/photo-1551970634-747846a548cb",
+    alt: "Fresh green plant leaves catching the light",
+    photographerName: "Josefin",
+    photographerUrl: "https://unsplash.com/@josefin",
+  },
 } as const;

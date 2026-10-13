@@ -205,7 +205,7 @@ function DashboardContent({ initialUser }: { initialUser: CurrentUser }) {
         right={<button className="dashboard-signout" onClick={handleSignOut} type="button">{text.signOut}</button>}
       />
       <div className="resource-hero-banner">
-        <NatureBanner {...naturePhotos.mountainRange} priority />
+        <NatureBanner {...naturePhotos.leafDew} priority />
         <section className="resource-hero">
           <p className="eyebrow">{text.eyebrow}</p>
           <h1>{text.titleA}<br /><em>{text.titleB(user.email)}</em></h1>

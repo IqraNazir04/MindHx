@@ -137,7 +137,7 @@ export default function RegisterClient() {
         <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
         <p>{text.intro}</p>
       </section>
-      <NatureBanner {...naturePhotos.forestPath} priority />
+      <NatureBanner {...naturePhotos.riverTrees} priority />
       <form className="auth-form" onSubmit={handleSubmit}>
         <GoogleSignInButton mode="signup_with" urdu={language === "اردو"} dividerLabel={text.or} onSignedIn={() => router.push(nextPath)} onError={setError} />
         <label>

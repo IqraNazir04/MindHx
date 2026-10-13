@@ -63,7 +63,7 @@ export default function ResourcesClient() {
       <DoodleWave className="doodle doodle-blue doodle-float" style={{ bottom: "6%", right: "8%" }} />
       <SiteHeader language={language} onToggleLanguage={() => setLanguage(isUrdu ? "English" : "اردو")} backLabel={text.back} />
       <div className="resource-hero-banner">
-        <NatureBanner {...naturePhotos.meadow} priority />
+        <NatureBanner {...naturePhotos.grassField} priority />
         <section className="resource-hero">
           <p className="eyebrow">{text.eyebrow}</p>
           <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
