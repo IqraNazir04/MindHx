@@ -6,7 +6,7 @@ import { startTransition, useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import CrisisBanner from "../components/CrisisBanner";
 import CheckInResultsBody, { type Result } from "../components/CheckInResultsBody";
-import { DoodleCloud } from "../components/Doodles";
+import { DoodleCloud, DoodleHeart } from "../components/Doodles";
 import NatureBanner from "../components/NatureBanner";
 import { naturePhotos } from "../components/naturePhotos";
 import SiteFooter from "../components/SiteFooter";
@@ -87,6 +87,7 @@ export default function EmergencyClient() {
     <>
     <main className="resource-page emergency-page" dir={language === "ur" ? "rtl" : "ltr"}>
       <DoodleCloud className="doodle doodle-blue doodle-float-slow" style={{ top: "95px", right: "6%", opacity: 0.3 }} />
+      <DoodleHeart className="doodle doodle-orange doodle-sway" style={{ top: "62%", left: "2%", opacity: 0.35 }} />
       <SiteHeader
         language={language === "ur" ? "اردو" : "English"}
         onToggleLanguage={() => {
@@ -96,13 +97,15 @@ export default function EmergencyClient() {
         }}
         backLabel={backHomeLabel[language]}
       />
-      <section className="resource-hero emergency-hero">
-        <p className="eyebrow crisis-eyebrow">{text.eyebrow}</p>
-        <h1>{text.title}</h1>
-        <p>{context || result ? text.lede : text.ledeDirect}</p>
-      </section>
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.softDawn} priority />
+        <section className="resource-hero emergency-hero">
+          <p className="eyebrow crisis-eyebrow">{text.eyebrow}</p>
+          <h1>{text.title}</h1>
+          <p>{context || result ? text.lede : text.ledeDirect}</p>
+        </section>
+      </div>
       <CrisisBanner language={language} />
-      <NatureBanner {...naturePhotos.softDawn} />
       <div className="emergency-actions">
         <Link className="result-primary" href="/therapist">{text.talkTherapist} <span>→</span></Link>
         <Link className="resource-back" href="/">{backHomeLabel[language]} ↗</Link>

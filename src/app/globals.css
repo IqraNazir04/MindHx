@@ -536,23 +536,27 @@ textarea::placeholder { color:#9aa6b4; }
 
 .emergency-hero { padding-bottom:20px; }
 .emergency-hero p:last-child { color:#8b3535; }
-.emergency-notice { position:relative; z-index:1; max-width:900px; margin:24px auto 0; display:flex; align-items:center; gap:14px; }
+.card-head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+.card-head .card-kicker, .card-head b { margin:0; }
+.emergency-notice { position:relative; z-index:1; max-width:900px; margin:32px auto 0; display:flex; align-items:center; gap:14px; box-shadow:0 10px 22px -12px rgba(139,53,53,.35); }
 .emergency-notice .step-icon { flex:0 0 auto; }
-.emergency-steps { position:relative; z-index:1; max-width:900px; margin:18px auto 0; padding:22px 25px; border:1px solid rgba(233,130,50,.3); border-radius:10px; background:var(--orange-soft); }
-.emergency-numbers { position:relative; z-index:1; max-width:900px; margin:15px auto 0; padding:22px 25px; border:1px solid #efc2bf; border-radius:10px; background:var(--red-soft); }
-.emergency-number-list { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-top:12px; }
-.emergency-number { display:flex; flex-direction:column; gap:4px; padding:14px 16px; border-radius:8px; background:#fff; border:1px solid #efc2bf; color:#8b3535; text-decoration:none; transition:.2s; }
+.emergency-steps { position:relative; z-index:1; max-width:900px; margin:32px auto 0; padding:26px 28px; border:1px solid rgba(233,130,50,.3); border-radius:14px; background:var(--orange-soft); box-shadow:0 10px 24px -14px rgba(233,130,50,.4); }
+.emergency-numbers { position:relative; z-index:1; max-width:900px; margin:32px auto 0; padding:26px 28px; border:1px solid #efc2bf; border-radius:14px; background:var(--red-soft); box-shadow:0 10px 24px -14px rgba(139,53,53,.3); }
+.emergency-number-list { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; margin-top:0; }
+.emergency-number { display:flex; flex-direction:column; gap:4px; padding:15px 17px; border-radius:10px; background:#fff; border:1px solid #efc2bf; color:#8b3535; text-decoration:none; transition:.2s; }
 .emergency-number strong { font-size:26px; line-height:1; }
 .emergency-number span { font-size:12px; color:var(--navy); }
-.emergency-number:hover, .emergency-number:focus-visible { border-color:#8b3535; transform:translateY(-1px); box-shadow:0 8px 16px -6px var(--shadow); }
-.emergency-helplines-note { margin:12px 0 0; color:#8b3535; font-size:12px; line-height:1.6; }
+.emergency-number:hover, .emergency-number:focus-visible { border-color:#8b3535; transform:translateY(-2px); box-shadow:0 10px 20px -8px var(--shadow); }
+.emergency-helplines-note { margin:14px 0 0; color:#8b3535; font-size:12px; line-height:1.6; }
 .emergency-steps ol { list-style:none; margin:16px 0 0; padding-inline-start:0; color:var(--navy); font-size:13px; line-height:1.6; }
 .emergency-steps ol li { display:flex; align-items:flex-start; gap:14px; }
 .emergency-steps ol li + li { margin-top:16px; padding-top:16px; border-top:1px solid rgba(233,130,50,.25); }
 .emergency-steps ol li > span.step-icon { flex:0 0 auto; margin-top:1px; }
 .emergency-steps ol li > span:last-child { padding-top:6px; }
-.emergency-actions { position:relative; z-index:1; max-width:900px; margin:26px auto 0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
-.therapist-contact .resource-note { margin:0; }
+.emergency-actions { position:relative; z-index:1; max-width:900px; margin:34px auto 0; display:flex; flex-wrap:wrap; align-items:center; gap:18px; }
+.crisis-card + .therapist-contact { margin-top:32px; }
+.therapist-contact > div:first-child { border-radius:14px; box-shadow:0 10px 24px -14px rgba(233,130,50,.4); }
+.therapist-contact .resource-note { margin:0; border-radius:14px; box-shadow:0 10px 24px -14px rgba(47,143,110,.35); }
 
 .technique-detail { position:relative; z-index:1; max-width:900px; margin:26px auto 0; display:grid; grid-template-columns:1.3fr 1fr; gap:15px; align-items:start; }
 .technique-detail ol { list-style:none; margin:14px 0 0; padding-inline-start:0; color:var(--navy); font-size:13px; line-height:1.5; }

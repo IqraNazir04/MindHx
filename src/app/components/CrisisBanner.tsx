@@ -19,7 +19,7 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
     <>
       {/* Numbers first: the one thing someone in danger needs within reach. */}
       <section className="emergency-numbers" aria-label={text.callNow}>
-        <p className="card-kicker">{text.callNow}</p>
+        <div className="card-head"><StepIcon icon="speechArrow" /><p className="card-kicker">{text.callNow}</p></div>
         <div className="emergency-number-list">
           {emergencyNumbers.map((entry) => (
             <a key={entry.number} className="emergency-number" href={`tel:${entry.number}`}>
@@ -30,7 +30,7 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
         </div>
       </section>
       <section className="emergency-numbers" aria-label={text.helplinesTitle}>
-        <p className="card-kicker">{text.helplinesTitle}</p>
+        <div className="card-head"><StepIcon icon="headsetCoach" /><p className="card-kicker">{text.helplinesTitle}</p></div>
         <div className="emergency-number-list">
           {mentalHealthHelplines.map((entry) => (
             <a key={entry.tel} className="emergency-number" href={`tel:${entry.tel}`}>
@@ -42,17 +42,17 @@ export default function CrisisBanner({ language }: { language: CrisisLanguage })
         <p className="emergency-helplines-note">{text.helplinesNote}</p>
       </section>
       <section className="emergency-steps">
-        <p className="card-kicker">{text.stepsTitle}</p>
+        <div className="card-head"><StepIcon icon="target" /><p className="card-kicker">{text.stepsTitle}</p></div>
         <ol>{text.steps.map((step, index) => <li key={step}><StepIcon icon={STEP_ICONS[index] ?? "shield"} /><span>{step}</span></li>)}</ol>
       </section>
       <div className="crisis-card emergency-notice"><StepIcon icon="gauge" /><span>{text.notDiagnosis}</span></div>
       <section className="therapist-contact">
         <div>
-          <p className="card-kicker">{text.findHelp}</p>
+          <div className="card-head"><StepIcon icon="branchPaths" /><p className="card-kicker">{text.findHelp}</p></div>
           <p>{text.findHelpBody}</p>
         </div>
         <div className="resource-note">
-          <b>{text.readyTitle}</b>
+          <div className="card-head"><StepIcon icon="clipboard" /><b>{text.readyTitle}</b></div>
           <p>{text.readyBody}</p>
         </div>
       </section>
