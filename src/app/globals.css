@@ -194,6 +194,16 @@ button { cursor:pointer; }
 .signal-card-clinical:before { background:linear-gradient(90deg,var(--red),#e58d8d); }
 .signal-card-voice:hover { box-shadow:0 20px 44px color-mix(in srgb, var(--orange) 24%, var(--shadow)); }
 .signal-card-words:hover { box-shadow:0 20px 44px color-mix(in srgb, var(--blue) 24%, var(--shadow)); }
+/* Organic "pebble" corners instead of plain rounded rectangles, matching
+   the natural/leaf theme - each card gets a slightly different asymmetric
+   radius so the row doesn't read as three identical blobs. */
+.signal-card-voice { border-radius:28px 110px 28px 110px / 110px 28px 110px 28px; }
+.signal-card-words { border-radius:110px 28px 110px 28px / 28px 110px 28px 110px; }
+.signal-card-clinical { border-radius:26px 90px 26px 60px / 26px 60px 26px 90px; }
+@media (max-width:720px) {
+  .signal-card-voice,.signal-card-words { border-radius:22px 60px 22px 60px / 60px 22px 60px 22px; }
+  .signal-card-clinical { border-radius:20px 56px 20px 36px / 20px 36px 20px 56px; }
+}
 .phq-card { grid-column:1/-1; min-height:386px; background:var(--surface-soft); }
 .card-heading { display:flex; align-items:center; gap:12px; }
 .card-heading h2,.score-preview h2 { font-size:18px; margin:0; font-weight:600; letter-spacing:-.25px; color:var(--navy); }
