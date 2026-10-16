@@ -91,12 +91,14 @@ export default function ResetPasswordClient() {
     <>
     <main className="resource-page" dir={language === "اردو" ? "rtl" : "ltr"}>
       <SiteHeader backLabel={text.back} language={language} onToggleLanguage={() => setLanguage(language === "English" ? "اردو" : "English")} />
-      <section className="resource-hero auth-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.steppingStones} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.steppingStones} priority />
+        <section className="resource-hero auth-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       {!token ? (
         <div className="auth-form auth-confirmation">
           <p className="assessment-error auth-error">{text.missingToken}</p>

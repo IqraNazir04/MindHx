@@ -132,12 +132,14 @@ export default function RegisterClient() {
     <>
     <main className="resource-page" dir={language === "اردو" ? "rtl" : "ltr"}>
       <SiteHeader backLabel={text.back} language={language} onToggleLanguage={() => setLanguage(language === "English" ? "اردو" : "English")} />
-      <section className="resource-hero auth-hero">
-        <p className="eyebrow">{text.eyebrow}</p>
-        <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
-        <p>{text.intro}</p>
-      </section>
-      <NatureBanner {...naturePhotos.riverTrees} priority />
+      <div className="resource-hero-banner">
+        <NatureBanner {...naturePhotos.riverTrees} priority />
+        <section className="resource-hero auth-hero">
+          <p className="eyebrow">{text.eyebrow}</p>
+          <h1>{text.titleA}<br /><em>{text.titleB}</em></h1>
+          <p>{text.intro}</p>
+        </section>
+      </div>
       <form className="auth-form" onSubmit={handleSubmit}>
         <GoogleSignInButton mode="signup_with" urdu={language === "اردو"} dividerLabel={text.or} onSignedIn={() => router.push(nextPath)} onError={setError} />
         <label>
