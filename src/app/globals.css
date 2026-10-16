@@ -79,6 +79,7 @@ button { cursor:pointer; }
 .doodle-blue { color:var(--blue); }
 .doodle-orange { color:var(--orange); }
 .doodle-teal { color:var(--teal); }
+.doodle-teal-deep { color:var(--teal-deep); }
 .doodle-float { animation:doodleFloat 6s ease-in-out infinite; }
 .doodle-float-slow { animation:doodleFloat 9s ease-in-out infinite; }
 .doodle-sway { animation:doodleSway 7s ease-in-out infinite; }
@@ -93,15 +94,32 @@ button { cursor:pointer; }
   80% { transform:translate(10px,340px) rotate(230deg); opacity:.75; }
   100% { transform:translate(-6px,420px) rotate(290deg); opacity:0; }
 }
+/* Mirror of doodleFall (opposite drift + spin direction) so leaves don't
+   all tumble the same way - alternating the two reads as wind-blown. */
+@keyframes doodleFallRev {
+  0% { transform:translate(0,0) rotate(0deg); opacity:0; }
+  8% { opacity:.75; }
+  28% { transform:translate(-18px,120px) rotate(-75deg); }
+  55% { transform:translate(12px,240px) rotate(-160deg); }
+  80% { transform:translate(-9px,340px) rotate(-240deg); opacity:.75; }
+  100% { transform:translate(7px,420px) rotate(-300deg); opacity:0; }
+}
 /* Falling-leaves backdrop: a handful of loose DoodleLeaf instances drifting
-   down through a section at different speeds/delays/sizes so they read as
-   natural leaf-fall rather than one shape repeated in lockstep. */
+   down through a section at different speeds/delays/sizes/colours/spin
+   directions so they read as natural leaf-fall, not one shape repeating. */
 .leaf-fall-field { position:relative; z-index:1; }
+.leaf-fall-field::before {
+  content:""; position:absolute; inset:-48px -36px; z-index:0; pointer-events:none;
+  background:radial-gradient(60% 55% at 50% 10%, var(--teal-soft) 0%, transparent 72%);
+  opacity:.8;
+}
 .leaf-fall-field .doodle-fall { z-index:5; }
+.leaf-fall-field .doodle-fall-rev { animation-name:doodleFallRev; }
 /* Cards stack into one tall column under 800px, so the fall path needs to
    cover much more vertical distance than the short desktop row does. */
 @media (max-width:800px) {
   .leaf-fall-field .doodle-fall { animation-name:doodleFallTall; }
+  .leaf-fall-field .doodle-fall-rev { animation-name:doodleFallTallRev; }
 }
 @keyframes doodleFallTall {
   0% { transform:translate(0,0) rotate(0deg); opacity:0; }
@@ -110,6 +128,14 @@ button { cursor:pointer; }
   55% { transform:translate(-14px,840px) rotate(150deg); }
   80% { transform:translate(10px,1190px) rotate(230deg); opacity:.75; }
   100% { transform:translate(-6px,1460px) rotate(290deg); opacity:0; }
+}
+@keyframes doodleFallTallRev {
+  0% { transform:translate(0,0) rotate(0deg); opacity:0; }
+  8% { opacity:.75; }
+  28% { transform:translate(-20px,420px) rotate(-75deg); }
+  55% { transform:translate(15px,840px) rotate(-160deg); }
+  80% { transform:translate(-11px,1190px) rotate(-240deg); opacity:.75; }
+  100% { transform:translate(8px,1460px) rotate(-300deg); opacity:0; }
 }
 @media (prefers-reduced-motion:reduce) { .doodle,.waveform i { animation:none !important; } }
 
@@ -159,13 +185,15 @@ button { cursor:pointer; }
 
 /* Signals grid (voice / words / clinical) */
 .signal-grid { position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; gap:17px; align-items:start; }
-.signal-card { position:relative; overflow:hidden; min-height:306px; border:1px solid var(--line); background:var(--surface); border-radius:14px; padding:27px 25px 25px; box-shadow:0 10px 26px var(--shadow); transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease; }
-.signal-card:before { content:''; position:absolute; top:0; left:0; right:0; height:3px; opacity:.65; background:linear-gradient(90deg,var(--line-cool),var(--line-cool)); transition:opacity .25s ease; }
+.signal-card { position:relative; overflow:hidden; min-height:306px; border:1px solid var(--line); background:var(--surface); border-radius:20px; padding:27px 25px 25px; box-shadow:0 10px 26px var(--shadow); transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease; }
+.signal-card:before { content:''; position:absolute; top:0; left:0; right:0; height:4px; border-radius:0 0 4px 4px; opacity:.65; background:linear-gradient(90deg,var(--line-cool),var(--line-cool)); transition:opacity .25s ease; }
 .signal-card:hover { transform:translateY(-4px); box-shadow:0 20px 40px var(--shadow); border-color:var(--line-cool); }
 .signal-card:hover:before { opacity:1; }
 .signal-card-voice:before { background:linear-gradient(90deg,var(--orange),#f7b27e); }
 .signal-card-words:before { background:linear-gradient(90deg,var(--blue),#7fb3e6); }
 .signal-card-clinical:before { background:linear-gradient(90deg,var(--red),#e58d8d); }
+.signal-card-voice:hover { box-shadow:0 20px 44px color-mix(in srgb, var(--orange) 24%, var(--shadow)); }
+.signal-card-words:hover { box-shadow:0 20px 44px color-mix(in srgb, var(--blue) 24%, var(--shadow)); }
 .phq-card { grid-column:1/-1; min-height:386px; background:var(--surface-soft); }
 .card-heading { display:flex; align-items:center; gap:12px; }
 .card-heading h2,.score-preview h2 { font-size:18px; margin:0; font-weight:600; letter-spacing:-.25px; color:var(--navy); }
@@ -192,7 +220,7 @@ button { cursor:pointer; }
 
 /* Clinical check-in card - wide, horizontal action layout spanning the grid */
 .signal-card-clinical { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:28px; min-height:0; padding:26px 30px; background:var(--surface-soft); flex-wrap:wrap; }
-.signal-card-clinical:hover { transform:none; }
+.signal-card-clinical:hover { transform:none; box-shadow:0 16px 36px color-mix(in srgb, var(--red) 16%, var(--shadow)); }
 .clinical-card-body { display:flex; align-items:center; gap:20px; flex:1 1 320px; min-width:260px; }
 .signal-card-clinical .signal-graphic { margin:0; flex:0 0 auto; }
 .clinical-card-text .card-heading { margin-bottom:2px; }
