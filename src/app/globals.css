@@ -82,8 +82,35 @@ button { cursor:pointer; }
 .doodle-float { animation:doodleFloat 6s ease-in-out infinite; }
 .doodle-float-slow { animation:doodleFloat 9s ease-in-out infinite; }
 .doodle-sway { animation:doodleSway 7s ease-in-out infinite; }
+.doodle-fall { top:-10%; animation-name:doodleFall; animation-timing-function:linear; animation-iteration-count:infinite; }
 @keyframes doodleFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-10px) rotate(-3deg); } }
 @keyframes doodleSway { 0%,100% { transform:rotate(-4deg); } 50% { transform:rotate(4deg); } }
+@keyframes doodleFall {
+  0% { transform:translate(0,0) rotate(0deg); opacity:0; }
+  8% { opacity:.75; }
+  28% { transform:translate(16px,120px) rotate(70deg); }
+  55% { transform:translate(-14px,240px) rotate(150deg); }
+  80% { transform:translate(10px,340px) rotate(230deg); opacity:.75; }
+  100% { transform:translate(-6px,420px) rotate(290deg); opacity:0; }
+}
+/* Falling-leaves backdrop: a handful of loose DoodleLeaf instances drifting
+   down through a section at different speeds/delays/sizes so they read as
+   natural leaf-fall rather than one shape repeated in lockstep. */
+.leaf-fall-field { position:relative; z-index:1; }
+.leaf-fall-field .doodle-fall { z-index:5; }
+/* Cards stack into one tall column under 800px, so the fall path needs to
+   cover much more vertical distance than the short desktop row does. */
+@media (max-width:800px) {
+  .leaf-fall-field .doodle-fall { animation-name:doodleFallTall; }
+}
+@keyframes doodleFallTall {
+  0% { transform:translate(0,0) rotate(0deg); opacity:0; }
+  8% { opacity:.75; }
+  28% { transform:translate(16px,420px) rotate(70deg); }
+  55% { transform:translate(-14px,840px) rotate(150deg); }
+  80% { transform:translate(10px,1190px) rotate(230deg); opacity:.75; }
+  100% { transform:translate(-6px,1460px) rotate(290deg); opacity:0; }
+}
 @media (prefers-reduced-motion:reduce) { .doodle,.waveform i { animation:none !important; } }
 
 /* Hero banner: the 3D tree fills the full width, the heading sits over it

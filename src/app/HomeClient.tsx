@@ -4,6 +4,7 @@ import { startTransition, useEffect, useRef, useState, type CSSProperties } from
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import NatureBanner from "./components/NatureBanner";
+import { DoodleLeaf } from "./components/Doodles";
 import { naturePhotos } from "./components/naturePhotos";
 import SiteFooter from "./components/SiteFooter";
 import AccountChip from "./components/AccountChip";
@@ -571,7 +572,12 @@ export default function HomeClient() {
         </section>
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2><p>{text.contextBody}</p></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
-        <div className="signal-grid">
+        <div className="signal-grid leaf-fall-field">
+          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "4%", width: "32px", height: "auto", animationDuration: "15s", animationDelay: "-2s" }} />
+          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "26%", width: "42px", height: "auto", animationDuration: "19s", animationDelay: "-9s" }} />
+          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "52%", width: "26px", height: "auto", animationDuration: "13s", animationDelay: "-5s" }} />
+          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "74%", width: "38px", height: "auto", animationDuration: "21s", animationDelay: "-13s" }} />
+          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "90%", width: "28px", height: "auto", animationDuration: "17s", animationDelay: "-1s" }} />
           <article className="signal-card signal-card-clinical">
             <div className="clinical-card-body">
               <ClinicalSignalGraphic size={72} />
