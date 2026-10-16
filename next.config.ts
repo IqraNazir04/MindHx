@@ -3,7 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   images: {
-    remotePatterns: [new URL("https://images.unsplash.com/**")],
+    // The plain `new URL(...)` shorthand implies an empty `search`, which
+    // blocks every query string - including the `?q=...&w=...` resize
+    // params naturePhotos.ts appends to cap how large a source image
+    // Unsplash serves. Every photo uses that exact same suffix, so this
+    // matches it precisely instead of opening search up to "**".
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com", pathname: "/**", search: "?q=80&w=2600&auto=format&fit=max" },
+    ],
   },
   // Proxies same-origin "/api/*" calls (see src/app/lib/api.ts) to the
   // FastAPI backend running alongside this server in the same container.

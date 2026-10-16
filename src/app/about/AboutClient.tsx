@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf, DoodleSun } from "../components/Doodles";
 import SiteFooter from "../components/SiteFooter";
@@ -15,12 +16,22 @@ const copy = {
     title: "Understanding MindHx",
     intro: "Why this exists, how it actually works, what it keeps and what it doesn't, and who it is - and isn't - built for.",
     back: "Back to check-in",
+    closingEyebrow: "READY WHEN YOU ARE",
+    closingTitle: "See what your own signals look like",
+    closingBody: "No account needed to start - voice, words, and the three questionnaires take about five minutes together, and you decide at the end whether to save anything.",
+    closingCta: "Start a private check-in",
+    closingEmergency: "Looking for emergency support instead?",
   },
   اردو: {
     eyebrow: "MindHx کے بارے میں",
     title: "MindHx کو سمجھنا",
     intro: "یہ کیوں موجود ہے، یہ دراصل کیسے کام کرتا ہے، یہ کیا محفوظ کرتا ہے اور کیا نہیں، اور یہ کس کے لیے ہے - اور کس کے لیے نہیں۔",
     back: "چیک ان پر واپس",
+    closingEyebrow: "جب آپ تیار ہوں",
+    closingTitle: "دیکھیں آپ کے اپنے اشارے کیسے نظر آتے ہیں",
+    closingBody: "شروع کرنے کے لیے اکاؤنٹ ضروری نہیں - آواز، الفاظ، اور تینوں سوالنامے مل کر تقریباً پانچ منٹ لیتے ہیں، اور آخر میں آپ خود فیصلہ کرتے ہیں کہ کچھ محفوظ کرنا ہے یا نہیں۔",
+    closingCta: "نجی چیک ان شروع کریں",
+    closingEmergency: "اس کی بجائے فوری مدد چاہیے؟",
   },
 };
 
@@ -153,13 +164,22 @@ export default function AboutClient() {
           return (
             <article key={content.title} className={`about-block ${index % 2 === 1 ? "about-block-reverse" : ""}`}>
               <div className="about-text">
-                <h3>{content.title}</h3>
+                <h2>{content.title}</h2>
                 {content.body.map((paragraph) => <p key={paragraph.slice(0, 40)}>{paragraph}</p>)}
               </div>
-              <div className="about-image"><NatureBanner {...naturePhotos[item.image]} /></div>
+              <div className="about-image"><NatureBanner {...naturePhotos[item.image]} sizes="(max-width: 860px) 100vw, 560px" /></div>
             </article>
           );
         })}
+      </section>
+      <section className="about-closing">
+        <p className="eyebrow">{text.closingEyebrow}</p>
+        <h2>{text.closingTitle}</h2>
+        <p>{text.closingBody}</p>
+        <div className="about-closing-actions">
+          <Link href="/" className="result-primary">{text.closingCta}<span>→</span></Link>
+          <Link href="/emergency" className="about-closing-emergency">{text.closingEmergency}</Link>
+        </div>
       </section>
     </main>
     <SiteFooter language={language} />
