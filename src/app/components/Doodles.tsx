@@ -50,9 +50,11 @@ export function DoodleHeart({ className, style }: DoodleProps) {
 
 export function DoodleLeaf({ className, style }: DoodleProps) {
   return (
-    <svg className={className} style={style} width="40" height="52" viewBox="0 0 40 52" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M20 49c-14-6-19-19-15-33C9 8 17 3 20 3s11 5 15 13c4 14-1 27-15 33Z" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M20 49V15" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    <svg className={className} style={style} width="40" height="54" viewBox="0 0 40 54" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M19 3c6.5 4 13.5 11 15.5 20.5 2 9.5-3.5 21-14.5 27-9.5-5.5-17-16-15.5-26C5.8 15 12 9 19 3Z" fill="currentColor" fillOpacity=".16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M20.5 49c-1-10-.3-23-1.5-37" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M19.5 17.5l7-4M19.8 25l8-4.2M20 32.5l7-3.3M19.2 21l-8-4M19.6 28.5l-8-4M20 36l-7-3.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeOpacity=".55" />
+      <path d="M20 49.5v3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
