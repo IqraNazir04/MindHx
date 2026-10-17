@@ -614,7 +614,9 @@ export default function HomeClient() {
             </span>
           </div>
         </div>
-        <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
+        <div className="hero-signal-subcopy-wrap">
+          <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
+        </div>
         <div className="signal-photo-section">
           <div className="signal-photo-bg"><Image src={naturePhotos.grassDewBokeh.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
           <div className="signal-photo-inner">

@@ -994,8 +994,16 @@ textarea::placeholder { color:#9aa6b4; }
    and left-aligned (with a thin teal signal-line accent instead of a
    plain paragraph) to read as a deliberate pull-quote rather than small
    print, matching the banner's own left-aligned text above it. */
-.hero-signal-subcopy { max-width:620px; margin:22px auto 0; text-align:start; font-size:19px; line-height:1.55; color:var(--muted); padding-inline-start:18px; border-inline-start:2px solid var(--teal); }
-@media (max-width:720px) { .hero-signal-subcopy { margin-top:16px; font-size:16px; padding-inline-start:14px; } }
+/* text-align:start alone doesn't align this with the banner above it -
+   the box itself was still centered (margin:auto), so the *text* was
+   left-aligned within a box that sat in the middle of the page. Wrapped
+   it in the same 100vw/48px-padding breakout .hero-signal-caption uses,
+   so the paragraph's left edge (and its accent line) lines up with
+   "Slow down. Notice the signal." at every viewport width, not just
+   approximately within .workspace's own padding. */
+.hero-signal-subcopy-wrap { position:relative; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; margin-top:22px; padding-inline:48px; box-sizing:border-box; }
+.hero-signal-subcopy { max-width:620px; margin:0; text-align:start; font-size:19px; line-height:1.55; color:var(--muted); padding-inline-start:18px; border-inline-start:2px solid var(--teal); }
+@media (max-width:720px) { .hero-signal-subcopy-wrap { padding-inline:20px; margin-top:16px; } .hero-signal-subcopy { font-size:16px; padding-inline-start:14px; } }
 
 /* Hero banner: the page's lead photo extends up behind the heading, with the
    eyebrow/title/intro overlaid at the bottom over a soft cream scrim -
