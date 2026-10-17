@@ -332,7 +332,19 @@ textarea::placeholder { color:#9aa6b4; }
 .innovation-grid-section { margin:56px 0 0; padding-top:40px; border-top:1px solid var(--line); }
 .innovation-grid-section h2 { font:600 clamp(26px,3.6vw,36px)/1.15 'Playfair Display',serif; color:var(--navy); margin:0 0 32px; }
 .innovation-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
-.innovation-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px 20px; box-shadow:0 10px 24px var(--shadow); }
+.innovation-card { position:relative; background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:26px 22px 22px; box-shadow:0 10px 24px var(--shadow); transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease; }
+.innovation-card:hover { transform:translateY(-5px); box-shadow:0 22px 44px color-mix(in srgb, var(--teal) 14%, var(--shadow)); border-color:var(--line-cool); }
+/* 3D glossy icon badge (reusing .step-icon) scaled up, with a soft breathing
+   glow behind it (meditation-style inhale/exhale) and a gentle float - each
+   card's animation offset by --float-delay so the row drifts out of sync
+   rather than four icons bobbing in lockstep. */
+.innovation-icon-wrap { position:relative; width:56px; height:56px; margin-bottom:16px; }
+.innovation-icon-wrap::before { content:""; position:absolute; inset:-14px; z-index:0; border-radius:50%; background:radial-gradient(circle,var(--teal-soft) 0%,transparent 72%); animation:innovationBreathe 4.5s ease-in-out infinite; animation-delay:var(--float-delay,0s); }
+.innovation-icon-wrap .step-icon { position:relative; z-index:1; width:56px; height:56px; border-radius:16px; animation:innovationFloat 5s ease-in-out infinite; animation-delay:var(--float-delay,0s); }
+.innovation-icon-wrap .step-icon svg { width:32px; height:32px; }
+@keyframes innovationFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+@keyframes innovationBreathe { 0%,100% { transform:scale(1); opacity:.55; } 50% { transform:scale(1.18); opacity:.95; } }
+@media (prefers-reduced-motion:reduce) { .innovation-icon-wrap .step-icon,.innovation-icon-wrap::before { animation:none; } }
 .innovation-num { display:inline-block; color:var(--teal); font:700 11px 'DM Mono',monospace; letter-spacing:1px; margin-bottom:10px; }
 .innovation-card h3 { margin:0 0 8px; font:600 15px 'Playfair Display',serif; color:var(--navy); }
 .innovation-card p { margin:0; color:var(--muted); font-size:12px; line-height:1.55; }
