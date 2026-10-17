@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MindHx · Breathing Drop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,400&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; background: #FBF3E6; overflow: hidden; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #cue {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font-family: 'Fraunces', Georgia, serif; font-style: italic; font-weight: 400;
+    font-size: clamp(18px, 2.6vw, 30px); color: #FFFFFF; white-space: nowrap;
+    text-shadow: 0 2px 14px rgba(16, 60, 45, 0.45); pointer-events: none; opacity: 0;
+  }
+  #fallback {
+    display: none; position: fixed; inset: 0; align-items: center; justify-content: center;
+    font-family: Georgia, serif; color: #24344A; font-size: 18px; text-align: center; padding: 24px;
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="scene" aria-label="A glass drop rising and settling above a calm lake at sunrise, at a slow breathing pace: four seconds in, four seconds out" role="img"></canvas>
+<div id="fallback">Slow down. Notice the signal.</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------- options: ?breath=10 sets seconds per breath ---------- */
+const params = new URLSearchParams(location.search);
+const BREATH = Math.max(4, Number(params.get('breath')) || 8);   // full in+out cycle, seconds
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const canvas = document.getElementById('scene');
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (e) {
+  canvas.style.display = 'none';
+  document.getElementById('fallback').style.display = 'flex';
+  throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xFFE6CF, 14, 46);
+
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 200);
+const camBase = new THREE.Vector3(0, 2.2, 7.2);
+const lookAt = new THREE.Vector3(0, 1.25, 0);
+
+/* ---------- sunrise sky (also used as the reflection environment) ---------- */
+const SUN_DIR = new THREE.Vector3(0.5, 0.18, -1).normalize();
+function makeSky() {
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(90, 64, 32),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { sunDir: { value: SUN_DIR } },
+      vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `
+        uniform vec3 sunDir; varying vec3 vDir;
+        void main(){
+          vec3 d = normalize(vDir); float h = d.y;
+          vec3 horizon = vec3(1.0, 0.90, 0.80);
+          vec3 cream   = vec3(0.984, 0.953, 0.902);
+          vec3 top     = vec3(0.85, 0.91, 0.965);
+          vec3 col = mix(horizon, cream, smoothstep(-0.04, 0.16, h));
+          col = mix(col, top, smoothstep(0.16, 0.75, h));
+          float s = max(dot(d, normalize(sunDir)), 0.0);
+          col += vec3(0.96, 0.52, 0.22) * pow(s, 10.0) * 0.42;
+          col += vec3(1.0, 0.72, 0.42) * pow(s, 90.0) * 0.55;
+          col = mix(col, vec3(1.0, 0.88, 0.72), smoothstep(0.9968, 0.9985, s));
+          if (h < 0.0) col = mix(col, vec3(0.78, 0.87, 0.93), smoothstep(0.0, -0.35, h));
+          gl_FragColor = vec4(col, 1.0);
+        }`
+    })
+  );
+}
+scene.add(makeSky());
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envScene = new THREE.Scene();
+envScene.add(makeSky());
+scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+
+/* ---------- light ---------- */
+scene.add(new THREE.HemisphereLight(0xFFF3E4, 0x6E9CC8, 0.7));
+const sun = new THREE.DirectionalLight(0xFFD6A8, 2.4);
+sun.position.set(3, 8, -4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 });
+sun.shadow.bias = -0.0006;
+sun.shadow.radius = 6;
+scene.add(sun);
+
+/* ---------- distant hills ---------- */
+[
+  { p: [-13, -1.3, -27], s: [15, 3.4, 6], c: 0xA9CDBF },
+  { p: [11, -1.6, -31], s: [19, 4.2, 7], c: 0xC6DCEB },
+  { p: [0, -1.5, -36], s: [24, 3.4, 6], c: 0xB9D3E2 }
+].forEach(h => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), new THREE.MeshStandardMaterial({ color: h.c, roughness: 1 }));
+  m.position.set(...h.p); m.scale.set(...h.s); scene.add(m);
+});
+
+/* ---------- water ---------- */
+const waterMat = new THREE.MeshPhysicalMaterial({
+  color: 0x5B93C9, roughness: 0.07, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04,
+  envMapIntensity: 1.25, specularIntensity: 1
+});
+const outer = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), waterMat);
+outer.rotation.x = -Math.PI / 2; outer.position.y = -0.012; outer.receiveShadow = true;
+scene.add(outer);
+
+const W_SIZE = 16, W_SEG = 180;
+const waterGeo = new THREE.PlaneGeometry(W_SIZE, W_SIZE, W_SEG, W_SEG);
+waterGeo.rotateX(-Math.PI / 2);
+const wPos = waterGeo.attributes.position;
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.receiveShadow = true;
+scene.add(water);
+
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+function waterHeight(x, z, t, b) {
+  const r = Math.hypot(x, z);
+  const edge = 1 - smooth(6, 7.8, r);
+  const amp = (0.03 + 0.055 * b) * Math.exp(-r * 0.24);
+  const ring = amp * Math.sin(r * 3.0 - t * 2.1);
+  const ambient = 0.018 * Math.sin(x * 0.9 + t * 0.6) + 0.014 * Math.sin(z * 1.2 - t * 0.45) + 0.008 * Math.sin((x + z) * 2.1 + t);
+  return (ring + ambient) * edge;
+}
+
+/* ---------- caustic glow under the drop ---------- */
+function radialTexture(stops, size = 256) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  stops.forEach(([o, col]) => grd.addColorStop(o, col));
+  g.fillStyle = grd; g.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const caustic = new THREE.Mesh(
+  new THREE.PlaneGeometry(2.6, 2.6),
+  new THREE.MeshBasicMaterial({
+    map: radialTexture([[0, 'rgba(255,224,182,0.95)'], [0.45, 'rgba(142,224,190,0.45)'], [1, 'rgba(142,224,190,0)']]),
+    transparent: true, depthWrite: false, fog: false
+  })
+);
+caustic.rotation.x = -Math.PI / 2; caustic.position.y = 0.06;
+scene.add(caustic);
+
+/* ---------- the breathing drop ---------- */
+const drop = new THREE.Group();
+const glass = new THREE.Mesh(
+  new THREE.SphereGeometry(1, 128, 128),
+  new THREE.MeshPhysicalMaterial({
+    color: 0x9BE0C2, transmission: 1, thickness: 1.7, roughness: 0.035, ior: 1.36,
+    attenuationColor: new THREE.Color(0x2F8F6E), attenuationDistance: 1.05,
+    clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1, envMapIntensity: 1.35,
+    iridescence: 0.18, iridescenceIOR: 1.3
+  })
+);
+glass.castShadow = true;
+drop.add(glass);
+const core = new THREE.Mesh(
+  new THREE.SphereGeometry(0.3, 64, 64),
+  new THREE.MeshStandardMaterial({ color: 0xFFE3C4, emissive: 0xF59A50, emissiveIntensity: 1.1, roughness: 0.4 })
+);
+drop.add(core);
+const coreLight = new THREE.PointLight(0xFFB774, 2, 6, 2);
+drop.add(coreLight);
+scene.add(drop);
+
+/* ---------- leaves ---------- */
+// outline in leaf units: stem at (0,0), tip at (1.12, 0.08)
+const LEAF = {
+  outline: [[0, 0], [[0.14, 0.24], [0.54, 0.42], [1.12, 0.08]], [[0.98, -0.04], [0.80, -0.16], [0.58, -0.20]], [[0.34, -0.24], [0.14, -0.16], [0, 0]]],
+  midrib: [[0, 0.0], [0.36, 0.08], [0.76, 0.12], [1.10, 0.08]],
+  veins: [
+    [[0.18, 0.04], [0.24, 0.14], [0.32, 0.22], [0.40, 0.29]],
+    [[0.38, 0.07], [0.46, 0.18], [0.56, 0.27], [0.66, 0.31]],
+    [[0.60, 0.09], [0.68, 0.18], [0.78, 0.23], [0.88, 0.24]],
+    [[0.80, 0.10], [0.88, 0.15], [0.96, 0.16], [1.02, 0.15]],
+    [[0.18, 0.04], [0.24, -0.04], [0.32, -0.12], [0.42, -0.19]],
+    [[0.38, 0.07], [0.46, -0.02], [0.56, -0.11], [0.66, -0.17]],
+    [[0.60, 0.09], [0.68, 0.01], [0.76, -0.05], [0.86, -0.09]],
+    [[0.80, 0.10], [0.88, 0.05], [0.94, 0.02], [1.00, 0.02]]
+  ],
+  xMax: 1.12, yMin: -0.24, yMax: 0.34
+};
+const TW = 1024, TH = Math.round(TW * (LEAF.yMax - LEAF.yMin) / LEAF.xMax);
+const px = x => x / LEAF.xMax * TW;
+const py = y => (LEAF.yMax - y) / (LEAF.yMax - LEAF.yMin) * TH;
+
+function leafPath(g) {
+  const o = LEAF.outline;
+  g.beginPath(); g.moveTo(px(o[0][0]), py(o[0][1]));
+  for (let i = 1; i < o.length; i++) g.bezierCurveTo(px(o[i][0][0]), py(o[i][0][1]), px(o[i][1][0]), py(o[i][1][1]), px(o[i][2][0]), py(o[i][2][1]));
+  g.closePath();
+}
+function curve(g, c) { g.beginPath(); g.moveTo(px(c[0][0]), py(c[0][1])); g.bezierCurveTo(px(c[1][0]), py(c[1][1]), px(c[2][0]), py(c[2][1]), px(c[3][0]), py(c[3][1])); g.stroke(); }
+
+function leafTextures(cols, vein, edge) {
+  const c = document.createElement('canvas'); c.width = TW; c.height = TH;
+  const g = c.getContext('2d');
+  leafPath(g); g.save(); g.clip();
+  const lin = g.createLinearGradient(0, 0, TW, TH * 0.4);
+  lin.addColorStop(0, cols[0]); lin.addColorStop(0.45, cols[1]); lin.addColorStop(0.78, cols[2]); lin.addColorStop(1, cols[3]);
+  g.fillStyle = lin; g.fillRect(0, 0, TW, TH);
+  const light = g.createLinearGradient(0, 0, 0, TH);
+  light.addColorStop(0, 'rgba(255,255,255,0.28)'); light.addColorStop(0.5, 'rgba(255,255,255,0)');
+  light.addColorStop(0.55, 'rgba(10,30,20,0)'); light.addColorStop(1, 'rgba(10,30,20,0.25)');
+  g.fillStyle = light; g.fillRect(0, 0, TW, TH);
+  for (let i = 0; i < 1400; i++) {            // cell texture
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    g.beginPath(); g.arc(Math.random() * TW, Math.random() * TH, 1 + Math.random() * 3, 0, Math.PI * 2); g.fill();
+  }
+  g.lineCap = 'round'; g.strokeStyle = vein; g.globalAlpha = 0.75;
+  g.lineWidth = 7; curve(g, LEAF.midrib);
+  g.lineWidth = 3; LEAF.veins.forEach(v => curve(g, v));
+  g.globalAlpha = 1; g.restore();
+  g.lineWidth = 8; g.strokeStyle = edge; g.globalAlpha = 0.45; leafPath(g); g.stroke(); g.globalAlpha = 1;
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+
+  const b = document.createElement('canvas'); b.width = TW; b.height = TH;
+  const bg = b.getContext('2d');
+  bg.fillStyle = '#808080'; bg.fillRect(0, 0, TW, TH);
+  bg.lineCap = 'round'; bg.strokeStyle = '#4A4A4A';
+  bg.lineWidth = 9; curve(bg, LEAF.midrib);
+  bg.lineWidth = 4; LEAF.veins.forEach(v => curve(bg, v));
+  const bump = new THREE.CanvasTexture(b);
+  return { map, bump };
+}
+
+function leafGeometry() {
+  // a finely subdivided card; the leaf outline comes from the texture's alpha, so the whole blade can bend smoothly
+  const h = LEAF.yMax - LEAF.yMin;
+  const geo = new THREE.PlaneGeometry(LEAF.xMax, h, 72, 36);
+  geo.translate(LEAF.xMax / 2, LEAF.yMin + h / 2, 0);
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i);
+    const cup = 0.42 * Math.pow(y - 0.06, 2);              // edges curl up
+    const arch = 0.05 * Math.sin(Math.PI * x / LEAF.xMax);  // gentle arch along the length
+    const tip = 0.06 * Math.pow(Math.max(0, x - 0.8) / 0.32, 2);
+    p.setZ(i, cup + arch + tip);
+  }
+  geo.rotateX(-Math.PI / 2);
+  geo.translate(-0.56, 0, 0);
+  geo.computeVertexNormals();
+  return geo;
+}
+const LEAF_GEO = leafGeometry();
+const STEM_GEO = new THREE.CylinderGeometry(0.008, 0.013, 0.2, 8).rotateZ(Math.PI / 2).translate(-0.66, 0.0, 0);
+
+function makeLeaf(cols, vein, edge, stemColor, scale) {
+  const { map, bump } = leafTextures(cols, vein, edge);
+  const mat = new THREE.MeshPhysicalMaterial({
+    map, bumpMap: bump, bumpScale: 2.2, roughness: 0.48, side: THREE.DoubleSide, alphaTest: 0.05,
+    clearcoat: 0.3, clearcoatRoughness: 0.35, sheen: 0.35, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffffff),
+    transparent: true
+  });
+  const g = new THREE.Group();
+  const leaf = new THREE.Mesh(LEAF_GEO, mat); leaf.castShadow = true;
+  const stem = new THREE.Mesh(STEM_GEO, new THREE.MeshStandardMaterial({ color: stemColor, roughness: 0.6, transparent: true }));
+  stem.castShadow = true;
+  g.add(leaf, stem); g.scale.setScalar(scale);
+  g.userData.mats = [mat, stem.material];
+  scene.add(g);
+  return g;
+}
+
+const leafGreen = makeLeaf(['#B5E3A0', '#5FAE7E', '#2F8F6E', '#1E6A50'], '#E3F6EE', '#1B5C47', 0x2F6B4F, 1.15);
+const leafOrange = makeLeaf(['#FFD08A', '#F29B52', '#E98232', '#A84E16'], '#FFF0E3', '#8A4512', 0x8A4512, 1.05);
+const leafFall = makeLeaf(['#E2E79A', '#B8D277', '#9CC46A', '#4E8A4A'], '#F7F6D8', '#3E6B38', 0x4E6B32, 0.8);
+
+const floaters = [
+  { g: leafGreen, x: -2.5, z: 1.1, yaw: 0.55, drift: 0.12, speed: 0.05 },
+  { g: leafOrange, x: 2.2, z: 1.7, yaw: -0.9, drift: 0.1, speed: -0.04 }
+];
+
+/* ---------- drifting pollen ---------- */
+const N = REDUCED ? 30 : 110;
+const pGeo = new THREE.BufferGeometry();
+const pPos = new Float32Array(N * 3), pCol = new Float32Array(N * 3), pSpd = new Float32Array(N);
+const palette = [new THREE.Color(0xE98232), new THREE.Color(0x2F8F6E), new THREE.Color(0x2C6FBA), new THREE.Color(0xF6B26B)];
+for (let i = 0; i < N; i++) {
+  pPos[i * 3] = (Math.random() - 0.5) * 9; pPos[i * 3 + 1] = Math.random() * 4; pPos[i * 3 + 2] = (Math.random() - 0.5) * 6;
+  palette[i % 4].toArray(pCol, i * 3); pSpd[i] = 0.12 + Math.random() * 0.25;
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const pollen = new THREE.Points(pGeo, new THREE.PointsMaterial({
+  size: 0.06, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false,
+  map: radialTexture([[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,0.7)'], [1, 'rgba(255,255,255,0)']], 64)
+}));
+scene.add(pollen);
+
+/* ---------- interaction & sizing ---------- */
+const mouse = new THREE.Vector2(), mouseS = new THREE.Vector2();
+if (!REDUCED) addEventListener('pointermove', e => { mouse.set(e.clientX / innerWidth - 0.5, e.clientY / innerHeight - 0.5); });
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  const back = camera.aspect < 1 ? 7.2 / Math.max(camera.aspect, 0.5) * 0.75 : 7.2;
+  camBase.set(0, 2.2 + (back - 7.2) * 0.15, back);
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+const tmp = new THREE.Vector3();
+function slopeOf(x, z, t, b) {
+  const d = 0.25;
+  return [
+    (waterHeight(x + d, z, t, b) - waterHeight(x - d, z, t, b)) / (2 * d),
+    (waterHeight(x, z + d, t, b) - waterHeight(x, z - d, t, b)) / (2 * d)
+  ];
+}
+
+function frame() {
+  const t = clock.getElapsedTime();
+  const phase = (t % BREATH) / BREATH;            // 0..1
+  const b = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);   // 0 → 1 (inhale) → 0 (exhale)
+
+  // drop
+  drop.position.set(0, 1.42 + b * 0.28, 0);
+  drop.scale.setScalar(0.84 + b * 0.16);
+  drop.rotation.y = t * 0.12;
+  core.material.emissiveIntensity = 0.8 + b * 0.9;
+  core.scale.setScalar(0.9 + b * 0.25);
+  coreLight.intensity = 1.2 + b * 2.4;
+  caustic.material.opacity = 0.45 + (1 - b) * 0.45;
+  caustic.scale.setScalar(0.8 + (1 - b) * 0.35);
+
+  // water
+  for (let i = 0; i < wPos.count; i++) wPos.setY(i, waterHeight(wPos.getX(i), wPos.getZ(i), t, b));
+  wPos.needsUpdate = true;
+  waterGeo.computeVertexNormals();
+
+  // floating leaves
+  floaters.forEach(f => {
+    const a = t * f.speed;
+    const x = f.x + Math.sin(a) * f.drift * 4, z = f.z + Math.cos(a * 0.8) * f.drift * 3;
+    const [sx, sz] = slopeOf(x, z, t, b);
+    f.g.position.set(x, waterHeight(x, z, t, b) + 0.012, z);
+    f.g.rotation.set(Math.atan(sz), f.yaw + a * 0.6, -Math.atan(sx), 'YXZ');
+  });
+
+  // falling leaf: 12s drift down, 6s on the water, then a new one
+  if (REDUCED) {
+    leafFall.visible = false;
+  } else {
+    const CYCLE = 18, lt = t % CYCLE, start = t - lt;
+    const fallT = Math.min(lt, 12), tt = start + fallT;
+    const x = 2.6 + 0.8 * Math.sin(tt * 1.25), z = -0.8 + 0.5 * Math.cos(tt * 0.85);
+    let alpha = Math.min(1, lt / 1.2) * Math.min(1, (CYCLE - lt) / 2);
+    if (lt < 12) {
+      const k = lt / 12;
+      leafFall.position.set(x, 4.4 * (1 - k) + waterHeight(x, z, t, b) * k + 0.012, z);
+      leafFall.rotation.set(0.55 * Math.cos(t * 1.7) * (1 - k), tt * 0.5, 0.75 * Math.sin(t * 2.1) * (1 - k), 'YXZ');
+    } else {
+      const [sx, sz] = slopeOf(x, z, t, b);
+      leafFall.position.set(x, waterHeight(x, z, t, b) + 0.012, z);
+      leafFall.rotation.set(Math.atan(sz), tt * 0.5, -Math.atan(sx), 'YXZ');
+    }
+    leafFall.userData.mats.forEach(m => { m.opacity = alpha; });
+  }
+
+  // pollen
+  for (let i = 0; i < N; i++) {
+    let y = pPos[i * 3 + 1] + pSpd[i] * 0.006 * (REDUCED ? 0.3 : 1);
+    if (y > 4.2) y = 0.05;
+    pPos[i * 3 + 1] = y;
+    pPos[i * 3] += Math.sin(t * 0.5 + i) * 0.0012;
+  }
+  pGeo.attributes.position.needsUpdate = true;
+
+  // camera parallax
+  mouseS.lerp(mouse, 0.04);
+  camera.position.set(camBase.x + mouseS.x * 0.9, camBase.y - mouseS.y * 0.4, camBase.z);
+  camera.lookAt(lookAt);
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+</script>
+</body>
+</html>

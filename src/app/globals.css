@@ -925,6 +925,16 @@ textarea::placeholder { color:#9aa6b4; }
 .nature-banner-caption { position:absolute; left:24px; bottom:38px; max-width:70%; color:#fff; font:600 20px 'Playfair Display',serif; text-shadow:0 2px 10px rgba(0,0,0,.45); }
 @media (max-width:720px) { .nature-banner img { height:190px; } .nature-banner-caption { font-size:16px; bottom:26px; left:16px; } }
 
+/* "Slow down. Notice the signal." sits beside a slow-paced 3D breathing
+   scene (glass drop over a lake, public/mindhx-breathing-3d.html) rather
+   than stacking above/below it - the scene's own animation pace (an
+   8s in/out breath cycle) is the point, so it needs to be visibly
+   present while reading the text, not scrolled past separately. Stacks
+   on narrow screens where there's no room for a second column. */
+.hero-signal-row { display:flex; align-items:center; gap:40px; margin-bottom:8px; }
+.hero-signal-text { flex:1 1 440px; min-width:0; }
+.hero-signal-3d { flex:1 1 380px; width:100%; aspect-ratio:1/1; max-width:460px; border:0; border-radius:20px; box-shadow:0 18px 45px var(--shadow); background:var(--background); }
+@media (max-width:860px) { .hero-signal-row { flex-direction:column; gap:22px; } .hero-signal-3d { max-width:360px; } }
 /* "Slow down. Notice the signal." - a plain in-flow text block on the
    page's own cream background (no photo behind it), sitting in
    .workspace like the hero title above it rather than breaking full-bleed. */
