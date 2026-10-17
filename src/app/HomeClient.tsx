@@ -618,10 +618,8 @@ export default function HomeClient() {
               {text.bannerLine2}
               <i className="hero-signal-pulse" aria-hidden="true" />
             </span>
+            <p className="intro-copy hero-signal-caption-line hero-signal-subcopy">{text.intro}</p>
           </div>
-        </div>
-        <div className="hero-signal-subcopy-wrap">
-          <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
         </div>
         <div className="signal-photo-section">
           <div className="signal-photo-bg"><Image src={naturePhotos.grassDewBokeh.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
