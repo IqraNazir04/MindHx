@@ -589,37 +589,39 @@ export default function HomeClient() {
           </div>
         </section>
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
-        <div className="hero-signal-row">
-          <div className="hero-signal-text">
-            <div
-              ref={bannerCaptionRef}
-              className={`hero-signal-caption ${bannerCaptionVisible ? "is-visible" : ""}`}
-              dir={language === "اردو" ? "rtl" : "ltr"}
-              role="button"
-              tabIndex={0}
-              aria-label={language === "اردو" ? "اشاروں کی طرف جائیں" : "Jump to your signals"}
-              onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
-            >
-              <span className="hero-signal-caption-line hero-signal-caption-line-1">{text.bannerLine1}</span>
-              <span className="hero-signal-caption-line hero-signal-caption-line-2">
-                {text.bannerLine2}
-                <i className="hero-signal-pulse" aria-hidden="true" />
-              </span>
-            </div>
-            <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
-          </div>
+        <div className="hero-signal-banner">
           <iframe
-            className="hero-signal-3d"
+            className="hero-signal-3d-bg"
             src="/mindhx-breathing-3d.html?breath=8"
             title={language === "اردو" ? "ایک سانس لینے والا 3D منظر" : "A slow-breathing 3D scene"}
             loading="lazy"
+            tabIndex={-1}
           />
+          <div
+            ref={bannerCaptionRef}
+            className={`hero-signal-caption ${bannerCaptionVisible ? "is-visible" : ""}`}
+            dir={language === "اردو" ? "rtl" : "ltr"}
+            role="button"
+            tabIndex={0}
+            aria-label={language === "اردو" ? "اشاروں کی طرف جائیں" : "Jump to your signals"}
+            onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+          >
+            <span className="hero-signal-caption-eyebrow">{language === "اردو" ? "اس کی رفتار کے ساتھ سانس لیں" : "Breathe with it"}</span>
+            <span className="hero-signal-caption-line hero-signal-caption-line-1">{text.bannerLine1}</span>
+            <span className="hero-signal-caption-line hero-signal-caption-line-2">
+              {text.bannerLine2}
+              <i className="hero-signal-pulse" aria-hidden="true" />
+            </span>
+          </div>
+        </div>
+        <div className="hero-signal-subcopy-wrap">
+          <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
         </div>
         <div className="signal-photo-section">
           <div className="signal-photo-bg"><Image src={naturePhotos.grassDewBokeh.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
