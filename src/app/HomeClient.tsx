@@ -592,7 +592,21 @@ export default function HomeClient() {
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <div className="hero-signal-banner">
           <NatureBanner {...naturePhotos.mountainLake} priority />
-          <div ref={bannerCaptionRef} className={`hero-signal-caption ${bannerCaptionVisible ? "is-visible" : ""}`} dir={language === "اردو" ? "rtl" : "ltr"}>
+          <div
+            ref={bannerCaptionRef}
+            className={`hero-signal-caption ${bannerCaptionVisible ? "is-visible" : ""}`}
+            dir={language === "اردو" ? "rtl" : "ltr"}
+            role="button"
+            tabIndex={0}
+            aria-label={language === "اردو" ? "اشاروں کی طرف جائیں" : "Jump to your signals"}
+            onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
+          >
             <span className="hero-signal-caption-line hero-signal-caption-line-1">{text.bannerLine1}</span>
             <span className="hero-signal-caption-line hero-signal-caption-line-2">
               {text.bannerLine2}
