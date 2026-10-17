@@ -408,8 +408,6 @@ textarea::placeholder { color:#9aa6b4; }
 .about-closing-actions .result-primary { margin:0; }
 .about-closing-emergency { color:var(--muted); font-size:12.5px; text-decoration:underline; text-underline-offset:3px; }
 .about-closing-emergency:hover { color:var(--navy); }
-.brand-link { color:var(--blue); text-decoration:none; }
-.brand-link:hover { text-decoration:underline; }
 @media (max-width:720px) { .bottom-row { display:block; }.check-in-button { width:100%; margin-top:22px; } }
 
 .modal-backdrop { position:fixed; inset:0; background:rgba(36,52,74,.32); display:grid; place-items:center; padding:20px; z-index:20; }

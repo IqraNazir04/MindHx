@@ -14,7 +14,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/therapist", priority: 0.8 },
     { path: "/resources", priority: 0.6 },
     { path: "/emergency", priority: 0.6 },
-    { path: "/brand", priority: 0.3 },
   ].map(({ path, priority }) => ({
     url: `${SITE_URL}${path}`,
     lastModified: new Date(),
