@@ -164,6 +164,10 @@ button { cursor:pointer; }
 .profile-strip p:not(.card-kicker) { color:var(--muted); font-size:11px; margin:0; }
 .profile-button { border:1px solid var(--line-cool); border-radius:6px; color:var(--blue); background:var(--blue-soft); padding:10px 13px; white-space:nowrap; font-size:11px; }
 .profile-button span { margin-left:10px; }
+/* Same stacking the near-identical .resource-nav already uses at its own
+   breakpoint: below 800px the heading text can wrap to 2-3 lines, and the
+   button (vertically centered by the flex row) ends up overlapping it. */
+@media (max-width:800px) { .profile-strip { display:block; } .profile-button { margin-top:14px; } }
 
 /* Resource nav on home page */
 .resource-nav { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:20px 22px; margin-bottom:17px; border:1px solid var(--line); border-radius:11px; background:var(--surface); }
@@ -289,7 +293,11 @@ textarea::placeholder { color:#9aa6b4; }
 
 .bottom-row { display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--line); margin-top:35px; padding-top:27px; }
 .score-preview { display:flex; align-items:center; gap:17px; }
-.score-ring { display:grid; place-items:center; width:66px; height:66px; border-radius:50%; background:conic-gradient(var(--orange) calc(var(--score, 0) * 3.6deg),var(--line) 0); position:relative; }
+/* flex-shrink:0 - without it, flex squeezes this below its 66px width
+   (height is unaffected, since height isn't a flex sizing axis), turning
+   the circle into an oval once the row gets tight, which is exactly what
+   was happening at mobile widths. */
+.score-ring { flex-shrink:0; display:grid; place-items:center; width:66px; height:66px; border-radius:50%; background:conic-gradient(var(--orange) calc(var(--score, 0) * 3.6deg),var(--line) 0); position:relative; }
 .score-ring:after { content:''; position:absolute; inset:5px; background:var(--background); border-radius:50%; }
 .score-ring strong,.score-ring span { z-index:1; position:relative; }
 .score-ring strong { font-size:18px; color:var(--navy); }
