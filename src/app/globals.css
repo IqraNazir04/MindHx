@@ -299,8 +299,21 @@ textarea::placeholder { color:#9aa6b4; }
 .disclaimer span { color:var(--blue); margin-right:6px; }
 
 /* ---------- Home / feature carousel ---------- */
-.feature-carousel { margin:56px 0 0; padding-top:40px; border-top:1px solid var(--line); }
+/* Full-bleed green nature photo behind the "Whatever you need next" panel,
+   same edge-to-edge break-out as .intro-banner/.signal-photo-section. The
+   photo itself slowly zooms/drifts (Ken Burns) instead of sitting static,
+   so the section reads as alive rather than a plain image slapped behind
+   text; the carousel content keeps its own solid panel on top for
+   legibility since - unlike the signal cards - it has no per-item card. */
+.feature-carousel-photo-section { position:relative; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; margin-top:56px; padding:64px 0; overflow:hidden; }
+.feature-carousel-photo-bg { position:absolute; inset:0; z-index:0; }
+.feature-carousel-photo-bg img { animation:carouselKenBurns 26s ease-in-out infinite alternate; }
+.feature-carousel-photo-bg:after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,var(--background) 0%,rgba(251,243,230,0) 16%,rgba(251,243,230,0) 84%,var(--background) 100%); }
+@keyframes carouselKenBurns { 0% { transform:scale(1) translate(0,0); } 100% { transform:scale(1.12) translate(-2%,-1.5%); } }
+@media (prefers-reduced-motion:reduce) { .feature-carousel-photo-bg img { animation:none; } }
+.feature-carousel { position:relative; z-index:1; max-width:700px; margin:0 auto; background:var(--surface); border-radius:24px; padding:44px 40px; box-shadow:0 24px 54px rgba(36,52,74,.16); }
 .feature-carousel h2 { font:600 clamp(26px,3.6vw,36px)/1.15 'Playfair Display',serif; color:var(--navy); margin:0 0 32px; }
+@media (max-width:720px) { .feature-carousel-photo-section { padding:40px 0; } .feature-carousel { padding:30px 22px; border-radius:18px; } }
 .feature-carousel-track { position:relative; min-height:230px; max-width:620px; margin:0 auto; }
 .feature-slide { display:none; flex-direction:column; align-items:center; text-align:center; gap:10px; }
 .feature-slide-active { display:flex; animation:feature-fade .45s ease; }

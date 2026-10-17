@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ChatSupportGraphic, CommunityGraphic, PracticeGraphic, ShieldGraphic } from "./CarouselGraphics";
+import { naturePhotos } from "./naturePhotos";
 
 type Slide = {
   Graphic: typeof ChatSupportGraphic;
@@ -49,35 +51,38 @@ export default function FeatureCarousel({ isUrdu = false }: { isUrdu?: boolean }
   }, [active, paused]);
 
   return (
-    <section className="feature-carousel" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} dir={isUrdu ? "rtl" : "ltr"}>
-      <p className="eyebrow" style={{ textAlign: "center" }}>{isUrdu ? "آگے کیا؟" : "WHAT'S NEXT"}</p>
-      <h2 style={{ textAlign: "center" }}>{isUrdu ? "آپ کی ضرورت کے مطابق" : "Whatever you need next, it's here."}</h2>
-      <div className="feature-carousel-track">
-        {SLIDES.map((slide, index) => {
-          const content = slide[isUrdu ? "ur" : "en"];
-          const { Graphic } = slide;
-          return (
-            <article key={slide.href} className={`feature-slide ${index === active ? "feature-slide-active" : ""}`} aria-hidden={index !== active}>
-              <Graphic size={84} />
-              <h3>{content.title}</h3>
-              <p>{content.body}</p>
-              <Link href={slide.href} className="feature-slide-cta">{content.cta} →</Link>
-            </article>
-          );
-        })}
-      </div>
-      <div className="feature-carousel-dots">
-        {SLIDES.map((slide, index) => (
-          <button
-            key={slide.href}
-            type="button"
-            className={`feature-carousel-dot ${index === active ? "active" : ""}`}
-            aria-current={index === active ? "true" : undefined}
-            aria-label={`${isUrdu ? "سلائیڈ" : "Slide"} ${index + 1}`}
-            onClick={() => setActive(index)}
-          />
-        ))}
-      </div>
-    </section>
+    <div className="feature-carousel-photo-section">
+      <div className="feature-carousel-photo-bg"><Image src={naturePhotos.riverTrees.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
+      <section className="feature-carousel" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} dir={isUrdu ? "rtl" : "ltr"}>
+        <p className="eyebrow" style={{ textAlign: "center" }}>{isUrdu ? "آگے کیا؟" : "WHAT'S NEXT"}</p>
+        <h2 style={{ textAlign: "center" }}>{isUrdu ? "آپ کی ضرورت کے مطابق" : "Whatever you need next, it's here."}</h2>
+        <div className="feature-carousel-track">
+          {SLIDES.map((slide, index) => {
+            const content = slide[isUrdu ? "ur" : "en"];
+            const { Graphic } = slide;
+            return (
+              <article key={slide.href} className={`feature-slide ${index === active ? "feature-slide-active" : ""}`} aria-hidden={index !== active}>
+                <Graphic size={84} />
+                <h3>{content.title}</h3>
+                <p>{content.body}</p>
+                <Link href={slide.href} className="feature-slide-cta">{content.cta} →</Link>
+              </article>
+            );
+          })}
+        </div>
+        <div className="feature-carousel-dots">
+          {SLIDES.map((slide, index) => (
+            <button
+              key={slide.href}
+              type="button"
+              className={`feature-carousel-dot ${index === active ? "active" : ""}`}
+              aria-current={index === active ? "true" : undefined}
+              aria-label={`${isUrdu ? "سلائیڈ" : "Slide"} ${index + 1}`}
+              onClick={() => setActive(index)}
+            />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
