@@ -887,6 +887,33 @@ textarea::placeholder { color:#9aa6b4; }
 .nature-banner-caption { position:absolute; left:24px; bottom:38px; max-width:70%; color:#fff; font:600 20px 'Playfair Display',serif; text-shadow:0 2px 10px rgba(0,0,0,.45); }
 @media (max-width:720px) { .nature-banner img { height:190px; } .nature-banner-caption { font-size:16px; bottom:26px; left:16px; } }
 
+/* Home hero banner caption: two phrases that reveal one at a time, slowly,
+   on scroll into view - the pacing itself is meant to perform "slow down"
+   rather than just saying it. A small live-signal dot (steady centre +
+   outward "ping" ring, like a heart-rate monitor) starts breathing once
+   the text has settled, calling back to the app's own "signal" language
+   instead of a generic decorative flourish. Positioned to match
+   .nature-banner-caption exactly; .hero-signal-banner shares .nature-banner's
+   own box (not just its parent) so the overlay aligns with the image itself
+   on wide viewports where the centered 1120px image doesn't fill .workspace. */
+.hero-signal-banner { position:relative; max-width:1120px; margin:0 auto; }
+.hero-signal-caption { position:absolute; left:24px; bottom:34px; max-width:72%; display:flex; flex-direction:column; gap:6px; z-index:1; pointer-events:none; }
+.hero-signal-caption-line { display:block; opacity:0; transform:translateY(16px); text-shadow:0 2px 10px rgba(0,0,0,.45); transition:opacity 1.3s cubic-bezier(.19,1,.22,1),transform 1.3s cubic-bezier(.19,1,.22,1); }
+.hero-signal-caption-line-1 { font:500 italic 19px 'Playfair Display',serif; color:rgba(255,255,255,.88); }
+.hero-signal-caption-line-2 { font:700 25px 'Playfair Display',serif; color:#fff; display:flex; align-items:center; }
+.hero-signal-caption.is-visible .hero-signal-caption-line-1 { opacity:1; transform:translateY(0); transition-delay:.15s; }
+.hero-signal-caption.is-visible .hero-signal-caption-line-2 { opacity:1; transform:translateY(0); transition-delay:.85s; }
+.hero-signal-pulse { position:relative; display:inline-block; width:8px; height:8px; margin-left:10px; border-radius:50%; background:#fff; opacity:0; transition:opacity .4s ease; }
+.hero-signal-caption.is-visible .hero-signal-pulse { opacity:1; transition-delay:2.1s; }
+.hero-signal-pulse:after { content:""; position:absolute; inset:0; border-radius:50%; background:#fff; opacity:.7; animation:heroSignalPing 2.4s cubic-bezier(0,0,.2,1) infinite; animation-delay:2.3s; }
+@keyframes heroSignalPing { 0% { transform:scale(1); opacity:.6; } 75%,100% { transform:scale(2.6); opacity:0; } }
+@media (prefers-reduced-motion:reduce) {
+  .hero-signal-caption-line { transition:none; opacity:1; transform:none; }
+  .hero-signal-pulse { opacity:1; transition:none; }
+  .hero-signal-pulse:after { animation:none; }
+}
+@media (max-width:720px) { .hero-signal-caption { left:16px; bottom:24px; max-width:80%; } .hero-signal-caption-line-1 { font-size:15px; } .hero-signal-caption-line-2 { font-size:19px; } }
+
 /* Hero banner: the page's lead photo extends up behind the heading, with the
    eyebrow/title/intro overlaid at the bottom over a soft cream scrim -
    same full-bleed treatment as the home page's tree hero - instead of the
