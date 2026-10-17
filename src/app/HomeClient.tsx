@@ -580,7 +580,6 @@ export default function HomeClient() {
             <div className="hero-copy-text">
               <p className="eyebrow">{text.eyebrow}</p>
               <h1>{text.heroTitleA}<br /><em>{text.heroTitleB}</em></h1>
-              <p className="intro-copy">{text.intro}</p>
               <div className="hero-actions">
                 <button className="check-in-button hero-action" onClick={() => document.querySelector(".signal-grid")?.scrollIntoView({ behavior: "smooth" })}>{text.startCheckIn} <span>↓</span></button>
                 <span className="status-pill"><span className="pulse" /> {text.ready}</span>
@@ -600,6 +599,7 @@ export default function HomeClient() {
             </span>
           </div>
         </div>
+        <p className="intro-copy hero-signal-subcopy">{text.intro}</p>
         <div className="signal-photo-section">
           <div className="signal-photo-bg"><Image src={naturePhotos.grassDewBokeh.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
           <div className="signal-photo-inner">
