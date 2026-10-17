@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import NatureBanner from "./components/NatureBanner";
 import { DoodleLeaf } from "./components/Doodles";
 import { naturePhotos } from "./components/naturePhotos";
@@ -572,15 +573,18 @@ export default function HomeClient() {
         </section>
         <section className="profile-strip"><div><p className="card-kicker">{text.contextKicker}</p><h2>{sessionToken ? text.contextReady : text.contextPrompt}</h2><p>{text.contextBody}</p></div><button className="profile-button" onClick={() => setShowProfile(true)}>{sessionToken ? text.contextEdit : text.contextSet} <span>→</span></button></section>
         <NatureBanner {...naturePhotos.mountainLake} caption={text.bannerCaption} priority />
-        <div className="signal-grid leaf-fall-field">
-          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "2%", width: "32px", height: "auto", animationDuration: "15s", animationDelay: "-2s" }} />
-          <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "16%", width: "24px", height: "auto", animationDuration: "18s", animationDelay: "-6s" }} />
-          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "30%", width: "42px", height: "auto", animationDuration: "19s", animationDelay: "-9s" }} />
-          <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "46%", width: "30px", height: "auto", animationDuration: "16s", animationDelay: "-11s" }} />
-          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "60%", width: "26px", height: "auto", animationDuration: "13s", animationDelay: "-5s" }} />
-          <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "76%", width: "38px", height: "auto", animationDuration: "21s", animationDelay: "-13s" }} />
-          <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "90%", width: "28px", height: "auto", animationDuration: "17s", animationDelay: "-1s" }} />
-          <article className="signal-card signal-card-clinical">
+        <div className="signal-photo-section">
+          <div className="signal-photo-bg"><Image src={naturePhotos.grassDewBokeh.src} alt="" fill sizes="100vw" style={{ objectFit: "cover" }} /></div>
+          <div className="signal-photo-inner">
+            <div className="signal-grid leaf-fall-field">
+              <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "2%", width: "32px", height: "auto", animationDuration: "15s", animationDelay: "-2s" }} />
+              <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "16%", width: "24px", height: "auto", animationDuration: "18s", animationDelay: "-6s" }} />
+              <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "30%", width: "42px", height: "auto", animationDuration: "19s", animationDelay: "-9s" }} />
+              <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "46%", width: "30px", height: "auto", animationDuration: "16s", animationDelay: "-11s" }} />
+              <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "60%", width: "26px", height: "auto", animationDuration: "13s", animationDelay: "-5s" }} />
+              <DoodleLeaf className="doodle doodle-teal-deep doodle-fall doodle-fall-rev" style={{ left: "76%", width: "38px", height: "auto", animationDuration: "21s", animationDelay: "-13s" }} />
+              <DoodleLeaf className="doodle doodle-teal doodle-fall" style={{ left: "90%", width: "28px", height: "auto", animationDuration: "17s", animationDelay: "-1s" }} />
+              <article className="signal-card signal-card-clinical">
             <div className="clinical-card-body">
               <ClinicalSignalGraphic size={72} />
               <div className="clinical-card-text">
@@ -595,6 +599,8 @@ export default function HomeClient() {
           </article>
           <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button>{recording && <span className="recording-timer" role="timer" aria-label={language === "اردو" ? "ریکارڈنگ کا وقت" : "Recording time"}><span className="recording-timer-dot" aria-hidden="true" />{formatRecordingTime(recordingSeconds)} / {formatRecordingTime(MAX_RECORDING_MS / 1000)}</span>}<span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{voiceFeatures.emotion && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}</article>
           <article className="signal-card signal-card-words"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 03</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => { setTypedText(event.target.value); setTextSubmitResult(null); }} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
+            </div>
+          </div>
         </div>
         <section className="bottom-row"><div className="score-preview"><div className="score-ring" style={{ "--score": score } as CSSProperties}><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}{latestStageAvailable && <> <Link href="/recommendations">{language === "اردو" ? "آپ کا تازہ ترین مرحلہ دیکھیں" : "View your latest stage and next steps"} →</Link></>}</p>}</div></section>
         <FeatureCarousel isUrdu={language === "اردو"} />

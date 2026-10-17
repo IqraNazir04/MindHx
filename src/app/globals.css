@@ -108,11 +108,6 @@ button { cursor:pointer; }
    down through a section at different speeds/delays/sizes/colours/spin
    directions so they read as natural leaf-fall, not one shape repeating. */
 .leaf-fall-field { position:relative; z-index:1; }
-.leaf-fall-field::before {
-  content:""; position:absolute; inset:-48px -36px; z-index:0; pointer-events:none;
-  background:radial-gradient(60% 55% at 50% 10%, var(--teal-soft) 0%, transparent 72%);
-  opacity:.8;
-}
 .leaf-fall-field .doodle-fall { z-index:5; }
 .leaf-fall-field .doodle-fall-rev { animation-name:doodleFallRev; }
 /* Cards stack into one tall column under 800px, so the fall path needs to
@@ -182,6 +177,17 @@ button { cursor:pointer; }
 .resource-nav nav a.resource-nav-emergency:hover { border-color:var(--red); }
 .resource-nav nav a.resource-nav-emergency span { color:var(--red); }
 @media (max-width:800px) { .resource-nav { display:block; } .resource-nav nav { margin-top:14px; } }
+
+/* Full-bleed nature photo behind the signal cards (crisp, not blurred) -
+   same edge-to-edge break-out as .intro-banner, with a fade at the top/
+   bottom edges so the photo eases into the page's cream background rather
+   than cutting off in a hard rectangle. The cards themselves stay fully
+   opaque, so they read as solid panels floating on the photo. */
+.signal-photo-section { position:relative; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; padding:54px 0 60px; overflow:hidden; }
+.signal-photo-bg { position:absolute; inset:0; z-index:0; }
+.signal-photo-bg:after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,var(--background) 0%,rgba(251,243,230,0) 14%,rgba(251,243,230,0) 82%,var(--background) 100%); }
+.signal-photo-inner { position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:0 30px; }
+@media (max-width:720px) { .signal-photo-section { padding:34px 0 40px; } .signal-photo-inner { padding:0 20px; } }
 
 /* Signals grid (voice / words / clinical) */
 .signal-grid { position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; gap:17px; align-items:start; }
