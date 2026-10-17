@@ -13,7 +13,6 @@ import FeatureCarousel from "./components/FeatureCarousel";
 import InnovationGrid from "./components/InnovationGrid";
 import TreeScene from "./components/TreeScene";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
-import { StepIcon } from "./components/StepIcons";
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
@@ -656,8 +655,7 @@ export default function HomeClient() {
         <section className="about-teaser">
           <div className="about-teaser-photo-bg"><Image src={naturePhotos.sunlitPathway.src} alt="" fill sizes="640px" style={{ objectFit: "cover" }} /></div>
           <div className="about-teaser-content">
-            <div className="about-teaser-icon innovation-icon-wrap"><StepIcon icon="reflect" /></div>
-            <p className="eyebrow">{text.aboutEyebrow}</p>
+            <p className="eyebrow about-teaser-eyebrow">{text.aboutEyebrow}</p>
             <h2>{text.aboutTitle}</h2>
             <p>{text.aboutTeaserBody}</p>
             <Link href="/about" className="result-primary">{text.aboutTeaserCta} <span>→</span></Link>
