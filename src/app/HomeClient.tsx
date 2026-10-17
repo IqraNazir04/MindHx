@@ -634,11 +634,14 @@ export default function HomeClient() {
         <FeatureCarousel isUrdu={language === "اردو"} />
         <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-teaser">
-          <div className="about-teaser-icon innovation-icon-wrap"><StepIcon icon="reflect" /></div>
-          <p className="eyebrow">{text.aboutEyebrow}</p>
-          <h2>{text.aboutTitle}</h2>
-          <p>{text.aboutTeaserBody}</p>
-          <Link href="/about" className="result-primary">{text.aboutTeaserCta} <span>→</span></Link>
+          <div className="about-teaser-photo-bg"><Image src={naturePhotos.sunlitPathway.src} alt="" fill sizes="640px" style={{ objectFit: "cover" }} /></div>
+          <div className="about-teaser-content">
+            <div className="about-teaser-icon innovation-icon-wrap"><StepIcon icon="reflect" /></div>
+            <p className="eyebrow">{text.aboutEyebrow}</p>
+            <h2>{text.aboutTitle}</h2>
+            <p>{text.aboutTeaserBody}</p>
+            <Link href="/about" className="result-primary">{text.aboutTeaserCta} <span>→</span></Link>
+          </div>
         </section>
         <p className="disclaimer"><span>ⓘ</span> {text.disclaimer} <Link href="/brand" className="brand-link">Brand ↗</Link></p>
       </main>
