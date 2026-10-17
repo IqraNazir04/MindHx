@@ -285,13 +285,27 @@ function makeLeaf(cols, vein, edge, stemColor, scale) {
   return g;
 }
 
+// All leaf palettes kept inside the green family (spring, deep teal-green,
+// olive) instead of the original autumn orange, so the scene reads as one
+// consistent green tone rather than mixing in a warm accent.
 const leafGreen = makeLeaf(['#B5E3A0', '#5FAE7E', '#2F8F6E', '#1E6A50'], '#E3F6EE', '#1B5C47', 0x2F6B4F, 1.15);
-const leafOrange = makeLeaf(['#FFD08A', '#F29B52', '#E98232', '#A84E16'], '#FFF0E3', '#8A4512', 0x8A4512, 1.05);
+const leafDeep = makeLeaf(['#8FD9BE', '#4FAE8C', '#2F8F6E', '#164A36'], '#E3F6EE', '#123B2A', 0x1E6A50, 1.05);
 const leafFall = makeLeaf(['#E2E79A', '#B8D277', '#9CC46A', '#4E8A4A'], '#F7F6D8', '#3E6B38', 0x4E6B32, 0.8);
+const leafFall2 = makeLeaf(['#B5E3A0', '#7FC79E', '#2F8F6E', '#1E6A50'], '#E3F6EE', '#1B5C47', 0x2F6B4F, 0.68);
+const leafFall3 = makeLeaf(['#CDE7A0', '#9CC46A', '#5FAE7E', '#2F6B4F'], '#F2F8E3', '#2E5C3E', 0x3E6B38, 0.9);
 
 const floaters = [
   { g: leafGreen, x: -2.5, z: 1.1, yaw: 0.55, drift: 0.12, speed: 0.05 },
-  { g: leafOrange, x: 2.2, z: 1.7, yaw: -0.9, drift: 0.1, speed: -0.04 }
+  { g: leafDeep, x: 2.2, z: 1.7, yaw: -0.9, drift: 0.1, speed: -0.04 }
+];
+
+// Several leaves drifting down at once (staggered cycle + delay, different
+// x/z paths and fall speeds) instead of one solitary leaf, so the water
+// reads as a steady, natural leaf-fall rather than a single repeating prop.
+const fallers = [
+  { g: leafFall, cycle: 18, delay: 0, x: 2.6, z: -0.8, ax: 0.8, az: 0.5, fx: 1.25, fz: 0.85, fall: 12 },
+  { g: leafFall2, cycle: 15, delay: 6, x: -2.1, z: -1.3, ax: 0.6, az: 0.7, fx: 1.05, fz: 1.1, fall: 10 },
+  { g: leafFall3, cycle: 21, delay: 13, x: 0.6, z: -2.4, ax: 0.9, az: 0.4, fx: 0.95, fz: 1.3, fall: 14 }
 ];
 
 /* ---------- drifting pollen ---------- */
@@ -319,7 +333,14 @@ function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
-  const back = camera.aspect < 1 ? 7.2 / Math.max(camera.aspect, 0.5) * 0.75 : 7.2;
+  // MindHx embeds this at a square 1:1 box on desktop and a ~1.2-1.3
+  // landscape box on mobile (never true portrait), so give those a gentle
+  // extra pull-back too - not just the <1 portrait case below, which this
+  // embedding never actually reaches - so the wider leaf-fall spread stays
+  // comfortably inside frame on both.
+  let back = 7.2;
+  if (camera.aspect < 1) back = 7.2 / Math.max(camera.aspect, 0.5) * 0.75;
+  else if (camera.aspect < 1.5) back = 7.2 + (1.5 - camera.aspect) * 1.6;
   camBase.set(0, 2.2 + (back - 7.2) * 0.15, back);
   camera.updateProjectionMatrix();
 }
@@ -365,24 +386,29 @@ function frame() {
     f.g.rotation.set(Math.atan(sz), f.yaw + a * 0.6, -Math.atan(sx), 'YXZ');
   });
 
-  // falling leaf: 12s drift down, 6s on the water, then a new one
+  // falling leaves: each drifts down for its own `fall` seconds, rests on
+  // the water for the remainder of its `cycle`, then restarts - cycle
+  // length, delay, path, and fall speed all differ per leaf so the three
+  // don't fall in visible lockstep.
   if (REDUCED) {
-    leafFall.visible = false;
+    fallers.forEach(f => { f.g.visible = false; });
   } else {
-    const CYCLE = 18, lt = t % CYCLE, start = t - lt;
-    const fallT = Math.min(lt, 12), tt = start + fallT;
-    const x = 2.6 + 0.8 * Math.sin(tt * 1.25), z = -0.8 + 0.5 * Math.cos(tt * 0.85);
-    let alpha = Math.min(1, lt / 1.2) * Math.min(1, (CYCLE - lt) / 2);
-    if (lt < 12) {
-      const k = lt / 12;
-      leafFall.position.set(x, 4.4 * (1 - k) + waterHeight(x, z, t, b) * k + 0.012, z);
-      leafFall.rotation.set(0.55 * Math.cos(t * 1.7) * (1 - k), tt * 0.5, 0.75 * Math.sin(t * 2.1) * (1 - k), 'YXZ');
-    } else {
-      const [sx, sz] = slopeOf(x, z, t, b);
-      leafFall.position.set(x, waterHeight(x, z, t, b) + 0.012, z);
-      leafFall.rotation.set(Math.atan(sz), tt * 0.5, -Math.atan(sx), 'YXZ');
-    }
-    leafFall.userData.mats.forEach(m => { m.opacity = alpha; });
+    fallers.forEach(f => {
+      const lt = (t + f.delay) % f.cycle, start = t - lt;
+      const fallT = Math.min(lt, f.fall), tt = start + fallT;
+      const x = f.x + f.ax * Math.sin(tt * f.fx), z = f.z + f.az * Math.cos(tt * f.fz);
+      const alpha = Math.min(1, lt / 1.2) * Math.min(1, (f.cycle - lt) / 2);
+      if (lt < f.fall) {
+        const k = lt / f.fall;
+        f.g.position.set(x, 4.4 * (1 - k) + waterHeight(x, z, t, b) * k + 0.012, z);
+        f.g.rotation.set(0.55 * Math.cos(t * 1.7) * (1 - k), tt * 0.5, 0.75 * Math.sin(t * 2.1) * (1 - k), 'YXZ');
+      } else {
+        const [sx, sz] = slopeOf(x, z, t, b);
+        f.g.position.set(x, waterHeight(x, z, t, b) + 0.012, z);
+        f.g.rotation.set(Math.atan(sz), tt * 0.5, -Math.atan(sx), 'YXZ');
+      }
+      f.g.userData.mats.forEach(m => { m.opacity = alpha; });
+    });
   }
 
   // pollen
