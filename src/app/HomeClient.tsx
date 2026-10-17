@@ -14,6 +14,7 @@ import FeatureCarousel from "./components/FeatureCarousel";
 import InnovationGrid from "./components/InnovationGrid";
 import TreeScene from "./components/TreeScene";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
+import { StepIcon } from "./components/StepIcons";
 import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
@@ -633,6 +634,7 @@ export default function HomeClient() {
         <FeatureCarousel isUrdu={language === "اردو"} />
         <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-teaser">
+          <div className="about-teaser-icon innovation-icon-wrap"><StepIcon icon="reflect" /></div>
           <p className="eyebrow">{text.aboutEyebrow}</p>
           <h2>{text.aboutTitle}</h2>
           <p>{text.aboutTeaserBody}</p>

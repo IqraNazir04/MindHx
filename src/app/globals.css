@@ -352,9 +352,16 @@ textarea::placeholder { color:#9aa6b4; }
 @media (max-width:600px) { .innovation-grid { grid-template-columns:1fr; } }
 
 /* ---------- Home / "About MindHx" teaser (full content lives at /about) ---------- */
-.about-teaser { margin:56px 0 40px; padding:40px 0; border-top:1px solid var(--line); text-align:center; max-width:640px; margin-left:auto; margin-right:auto; }
+/* Previously a bare text block with no visual weight, out of step with
+   every other section on the page by this point (photos, 3D icon badges,
+   animation). Framed it the same way the signal/innovation cards are
+   framed, and gave it the same breathing 3D icon badge as the innovation
+   grid just above it, so the page doesn't go flat right before the footer. */
+.about-teaser { position:relative; margin:56px auto 40px; padding:48px 40px; border:1px solid var(--line); border-radius:20px; background:var(--surface-soft); box-shadow:0 10px 26px var(--shadow); text-align:center; max-width:640px; }
+.about-teaser-icon { margin:0 auto 18px; }
 .about-teaser > h2 { font:600 clamp(26px,3.6vw,34px)/1.2 'Playfair Display',serif; color:var(--navy); margin:0 0 14px; }
 .about-teaser > p { color:var(--muted); font-size:14.5px; line-height:1.6; margin:0 0 20px; }
+@media (max-width:600px) { .about-teaser { padding:36px 24px; } }
 
 /* ---------- /about page long-form sections ---------- */
 .about-mindhx { margin:56px 0 40px; padding-top:40px; border-top:1px solid var(--line); }
@@ -899,32 +906,54 @@ textarea::placeholder { color:#9aa6b4; }
 .nature-banner-caption { position:absolute; left:24px; bottom:38px; max-width:70%; color:#fff; font:600 20px 'Playfair Display',serif; text-shadow:0 2px 10px rgba(0,0,0,.45); }
 @media (max-width:720px) { .nature-banner img { height:190px; } .nature-banner-caption { font-size:16px; bottom:26px; left:16px; } }
 
-/* Home hero banner caption: two phrases that reveal one at a time, slowly,
-   on scroll into view - the pacing itself is meant to perform "slow down"
-   rather than just saying it. A small live-signal dot (steady centre +
-   outward "ping" ring, like a heart-rate monitor) starts breathing once
-   the text has settled, calling back to the app's own "signal" language
-   instead of a generic decorative flourish. Positioned to match
-   .nature-banner-caption exactly; .hero-signal-banner shares .nature-banner's
-   own box (not just its parent) so the overlay aligns with the image itself
-   on wide viewports where the centered 1120px image doesn't fill .workspace. */
-.hero-signal-banner { position:relative; max-width:1120px; margin:0 auto; }
-.hero-signal-caption { position:absolute; left:28px; bottom:36px; max-width:78%; display:flex; flex-direction:column; gap:10px; z-index:1; pointer-events:none; }
-.hero-signal-caption-line { display:block; opacity:0; transform:translateY(16px); text-shadow:0 2px 14px rgba(0,0,0,.5); transition:opacity 1.3s cubic-bezier(.19,1,.22,1),transform 1.3s cubic-bezier(.19,1,.22,1); }
-.hero-signal-caption-line-1 { font:500 italic 26px 'Playfair Display',serif; line-height:1.3; color:rgba(255,255,255,.9); }
-.hero-signal-caption-line-2 { font:700 clamp(32px,4.2vw,46px)/1.15 'Playfair Display',serif; color:#fff; display:flex; align-items:center; }
+/* Home hero banner: full-bleed edge-to-edge like .intro-banner and
+   .resource-hero-banner (the pattern every other page's hero already uses),
+   not the centered 1120px card it was before - this was the one hero
+   banner on the site breaking that convention. Same bottom cream-fade +
+   dark text as .resource-hero-banner too, swapped in place of the old
+   white-text-on-raw-photo treatment so this reads as the same family of
+   component as the rest of the site rather than a one-off.
+   The photo itself gets a slow Ken Burns drift for a touch of life. */
+.hero-signal-banner { position:relative; z-index:1; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; margin-bottom:40px; overflow:hidden; }
+.hero-signal-banner .nature-banner { position:absolute; inset:0; z-index:0; margin:0; max-width:none; border-radius:0; box-shadow:none; }
+.hero-signal-banner .nature-banner img { width:100%; height:100%; animation:heroSignalKenBurns 30s ease-in-out infinite alternate; }
+@keyframes heroSignalKenBurns { 0% { transform:scale(1) translate(0,0); } 100% { transform:scale(1.1) translate(-1.5%,-1%); } }
+@media (prefers-reduced-motion:reduce) { .hero-signal-banner .nature-banner img { animation:none; } }
+/* Two phrases that reveal one at a time, slowly, on scroll into view - the
+   pacing is meant to perform "slow down" rather than just saying it. A
+   small live-signal dot (steady centre + outward "ping" ring, like a
+   heart-rate monitor) starts breathing once the text has settled, calling
+   back to the app's own "signal" language instead of a generic flourish.
+   This container (not the banner itself) carries the min-height/flex-end
+   positioning and the cream fade, same structure as
+   .resource-hero-banner .resource-hero: the fade is this element's own
+   :before at z-index:-1, which keeps it inside this element's z-index:1
+   stacking context and therefore still above the sibling image (z-index:0)
+   - unlike a fade on the banner itself, which paints *under* the image
+   since both would share the same stacking level and the image comes
+   later in DOM order. */
+.hero-signal-caption { position:relative; z-index:1; min-height:460px; max-width:none; margin:0; width:100%; padding:0 48px 42px; display:flex; flex-direction:column; justify-content:flex-end; gap:10px; pointer-events:none; box-sizing:border-box; }
+.hero-signal-caption:before { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(0deg,rgba(251,243,230,.94) 0%,rgba(251,243,230,.6) 38%,rgba(251,243,230,0) 78%); pointer-events:none; }
+.hero-signal-caption-line { display:block; opacity:0; transform:translateY(16px); transition:opacity 1.3s cubic-bezier(.19,1,.22,1),transform 1.3s cubic-bezier(.19,1,.22,1); }
+.hero-signal-caption-line-1 { font:500 italic 26px 'Playfair Display',serif; line-height:1.3; color:var(--muted); }
+.hero-signal-caption-line-2 { font:700 clamp(32px,4.2vw,46px)/1.15 'Playfair Display',serif; color:var(--navy); display:flex; align-items:center; }
 .hero-signal-caption.is-visible .hero-signal-caption-line-1 { opacity:1; transform:translateY(0); transition-delay:.15s; }
 .hero-signal-caption.is-visible .hero-signal-caption-line-2 { opacity:1; transform:translateY(0); transition-delay:.85s; }
-.hero-signal-pulse { position:relative; display:inline-block; width:8px; height:8px; margin-left:10px; border-radius:50%; background:#fff; opacity:0; transition:opacity .4s ease; }
+.hero-signal-pulse { position:relative; display:inline-block; width:8px; height:8px; margin-left:10px; border-radius:50%; background:var(--teal); opacity:0; transition:opacity .4s ease; }
 .hero-signal-caption.is-visible .hero-signal-pulse { opacity:1; transition-delay:2.1s; }
-.hero-signal-pulse:after { content:""; position:absolute; inset:0; border-radius:50%; background:#fff; opacity:.7; animation:heroSignalPing 2.4s cubic-bezier(0,0,.2,1) infinite; animation-delay:2.3s; }
+.hero-signal-pulse:after { content:""; position:absolute; inset:0; border-radius:50%; background:var(--teal); opacity:.7; animation:heroSignalPing 2.4s cubic-bezier(0,0,.2,1) infinite; animation-delay:2.3s; }
 @keyframes heroSignalPing { 0% { transform:scale(1); opacity:.6; } 75%,100% { transform:scale(2.6); opacity:0; } }
 @media (prefers-reduced-motion:reduce) {
   .hero-signal-caption-line { transition:none; opacity:1; transform:none; }
   .hero-signal-pulse { opacity:1; transition:none; }
   .hero-signal-pulse:after { animation:none; }
 }
-@media (max-width:720px) { .hero-signal-caption { left:16px; bottom:22px; max-width:86%; gap:7px; } .hero-signal-caption-line-1 { font-size:18px; } }
+@media (max-width:720px) {
+  .hero-signal-banner .nature-banner { position:relative; height:260px; }
+  .hero-signal-caption { position:static; min-height:0; padding:18px 20px 0; }
+  .hero-signal-caption:before { display:none; }
+  .hero-signal-caption-line-1 { font-size:18px; }
+}
 /* The hero's lead paragraph used to sit under the h1, above the "slow
    down" banner; moved here so it reads as the banner's own supporting
    line instead of competing with the hero title for attention. */
