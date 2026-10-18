@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
   images: {
     // The plain `new URL(...)` shorthand implies an empty `search`, which
     // blocks every query string - including the `?q=...&w=...` resize
@@ -20,6 +21,20 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const target = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
     return [{ source: "/api/:path*", destination: `${target}/:path*` }];
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
+        ],
+      },
+    ];
   },
 };
 
