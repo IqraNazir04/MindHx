@@ -144,14 +144,12 @@ button { cursor:pointer; }
 .intro-overlay { position:relative; z-index:1; height:100%; display:flex; align-items:flex-end; padding:0 48px 42px; pointer-events:none; }
 .intro-overlay:before { content:''; position:absolute; inset:0; background:linear-gradient(0deg,rgba(251,243,230,.92) 0%,rgba(251,243,230,.55) 40%,rgba(251,243,230,0) 74%); pointer-events:none; }
 .intro-overlay .hero-copy-text { position:relative; z-index:1; max-width:620px; pointer-events:auto; }
-/* Mobile: there isn't enough height to keep the tree and overlaid text from
-   colliding, so stack them instead - image on top, copy below, both still
-   inside the same rounded frame. */
+/* Mobile keeps the same overlay treatment as desktop (text over the tree,
+   not stacked below it) - just at a shorter min-height and tighter
+   padding/type scale than the 68vh/620px desktop sizing. */
 @media (max-width:720px) {
-  .intro-banner { height:auto; min-height:0; max-height:none; display:block; margin-bottom:30px; }
-  .intro-tree-bg { position:relative; inset:auto; height:260px; }
-  .intro-overlay { position:static; height:auto; display:block; padding:22px 22px 26px; }
-  .intro-overlay:before { display:none; }
+  .intro-banner { height:auto; min-height:460px; max-height:none; margin-bottom:30px; }
+  .intro-overlay { padding:0 22px 26px; }
   .intro-overlay .hero-copy-text { max-width:none; }
   .intro h1 { font-size:34px; }
   .hero-actions { align-items:flex-start; flex-direction:column; gap:13px; }
@@ -988,11 +986,12 @@ textarea::placeholder { color:#9aa6b4; }
   .hero-signal-pulse { opacity:1; transition:none; }
   .hero-signal-pulse:after { animation:none; }
 }
+/* Mobile keeps the same overlay treatment as desktop (text over the 3D
+   scene, not stacked below it) - just at a shorter min-height, tighter
+   padding, and a smaller type scale than the 540px desktop sizing. */
 @media (max-width:720px) {
-  .hero-signal-banner { min-height:0; }
-  .hero-signal-3d-bg { position:relative; height:320px; }
-  .hero-signal-caption { position:static; min-height:0; padding:18px 20px 22px; }
-  .hero-signal-caption:before { display:none; }
+  .hero-signal-banner { min-height:460px; }
+  .hero-signal-caption { min-height:460px; padding:0 20px 24px; }
   .hero-signal-caption-line-1 { font-size:18px; }
   .hero-signal-subcopy { font-size:16px; }
 }
