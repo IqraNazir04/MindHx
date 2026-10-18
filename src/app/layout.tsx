@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     url: SITE_URL,
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: `${SITE_NAME} | Private mental health check-in`,
     description: "A private, explainable mental-health triage aid fusing voice, language, and validated questionnaires into one risk signal. Not a diagnosis.",
   },

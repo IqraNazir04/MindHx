@@ -21,7 +21,7 @@ export function pageMetadata({ title, description, path, noindex }: PageMetaOpti
     description,
     alternates: { canonical: url },
     openGraph: { title, description, url, siteName: SITE_NAME, type: "website" },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description },
     robots: noindex ? { index: false, follow: false } : { index: true, follow: true },
   };
 }
