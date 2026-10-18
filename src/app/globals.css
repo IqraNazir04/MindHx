@@ -194,11 +194,11 @@ button { cursor:pointer; }
    bottom edges so the photo eases into the page's cream background rather
    than cutting off in a hard rectangle. The cards themselves stay fully
    opaque, so they read as solid panels floating on the photo. */
-.signal-photo-section { position:relative; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; padding:54px 0 60px; overflow:hidden; }
+.signal-photo-section { position:relative; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; padding:26px 0 60px; overflow:hidden; }
 .signal-photo-bg { position:absolute; inset:0; z-index:0; }
-.signal-photo-bg:after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,var(--background) 0%,rgba(251,243,230,0) 14%,rgba(251,243,230,0) 82%,var(--background) 100%); }
+.signal-photo-bg:after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,var(--background) 0%,rgba(251,243,230,0) 6%,rgba(251,243,230,0) 82%,var(--background) 100%); }
 .signal-photo-inner { position:relative; z-index:1; max-width:1240px; margin:0 auto; padding:0 30px; }
-@media (max-width:720px) { .signal-photo-section { padding:34px 0 40px; } .signal-photo-inner { padding:0 20px; } }
+@media (max-width:720px) { .signal-photo-section { padding:16px 0 40px; } .signal-photo-inner { padding:0 20px; } }
 
 /* Signals grid (voice / words / clinical) */
 .signal-grid { position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; gap:17px; align-items:start; }
@@ -948,7 +948,7 @@ textarea::placeholder { color:#9aa6b4; }
    hero banner on the site uses (.intro-banner, .resource-hero-banner),
    so this reads as that same family of component, just with a living
    scene behind it instead of a photo. */
-.hero-signal-banner { position:relative; z-index:1; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; margin-bottom:26px; overflow:hidden; min-height:540px; display:flex; flex-direction:column; justify-content:flex-end; }
+.hero-signal-banner { position:relative; z-index:1; width:100vw; left:50%; right:50%; margin-left:-50vw; margin-right:-50vw; margin-bottom:0; overflow:hidden; min-height:540px; display:flex; flex-direction:column; justify-content:flex-end; }
 .hero-signal-3d-bg { position:absolute; inset:0; z-index:0; width:100%; height:100%; border:0; background:var(--background); }
 /* The fade is the caption's own ::before at z-index:-1 (not the banner's),
    so it stays inside the caption's z-index:1 stacking context and paints
