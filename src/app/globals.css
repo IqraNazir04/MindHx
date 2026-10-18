@@ -146,10 +146,19 @@ button { cursor:pointer; }
 .intro-overlay .hero-copy-text { position:relative; z-index:1; max-width:620px; pointer-events:auto; }
 /* Mobile keeps the same overlay treatment as desktop (text over the tree,
    not stacked below it) - just at a shorter min-height and tighter
-   padding/type scale than the 68vh/620px desktop sizing. */
+   padding/type scale than the 68vh/620px desktop sizing.
+   .intro-overlay's height:100% only resolves against .intro-banner's
+   desktop height:68vh (a determinate value); at mobile .intro-banner is
+   height:auto, against which a percentage height doesn't resolve at all
+   and silently falls back to the overlay's own short content height -
+   leaving most of the banner below the text with no cream fade and the
+   raw canvas (sky down into a lot of plain ground/grass) fully exposed,
+   which read as the tree "overflowing" into a plain green block. Giving
+   .intro-overlay its own min-height sidesteps the percentage entirely,
+   the same fix already used for .hero-signal-caption. */
 @media (max-width:720px) {
   .intro-banner { height:auto; min-height:460px; max-height:none; margin-bottom:30px; }
-  .intro-overlay { padding:0 22px 26px; }
+  .intro-overlay { min-height:460px; padding:0 22px 26px; }
   .intro-overlay .hero-copy-text { max-width:none; }
   .intro h1 { font-size:34px; }
   .hero-actions { align-items:flex-start; flex-direction:column; gap:13px; }
