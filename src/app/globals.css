@@ -239,7 +239,14 @@ button { cursor:pointer; }
 .scale-dots { display:flex; gap:6px; }
 .scale-dots span { width:9px; height:9px; border-radius:50%; background:var(--line); border:1px solid var(--line-cool); display:block; transition:background .25s ease,border-color .25s ease,box-shadow .25s ease; }
 .scale-dots span.done { background:var(--teal); border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-soft); }
-@media (max-width:860px) { .signal-card-clinical { flex-direction:column; align-items:flex-start; } .clinical-card-action { width:100%; justify-content:space-between; } }
+/* .clinical-card-body's flex:1 1 320px sets a 320px *width* basis for the
+   desktop row layout - once the card flips to flex-direction:column here,
+   that same flex-basis controls *height* instead (flex-basis always
+   follows the container's main axis), forcing a 320px-tall box around
+   ~130px of actual content and centering it inside the leftover space.
+   Reset to flex:1 1 auto so the row-mode width hint doesn't leak into a
+   column-mode height. */
+@media (max-width:860px) { .signal-card-clinical { flex-direction:column; align-items:flex-start; } .clinical-card-body { flex:1 1 auto; } .clinical-card-action { width:100%; justify-content:space-between; } }
 .record-button,.next-button,.check-in-button { border:0; border-radius:7px; background:var(--blue); color:#fff; padding:12px 17px; font-size:13px; transition:.2s; }
 .record-button:hover,.next-button:hover,.check-in-button:hover { background:var(--blue-deep); transform:translateY(-1px); }
 .record-button.recording { background:var(--red); }
