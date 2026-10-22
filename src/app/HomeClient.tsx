@@ -116,7 +116,7 @@ export default function HomeClient() {
           phq9_answers: isDone(answers) ? answers : null,
           gad7_answers: isDone(gadAnswers) ? gadAnswers : null,
           k10_answers: isDone(k10Answers) ? k10Answers.map((answer) => answer + 1) : null,
-          text_analysis: textSubmitResult ? { sentiment: textSubmitResult.sentiment, anxiety_level: textSubmitResult.anxiety_level, stress_level: textSubmitResult.stress_level, depression_indicator: textSubmitResult.depression_indicator } : {},
+          text_analysis: textSubmitResult ? { sentiment: textSubmitResult.sentiment, anxiety_level: textSubmitResult.anxiety_level, stress_level: textSubmitResult.stress_level, depression_indicator: textSubmitResult.depression_indicator, anger_level: textSubmitResult.anger_level, calm_level: textSubmitResult.calm_level } : {},
           voice_features: voiceFeatures,
         }),
       })
@@ -217,7 +217,7 @@ export default function HomeClient() {
         await handleCrisis("text_crisis_language", result);
         return;
       }
-      setTextSubmitResult({ sentiment: result.sentiment, anxiety_level: result.anxiety_level, stress_level: result.stress_level, depression_indicator: result.depression_indicator });
+      setTextSubmitResult({ sentiment: result.sentiment, anxiety_level: result.anxiety_level, stress_level: result.stress_level, depression_indicator: result.depression_indicator, anger_level: result.anger_level, calm_level: result.calm_level });
     } catch {
       setTextSubmitError(language === "اردو" ? "متن جمع نہیں ہو سکا۔" : "Could not submit your text right now.");
     } finally {

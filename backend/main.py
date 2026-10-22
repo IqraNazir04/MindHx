@@ -976,26 +976,47 @@ LINGUISTIC_MARKER_TERMS = {
     "anxiety": (
         "anxious", "anxiety", "worried", "worry", "worrying", "panic", "panicking", "nervous",
         "on edge", "restless", "racing thoughts", "can't stop thinking", "cant stop thinking",
-        "what if", "overthinking", "tense", "uneasy", "dread", "scared", "overwhelmed",
-        "بےچینی", "پریشان", "گھبراہٹ", "خوف", "فکر مند", "بےقراری", "خدشہ",
+        "what if", "overthinking", "tense", "uneasy", "dread", "dreading", "scared", "afraid",
+        "fearful", "apprehensive", "jittery", "jumpy", "overwhelmed", "nail-biting", "butterflies",
+        "بےچینی", "پریشان", "گھبراہٹ", "خوف", "فکر مند", "بےقراری", "خدشہ", "ڈر", "خوفزدہ",
     ),
     "stress": (
         "stressed", "stress", "pressure", "overloaded", "overwhelmed", "burnt out", "burned out",
         "too much", "can't cope", "cant cope", "can't keep up", "cant keep up", "deadline",
-        "no time", "swamped", "under pressure",
-        "دباؤ", "بوجھ", "زیادہ کام",
+        "no time", "swamped", "under pressure", "stretched thin", "running on empty", "frazzled",
+        "at breaking point", "snowed under", "juggling",
+        "دباؤ", "بوجھ", "زیادہ کام", "تھکا دینے والا",
     ),
     "fatigue": (
-        "tired", "exhausted", "drained", "no energy", "worn out", "fatigued",
-        "can't get up", "cant get up", "no motivation",
-        "تھکاوٹ", "نڈھال", "سستی", "تھکن",
+        "tired", "exhausted", "drained", "no energy", "worn out", "fatigued", "sluggish",
+        "can't get up", "cant get up", "no motivation", "low energy", "burnt out", "weary",
+        "running low", "depleted", "can't keep my eyes open", "cant keep my eyes open",
+        "تھکاوٹ", "نڈھال", "سستی", "تھکن", "کمزوری",
     ),
     "absolutist": (
         "always", "never", "everyone", "no one", "nobody", "everything", "nothing",
         "every time", "completely", "totally", "entirely", "constantly", "forever", "impossible",
-        "ہمیشہ", "کبھی نہیں", "ہر کوئی", "کوئی نہیں", "سب کچھ", "کچھ بھی نہیں", "مکمل طور پر",
+        "every single", "all the time", "none of this", "nothing ever",
+        "ہمیشہ", "کبھی نہیں", "ہر کوئی", "کوئی نہیں", "سب کچھ", "کچھ بھی نہیں", "مکمل طور پر", "ہر وقت",
     ),
     "negation": ("not ", "no ", "never", "can't", "cant", "won't", "wont", "nothing", "none", "n't", "نہیں", "نہ "),
+    # Added alongside anxiety/stress/fatigue/depression so text can report the
+    # same five dimensions voice does (calm/stress/anger/fatigue/depression) -
+    # previously text had no anger or calm reading at all, see
+    # _linguistic_indicators and the project report's "Text & voice sentiment
+    # breakdown" section.
+    "anger": (
+        "angry", "anger", "furious", "frustrated", "frustrating", "irritated", "irritating",
+        "annoyed", "annoying", "resentful", "resent", "fed up", "mad at", "rage", "raging",
+        "hate this", "can't stand", "cant stand", "sick of", "pissed off", "snapped at",
+        "lost my temper", "fuming",
+        "غصہ", "غصے", "ناراض", "چڑچڑا", "تنگ آ", "برداشت نہیں", "جھنجھلاہٹ",
+    ),
+    "calm": (
+        "calm", "relaxed", "peaceful", "at ease", "at peace", "content", "settled", "steady",
+        "grounded", "unwound", "unbothered", "at rest", "mellow", "composed", "serene", "sukoon",
+        "سکون", "پرسکون", "اطمینان", "ساکن", "مطمئن", "راحت",
+    ),
 }
 FIRST_PERSON_TERMS_EN = {"i", "i'm", "im", "i've", "ive", "i'll", "ill", "i'd", "id", "me", "my", "mine", "myself"}
 FIRST_PERSON_TERMS_UR = ("میں", "مجھے", "میرا", "میری", "میرے", "خود")
@@ -1021,6 +1042,8 @@ def _linguistic_features(text: str) -> dict:
         "fatigue_hits": count_hits("fatigue"),
         "absolutist_hits": count_hits("absolutist"),
         "negation_hits": count_hits("negation"),
+        "anger_hits": count_hits("anger"),
+        "calm_hits": count_hits("calm"),
         "first_person_ratio": round(first_person_hits / word_count, 3) if word_count else 0.0,
         "exclamation_count": text.count("!"),
         "question_count": text.count("?"),
@@ -1028,10 +1051,12 @@ def _linguistic_features(text: str) -> dict:
 
 
 def _linguistic_indicators(features: dict) -> dict:
-    """Maps the raw features above onto three 0-1 scores. A coarse lexicon-
-    and-ratio heuristic, not a validated psychometric instrument - treat as
-    a conversation starter alongside PHQ-9/GAD-7/K10, not a replacement for
-    them."""
+    """Maps the raw features above onto five 0-1 scores - the same five
+    dimensions voice reports (calm/stress/anger/fatigue/depression_indicator;
+    text's anxiety_level has no voice equivalent and stays a sixth). A coarse
+    lexicon-and-ratio heuristic, not a validated psychometric instrument -
+    treat as a conversation starter alongside PHQ-9/GAD-7/K10, not a
+    replacement for them."""
 
     def clamp(value: float) -> float:
         return min(1.0, max(0.0, value))
@@ -1043,6 +1068,8 @@ def _linguistic_indicators(features: dict) -> dict:
     stress_density = clamp(density(features["stress_hits"]) / 4.0)
     fatigue_density = clamp(density(features["fatigue_hits"]) / 4.0)
     absolutist_density = clamp(density(features["absolutist_hits"]) / 4.0)
+    anger_density = clamp(density(features["anger_hits"]) / 4.0)
+    calm_density = clamp(density(features["calm_hits"]) / 4.0)
     first_person_component = clamp((features["first_person_ratio"] - 0.04) / 0.10)
     negation_component = clamp((density(features["negation_hits"]) - 1.0) / 4.0)
     exclaim_component = clamp(features["exclamation_count"] / 3.0)
@@ -1051,11 +1078,22 @@ def _linguistic_indicators(features: dict) -> dict:
     anxiety_level = clamp(0.55 * anxiety_density + 0.20 * question_component + 0.15 * first_person_component + 0.10 * exclaim_component)
     stress_level = clamp(0.50 * stress_density + 0.25 * fatigue_density + 0.15 * exclaim_component + 0.10 * negation_component)
     depression_indicator = clamp(0.35 * absolutist_density + 0.30 * first_person_component + 0.20 * fatigue_density + 0.15 * negation_component)
+    # Mirrors voice's anger formula shape (activated delivery + absolutist
+    # language - "you NEVER listen" - standing in for loud/fast delivery,
+    # since text has no acoustic signal to read that from).
+    anger_level = clamp(0.60 * anger_density + 0.25 * exclaim_component + 0.15 * absolutist_density)
+    # Mirrors voice's calm = 1 - max(stress, anger, 0.7*fatigue): half direct
+    # lexicon evidence (calm-indicating words), half the same absence-based
+    # reading voice uses, so a text with explicit calm language and a text
+    # that simply lacks any negative language both register as calm.
+    calm_level = clamp(0.5 * calm_density + 0.5 * (1.0 - max(stress_level, anger_level, 0.7 * depression_indicator)))
 
     return {
         "anxiety_level": round(anxiety_level, 2),
         "stress_level": round(stress_level, 2),
         "depression_indicator": round(depression_indicator, 2),
+        "anger_level": round(anger_level, 2),
+        "calm_level": round(calm_level, 2),
     }
 
 
@@ -1161,6 +1199,8 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
             "anxiety_level": text_result.get("anxiety_level"),
             "stress_level": text_result.get("stress_level"),
             "depression_indicator": text_result.get("depression_indicator"),
+            "anger_level": text_result.get("anger_level"),
+            "calm_level": text_result.get("calm_level"),
         },
         "voice": {
             "signal": voice_signal,
@@ -1246,7 +1286,9 @@ TRIAGE_CLASSIFIER_SYSTEM_PROMPT = (
     "sentiment (negative, neutral, or positive), keyword_flags (array of strings), crisis_language (boolean), "
     "anxiety_level (0 to 1, how much the text reads as anxious, worried, or on edge), "
     "stress_level (0 to 1, how much the text reads as pressured, overwhelmed, or burnt out), "
-    "and depression_indicator (0 to 1, how much the text reads as hopeless, low-energy, or withdrawn). "
+    "depression_indicator (0 to 1, how much the text reads as hopeless, low-energy, or withdrawn), "
+    "anger_level (0 to 1, how much the text reads as angry, frustrated, resentful, or irritated), "
+    "and calm_level (0 to 1, how much the text reads as calm, relaxed, content, or at ease). "
     "Treat explicit self-harm or suicide intent as crisis_language true."
 )
 
@@ -1258,10 +1300,11 @@ def _parse_triage_classification(content: str) -> Optional[dict]:
         return None
     if result.get("sentiment") not in {"negative", "neutral", "positive"}:
         return None
-    # anxiety_level/stress_level/depression_indicator are an optional enhancement over the
-    # local heuristic - keep them only if the model actually returned a valid 0..1 number,
-    # otherwise drop the key so the caller's heuristic value is used instead.
-    for field in ("anxiety_level", "stress_level", "depression_indicator"):
+    # anxiety_level/stress_level/depression_indicator/anger_level/calm_level are
+    # an optional enhancement over the local heuristic - keep them only if the
+    # model actually returned a valid 0..1 number, otherwise drop the key so
+    # the caller's heuristic value is used instead.
+    for field in ("anxiety_level", "stress_level", "depression_indicator", "anger_level", "calm_level"):
         value = result.get(field)
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1):
             result.pop(field, None)
@@ -1341,8 +1384,10 @@ TRIAGE_CLASSIFICATION_SCHEMA = {
         "anxiety_level": {"type": "number"},
         "stress_level": {"type": "number"},
         "depression_indicator": {"type": "number"},
+        "anger_level": {"type": "number"},
+        "calm_level": {"type": "number"},
     },
-    "required": ["sentiment", "keyword_flags", "crisis_language", "anxiety_level", "stress_level", "depression_indicator"],
+    "required": ["sentiment", "keyword_flags", "crisis_language", "anxiety_level", "stress_level", "depression_indicator", "anger_level", "calm_level"],
     "additionalProperties": False,
 }
 
@@ -3169,7 +3214,7 @@ def _sanitize_text_analysis(supplied: dict, combined_text: str) -> dict:
         "sentiment": sentiment if sentiment in {"negative", "neutral", "positive"} else "neutral",
         "crisis_language": bool(supplied.get("crisis_language") is True or has_crisis_language(combined_text)),
     }
-    for field in ("anxiety_level", "stress_level", "depression_indicator"):
+    for field in ("anxiety_level", "stress_level", "depression_indicator", "anger_level", "calm_level"):
         value = _unit_float(supplied.get(field))
         if value is not None:
             result[field] = value

@@ -21,7 +21,7 @@ export type ResultForPdf = {
     phq9: { score: number; band: string };
     gad7: { score: number | null; band: string };
     k10: { score: number | null; band: string };
-    text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null };
+    text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null; anger_level?: number | null; calm_level?: number | null };
     voice: { available: boolean; signal: number | null; note: string; emotion?: { calm: number; stress: number; anger: number; fatigue: number; depression_indicator: number } | null };
     attribution?: {
       note: string;
@@ -326,8 +326,10 @@ function buildResultsPdf(result: ResultForPdf, preparedFor: PreparedFor, detail?
 
     if (components.text.anxiety_level != null && components.text.stress_level != null && components.text.depression_indicator != null) {
       barGroup("Word-choice breakdown (graph)", [
+        { label: "Calm", fraction: components.text.calm_level ?? 0, valueLabel: `${Math.round((components.text.calm_level ?? 0) * 100)}%` },
         { label: "Anxiety", fraction: components.text.anxiety_level, valueLabel: `${Math.round(components.text.anxiety_level * 100)}%` },
         { label: "Stress", fraction: components.text.stress_level, valueLabel: `${Math.round(components.text.stress_level * 100)}%` },
+        { label: "Anger", fraction: components.text.anger_level ?? 0, valueLabel: `${Math.round((components.text.anger_level ?? 0) * 100)}%` },
         { label: "Depression indicator", fraction: components.text.depression_indicator, valueLabel: `${Math.round(components.text.depression_indicator * 100)}%` },
       ]);
     }

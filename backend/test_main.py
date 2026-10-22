@@ -342,20 +342,31 @@ def test_text_analysis_distinguishes_anxiety_stress_and_depression_language() ->
         "text": "Nothing ever works out for me. I always fail at everything. I am completely worthless and everyone always leaves.",
         "language": "en",
     }).json()
+    angry = client.post("/analyze-text", json={
+        "text": "I am so angry and furious, I can't stand this anymore, everyone always ignores me and it's so frustrating and annoying!",
+        "language": "en",
+    }).json()
     calm = client.post("/analyze-text", json={
         "text": "Today was a pretty normal day. I went for a walk and had a good time with friends.",
         "language": "en",
     }).json()
+    very_calm = client.post("/analyze-text", json={
+        "text": "I feel calm, relaxed, and at peace today. Everything is settled and content.",
+        "language": "en",
+    }).json()
 
-    for result in (anxious, stressed, depressive, calm):
-        for field in ("anxiety_level", "stress_level", "depression_indicator"):
+    for result in (anxious, stressed, depressive, angry, calm, very_calm):
+        for field in ("anxiety_level", "stress_level", "depression_indicator", "anger_level", "calm_level"):
             assert field in result and 0.0 <= result[field] <= 1.0
         assert "linguistic_features" in result and result["linguistic_features"]["word_count"] > 0
 
     assert anxious["anxiety_level"] == max(anxious["anxiety_level"], anxious["stress_level"], anxious["depression_indicator"])
     assert stressed["stress_level"] == max(stressed["anxiety_level"], stressed["stress_level"], stressed["depression_indicator"])
     assert depressive["depression_indicator"] == max(depressive["anxiety_level"], depressive["stress_level"], depressive["depression_indicator"])
+    assert angry["anger_level"] == max(angry["anxiety_level"], angry["stress_level"], angry["depression_indicator"], angry["anger_level"])
     assert calm["anxiety_level"] < anxious["anxiety_level"]
+    assert very_calm["calm_level"] > anxious["calm_level"]
+    assert very_calm["calm_level"] > angry["calm_level"]
     assert calm["stress_level"] < stressed["stress_level"]
     assert calm["depression_indicator"] < depressive["depression_indicator"]
 
