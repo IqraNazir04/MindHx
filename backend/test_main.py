@@ -1200,6 +1200,71 @@ def test_combined_estimate_matches_final_risk_assessment_and_ignores_incomplete_
     assert client.post("/combined-estimate", json={}).json() == {"combined_signal": 0.0, "contributions": []}
 
 
+def test_crisis_language_spoken_only_in_the_voice_transcript_still_triggers_crisis() -> None:
+    """The three signals have to actually work together: crisis language said
+    in a voice note (payload.transcript), never typed anywhere, must still
+    route to crisis - because /risk-assess folds transcript + typed_text into
+    one combined_text before running crisis detection, not just typed_text."""
+    body = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9, "transcript": "I want to kill myself", "typed_text": "",
+    }).json()
+    assert body["crisis_flag"] is True and body["band"] == "crisis" and body["risk_score"] == 1.0
+
+
+def test_all_three_signals_combine_with_the_blended_voice_score() -> None:
+    """End-to-end check that PHQ-9/GAD-7/K10, the text signal, and the voice
+    signal (now itself a tone+words blend, not acoustic-only) all land in one
+    consistent combined score: every contribution's weight sums to 1, the
+    combined score matches a hand-computed weighted average of the five
+    signals, and the voice component reports the same signal it was given."""
+    phq9, gad7, k10 = [1] * 8 + [0], [1] * 7, [2] * 10
+    text_analysis = {"sentiment": "neutral"}
+    voice_features = {"risk_signal": 0.72, "emotion": {"calm": 0.1, "stress": 0.6, "anger": 0.1, "fatigue": 0.5, "depression_indicator": 0.6}}
+    body = client.post("/risk-assess", json={
+        "phq9_answers": phq9, "gad7_answers": gad7, "k10_answers": k10,
+        "typed_text": "work has been okay", "text_analysis": text_analysis, "voice_features": voice_features,
+    }).json()
+    components = body["components"]
+    assert components["voice"]["available"] is True
+    assert components["voice"]["signal"] == 0.72
+
+    contributions = components["attribution"]["contributions"]
+    assert abs(sum(item["weight"] for item in contributions) - 1.0) < 0.001
+    assert {item["name"] for item in contributions} == {"phq9", "gad7", "k10", "text", "voice"}
+    hand_computed = round(sum(item["signal"] * item["weight"] for item in contributions) * 100) / 100
+    assert body["risk_score"] == hand_computed
+    assert abs(sum(item["contribution"] for item in contributions) - body["risk_score"]) < 0.01
+
+
+def test_combined_risk_score_is_monotonic_in_each_signal() -> None:
+    """Raising any one signal's severity, holding the rest fixed, must never
+    lower the combined score - a basic sanity property of an additive
+    weighted model. A violation here would mean a sign error or a bad
+    normalization somewhere in the five-signal combination, not just one
+    signal in isolation."""
+    base = {
+        "phq9_answers": [1] * 8 + [0], "gad7_answers": [1] * 7, "k10_answers": [2] * 10,
+        "typed_text": "a fairly ordinary day", "text_analysis": {"sentiment": "neutral"},
+        "voice_features": {"risk_signal": 0.3},
+    }
+    base_score = client.post("/risk-assess", json=base).json()["risk_score"]
+
+    worse_phq9 = {**base, "phq9_answers": [3] * 8 + [0]}
+    assert client.post("/risk-assess", json=worse_phq9).json()["risk_score"] >= base_score
+
+    worse_gad7 = {**base, "gad7_answers": [3] * 7}
+    assert client.post("/risk-assess", json=worse_gad7).json()["risk_score"] >= base_score
+
+    worse_k10 = {**base, "k10_answers": [5] * 10}
+    assert client.post("/risk-assess", json=worse_k10).json()["risk_score"] >= base_score
+
+    worse_text = {**base, "text_analysis": {"sentiment": "negative"}}
+    assert client.post("/risk-assess", json=worse_text).json()["risk_score"] >= base_score
+
+    worse_voice = {**base, "voice_features": {"risk_signal": 0.9}}
+    assert client.post("/risk-assess", json=worse_voice).json()["risk_score"] >= base_score
+
+
 def test_admin_reference_document_upload_list_toggle_and_delete() -> None:
     admin_headers = {"Authorization": f"Bearer {_register_admin('docs-admin@example.com')}"}
     regular_token = client.post("/auth/register", json={"email": "docs-regular@example.com", "password": "correct-horse-battery"}).json()["access_token"]
