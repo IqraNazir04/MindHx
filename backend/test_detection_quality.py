@@ -151,12 +151,26 @@ def test_pitch_spread_separates_flat_from_expressive_voice() -> None:
     assert expressive > flat + 3
 
 
+def test_silent_recording_reports_no_signal_not_maximum_risk() -> None:
+    """Regression test: a recording with no real speech used to score the
+    maximum possible risk (1.0), because near-total silence maps to
+    pause_ratio near 1.0, near-zero energy variability, and near-zero
+    speaking rate - the same numbers the heuristic also uses for "flat,
+    slowed, paused speech". The fix is a minimum-voiced-seconds gate: no
+    usable signal should mean no signal, not a false ceiling."""
+    silence = np.zeros(SAMPLE_RATE * 3, dtype=np.float32)
+    features = main._prosodic_features(silence, SAMPLE_RATE)
+    assert features["voiced_seconds"] < main.MIN_VOICED_SECONDS
+    assert main._prosodic_risk_signal(features) is None
+    assert main._voice_emotion_scores(features) is None
+
+
 def test_silence_and_noise_do_not_break_voice_analysis() -> None:
     rng = np.random.default_rng(1)
     for samples in (np.zeros(SAMPLE_RATE * 3, dtype=np.float32), rng.normal(0, 0.1, SAMPLE_RATE * 3).astype(np.float32)):
         features = main._prosodic_features(samples, SAMPLE_RATE)
         risk = main._prosodic_risk_signal(features)
-        assert 0.0 <= risk <= 1.0
+        assert risk is None or 0.0 <= risk <= 1.0
 
 
 def test_voice_endpoint_returns_features_for_a_wav_recording() -> None:
@@ -166,3 +180,36 @@ def test_voice_endpoint_returns_features_for_a_wav_recording() -> None:
     body = response.json()
     assert 0.0 <= body["risk_signal"] <= 1.0
     assert "pitch_variability_semitones" in body
+    assert body["has_speech"] is True
+
+
+def test_voice_endpoint_reports_no_speech_for_a_silent_recording() -> None:
+    client = TestClient(main.app)
+    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
+    response = client.post("/analyze-voice", files={"file": ("silence.wav", _wav_bytes(silence), "audio/wav")})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["risk_signal"] is None
+    assert body["emotion"] is None
+    assert body["has_speech"] is False
+
+
+def test_voice_endpoint_trusts_a_supplied_transcript_over_a_false_acoustic_silence_reading() -> None:
+    """Whisper's transcript is a voice-activity cross-check, not a sentiment
+    read (the UI promises tone-only analysis) - but when the caller already
+    knows real words were spoken (here, passed directly instead of making a
+    second Whisper call), that should override a false acoustic "no speech"
+    reading on the has_speech flag, even though the tone itself still can't
+    be read from too-quiet audio."""
+    client = TestClient(main.app)
+    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
+    response = client.post(
+        "/analyze-voice",
+        files={"file": ("quiet.wav", _wav_bytes(silence), "audio/wav")},
+        data={"transcript": "I had something to say but the mic barely picked it up"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["risk_signal"] is None  # still no reliable tone reading
+    assert body["has_speech"] is True  # but real speech is confirmed, not "no voice"
+    assert body["voice_activity_checked_with_whisper"] is True

@@ -1096,7 +1096,10 @@ def _text_signal(text_result: dict) -> float:
 def _voice_signal(voice_features: dict) -> Optional[float]:
     if not voice_features:
         return None
-    return round(max(0.0, min(1.0, float(voice_features.get("risk_signal", 0.0)))), 2)
+    risk_signal = voice_features.get("risk_signal")
+    if risk_signal is None:
+        return None
+    return round(max(0.0, min(1.0, float(risk_signal))), 2)
 
 
 def _combine_signals(entries: list[tuple[str, float, float]]) -> tuple[float, list[dict]]:
@@ -2165,6 +2168,37 @@ async def _read_audio_upload(file: UploadFile) -> bytes:
     return audio
 
 
+async def _whisper_transcribe(audio: bytes, filename: str, content_type: str, language: str = "auto") -> Optional[dict]:
+    """Transcribes audio via OpenAI's hosted Whisper API - the same model and endpoint
+    /transcribe uses. Returns {"text", "language"}, or None if no key is configured or
+    the call fails, and never raises: this is a best-effort enrichment used by
+    /analyze-voice as a voice-activity cross-check, not the primary transcription path
+    (that's /transcribe, which has its own stricter error handling since transcription
+    is its whole job rather than a check)."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    data = {"model": os.getenv("OPENAI_STT_MODEL", "whisper-1"), "response_format": "verbose_json"}
+    if language and language != "auto":
+        data["language"] = language
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                data=data,
+                files={"file": (filename, audio, content_type)},
+            )
+    except httpx.HTTPError as error:
+        logger.error("Whisper voice-activity transcription failed: %r", error)
+        return None
+    if response.status_code != 200:
+        logger.error("Whisper voice-activity transcription returned %s: %s", response.status_code, response.text[:500])
+        return None
+    result = response.json()
+    return {"text": (result.get("text") or "").strip(), "language": result.get("language")}
+
+
 @app.post("/transcribe", dependencies=[Depends(rate_limit("transcribe", 20, 3600))])
 async def transcribe(file: UploadFile = File(...), language: str = Form("auto")) -> dict:
     """Transcribe audio via OpenAI's hosted Whisper API.
@@ -2226,6 +2260,12 @@ def _decode_audio_mono(av_module, path: str, target_rate: int = 16000) -> tuple[
     return np.concatenate(chunks, axis=1).flatten().astype(np.float32), target_rate
 
 
+# Below this much clearly-voiced audio, there isn't enough signal to read tone
+# from at all - a mostly-silent recording should report "nothing to read",
+# never a false maximum-risk reading (see _prosodic_risk_signal).
+MIN_VOICED_SECONDS = 0.3
+
+
 def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
     """Frame-level loudness/pause/rate features computed directly from PCM samples."""
     frame_length = max(1, int(0.025 * sample_rate))
@@ -2244,12 +2284,14 @@ def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
     duration_sec = len(audio) / sample_rate
     speaking_rate = segment_count / duration_sec if duration_sec > 0 else 0.0
     pitch_std = _pitch_variability_semitones(audio, sample_rate, frame_length, hop_length, voiced_mask)
+    voiced_seconds = float(voiced_mask.sum()) * hop_length / sample_rate
     return {
         "duration_sec": round(duration_sec, 2),
         "pause_ratio": round(pause_ratio, 3),
         "energy_variability": round(energy_variability, 3),
         "speaking_rate": round(speaking_rate, 3),
         "pitch_variability_semitones": round(pitch_std, 2) if pitch_std is not None else None,
+        "voiced_seconds": round(voiced_seconds, 2),
     }
 
 
@@ -2289,11 +2331,20 @@ def _pitch_variability_semitones(audio: np.ndarray, sample_rate: int, frame_leng
     return float(np.std(semitones))
 
 
-def _prosodic_risk_signal(features: dict) -> float:
+def _prosodic_risk_signal(features: dict) -> Optional[float]:
     """Maps prosodic features to 0..1: more pausing, flatter loudness, and slower speech
     (all associated with psychomotor slowing / low affect in the literature) push it up.
     The thresholds below are reasonable heuristic assumptions, not fitted to labeled data -
-    treat this as a proxy signal, not a validated biomarker score."""
+    treat this as a proxy signal, not a validated biomarker score.
+
+    Returns None below MIN_VOICED_SECONDS of actually-voiced audio: a near-silent
+    recording has pause_ratio near 1.0 and near-zero energy variability and speaking
+    rate, which used to map to the maximum possible risk score (1.0) - mistaking
+    "no speech was captured" for "flat, slowed speech", the opposite of what pausing
+    and flatness are meant to signal. No usable signal should mean no signal, not a
+    false ceiling."""
+    if features.get("voiced_seconds", 0.0) < MIN_VOICED_SECONDS:
+        return None
     pause_component = min(1.0, max(0.0, (features["pause_ratio"] - 0.3) / 0.4))
     variability_component = min(1.0, max(0.0, (0.5 - features["energy_variability"]) / 0.5))
     rate_component = min(1.0, max(0.0, (2.0 - features["speaking_rate"]) / 2.0))
@@ -2306,7 +2357,7 @@ def _prosodic_risk_signal(features: dict) -> float:
     return round(min(1.0, max(0.0, signal)), 2)
 
 
-def _voice_emotion_scores(features: dict) -> dict:
+def _voice_emotion_scores(features: dict) -> Optional[dict]:
     """Coarse rule-based reading of the same three prosodic features onto five
     illustrative labels (calm, stress, anger, fatigue, depression_indicator).
 
@@ -2315,7 +2366,13 @@ def _voice_emotion_scores(features: dict) -> dict:
     ratio, and speaking rate. Treat these bars as a rough, transparent proxy
     of vocal energy and pacing, not a clinical or forensic-grade classifier
     of mood or affect. depression_indicator reuses _prosodic_risk_signal's
-    psychomotor-slowing heuristic (pausing + flat loudness + slow speech)."""
+    psychomotor-slowing heuristic (pausing + flat loudness + slow speech).
+
+    Returns None under the same MIN_VOICED_SECONDS gate as _prosodic_risk_signal,
+    for the same reason: silence read as maximum fatigue/minimum calm is a false
+    reading, not a cautious one."""
+    if features.get("voiced_seconds", 0.0) < MIN_VOICED_SECONDS:
+        return None
 
     def clamp(value: float) -> float:
         return min(1.0, max(0.0, value))
@@ -2356,20 +2413,35 @@ def _analyze_audio_file(av_module, path: str) -> dict:
     if audio.size < sample_rate * 0.5:
         raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
     features = _prosodic_features(audio, sample_rate)
+    risk_signal = _prosodic_risk_signal(features)
     return {
         "provider": "local-heuristic",
-        "risk_signal": _prosodic_risk_signal(features),
+        "risk_signal": risk_signal,
         "emotion": _voice_emotion_scores(features),
         **features,
-        "note": "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker.",
+        "note": (
+            "Not enough clearly voiced audio was captured to read vocal tone from this recording."
+            if risk_signal is None else
+            "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker."
+        ),
     }
 
 
 @app.post("/analyze-voice", dependencies=[Depends(rate_limit("analyze-voice", 20, 3600))])
-async def analyze_voice(file: UploadFile = File(...)) -> dict:
+async def analyze_voice(file: UploadFile = File(...), transcript: str = Form(""), language: str = Form("auto")) -> dict:
     """Extract a heuristic prosodic risk signal directly from audio (pause ratio, loudness
-    variability, speaking rate). VOICE_BIOMARKER_PROVIDER selects the provider; only 'local'
-    is implemented - no clinical voice-biomarker vendor is integrated."""
+    variability, speaking rate, pitch variability). VOICE_BIOMARKER_PROVIDER selects the
+    provider; only 'local' is implemented - no clinical voice-biomarker vendor is integrated.
+
+    Whisper (the same hosted model /transcribe uses) backs a voice-activity cross-check
+    here, not a sentiment read: the UI promises "we listen for changes in vocal patterns,
+    not the words themselves," so a transcript is only ever used to confirm whether real
+    speech is present - never to score what was said. A caller that already has a
+    transcript (the frontend calls /transcribe just before this) can pass it in via the
+    `transcript` field to skip a second Whisper call; otherwise this transcribes the same
+    audio itself when OPENAI_API_KEY is configured, and simply skips the cross-check when
+    it isn't - acoustic-only analysis (with its own MIN_VOICED_SECONDS gate) still applies
+    either way, so this degrades gracefully without Whisper."""
     provider = os.getenv("VOICE_BIOMARKER_PROVIDER", "local")
     if provider != "local":
         raise HTTPException(status_code=503, detail=f"Voice biomarker provider '{provider}' is not implemented")
@@ -2381,19 +2453,46 @@ async def analyze_voice(file: UploadFile = File(...)) -> dict:
 
     audio_bytes = await _read_audio_upload(file)
 
+    transcript_text = transcript.strip()
+    whisper_checked = bool(transcript_text)
+    if not transcript_text:
+        whisper_result = await _whisper_transcribe(
+            audio_bytes, file.filename or "recording.webm", file.content_type or "application/octet-stream", language,
+        )
+        if whisper_result is not None:
+            transcript_text = whisper_result["text"]
+            whisper_checked = True
+
     suffix = Path(file.filename or "recording.webm").suffix or ".webm"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
         temp_file.write(audio_bytes)
         temp_path = temp_file.name
 
     try:
-        return await run_in_threadpool(_analyze_audio_file, av, temp_path)
+        result = await run_in_threadpool(_analyze_audio_file, av, temp_path)
     except HTTPException:
         raise
     except Exception as error:
         raise HTTPException(status_code=422, detail="Could not analyze this audio file") from error
     finally:
         Path(temp_path).unlink(missing_ok=True)
+
+    # Whisper is a far more reliable voice-activity detector than the RMS
+    # threshold _prosodic_features uses: if it transcribed real words, that
+    # overrides an acoustic false "no speech" reading (e.g. quiet but real
+    # speech falling under the RMS threshold); if it heard nothing at all,
+    # that confirms - and overrides - an acoustic reading that mistook
+    # silence or background noise for voiced audio.
+    if whisper_checked and not transcript_text:
+        result["risk_signal"] = None
+        result["emotion"] = None
+        result["note"] = "No speech was detected in this recording."
+    elif whisper_checked and transcript_text and result["risk_signal"] is None:
+        result["note"] = "Real speech was detected (via transcription), but there wasn't enough clearly voiced audio for a reliable tone reading."
+
+    result["has_speech"] = result["risk_signal"] is not None or (whisper_checked and bool(transcript_text))
+    result["voice_activity_checked_with_whisper"] = whisper_checked
+    return result
 
 
 @app.post("/analyze-text", dependencies=[Depends(rate_limit("analyze-text", 60, 600))])
