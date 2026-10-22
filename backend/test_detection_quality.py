@@ -195,21 +195,58 @@ def test_voice_endpoint_reports_no_speech_for_a_silent_recording() -> None:
 
 
 def test_voice_endpoint_trusts_a_supplied_transcript_over_a_false_acoustic_silence_reading() -> None:
-    """Whisper's transcript is a voice-activity cross-check, not a sentiment
-    read (the UI promises tone-only analysis) - but when the caller already
-    knows real words were spoken (here, passed directly instead of making a
-    second Whisper call), that should override a false acoustic "no speech"
-    reading on the has_speech flag, even though the tone itself still can't
-    be read from too-quiet audio."""
+    """A caller that already knows real words were spoken (here, passed
+    directly instead of making a second Whisper call) overrides a false
+    acoustic "no speech" reading: has_speech becomes true, and - since tone
+    can't be read from too-quiet audio - the content signal from the words
+    carries the risk_signal on its own rather than leaving it null."""
     client = TestClient(main.app)
     silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
     response = client.post(
         "/analyze-voice",
         files={"file": ("quiet.wav", _wav_bytes(silence), "audio/wav")},
-        data={"transcript": "I had something to say but the mic barely picked it up"},
+        data={"transcript": "I feel hopeless and empty, nothing matters anymore"},
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["risk_signal"] is None  # still no reliable tone reading
-    assert body["has_speech"] is True  # but real speech is confirmed, not "no voice"
+    assert body["acoustic_signal"] is None  # still no reliable tone reading
+    assert body["content_signal"] is not None and body["content_signal"] > 0.5
+    assert body["risk_signal"] == body["content_signal"]  # words alone carry it
+    assert body["has_speech"] is True
     assert body["voice_activity_checked_with_whisper"] is True
+
+
+def test_voice_endpoint_blends_acoustic_tone_with_transcribed_words() -> None:
+    """Regression test for the reported bug's other half: a voice that sounds
+    flat/monotone under the acoustic heuristic, but whose transcribed words
+    are clearly positive, should score lower than the acoustic tone alone -
+    the words are allowed to pull a misleading tone reading back down, not
+    just add on top of it."""
+    client = TestClient(main.app)
+    monotone = _signals()["monotone"]
+    acoustic_only = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(monotone), "audio/wav")}).json()
+    blended = client.post(
+        "/analyze-voice",
+        files={"file": ("voice.wav", _wav_bytes(monotone), "audio/wav")},
+        data={"transcript": "Today was a great day, I felt calm and grateful and hopeful about everything"},
+    ).json()
+    assert blended["acoustic_signal"] == acoustic_only["risk_signal"]
+    assert blended["content_signal"] is not None and blended["content_signal"] < 0.3
+    assert blended["risk_signal"] < acoustic_only["risk_signal"]
+    assert blended["sentiment"] == "positive"
+
+
+def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None:
+    """A calm-sounding (even silent) recording never suppresses a crisis
+    statement in the transcribed words - same floor rule used for crisis
+    detection everywhere else in the app."""
+    client = TestClient(main.app)
+    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
+    response = client.post(
+        "/analyze-voice",
+        files={"file": ("quiet.wav", _wav_bytes(silence), "audio/wav")},
+        data={"transcript": "I want to kill myself"},
+    )
+    body = response.json()
+    assert body["crisis_language"] is True
+    assert body["risk_signal"] >= 0.9

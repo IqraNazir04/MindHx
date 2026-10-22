@@ -2429,19 +2429,25 @@ def _analyze_audio_file(av_module, path: str) -> dict:
 
 @app.post("/analyze-voice", dependencies=[Depends(rate_limit("analyze-voice", 20, 3600))])
 async def analyze_voice(file: UploadFile = File(...), transcript: str = Form(""), language: str = Form("auto")) -> dict:
-    """Extract a heuristic prosodic risk signal directly from audio (pause ratio, loudness
-    variability, speaking rate, pitch variability). VOICE_BIOMARKER_PROVIDER selects the
-    provider; only 'local' is implemented - no clinical voice-biomarker vendor is integrated.
+    """Reads both how a recording sounds and what was said in it.
 
-    Whisper (the same hosted model /transcribe uses) backs a voice-activity cross-check
-    here, not a sentiment read: the UI promises "we listen for changes in vocal patterns,
-    not the words themselves," so a transcript is only ever used to confirm whether real
-    speech is present - never to score what was said. A caller that already has a
-    transcript (the frontend calls /transcribe just before this) can pass it in via the
-    `transcript` field to skip a second Whisper call; otherwise this transcribes the same
-    audio itself when OPENAI_API_KEY is configured, and simply skips the cross-check when
-    it isn't - acoustic-only analysis (with its own MIN_VOICED_SECONDS gate) still applies
-    either way, so this degrades gracefully without Whisper."""
+    An acoustic tone signal (pause ratio, loudness variability, speaking rate, pitch
+    variability - see _prosodic_risk_signal) is combined with a content signal from the
+    transcribed words (via Whisper, the same hosted model /transcribe uses, then the
+    same analyze_text pipeline the typed-text signal uses) into one risk_signal, with
+    both kept in the response (acoustic_signal, content_signal) so the blend is never a
+    black box. Tone leads the blend (60/40) since that's this endpoint's primary signal,
+    words fill in when tone alone isn't available, and a crisis disclosure in the words
+    is never softened by a calm-sounding voice - the same floor rule used for crisis
+    detection elsewhere. VOICE_BIOMARKER_PROVIDER selects the acoustic provider; only
+    'local' is implemented - no clinical voice-biomarker vendor is integrated.
+
+    A caller that already has a transcript (the frontend calls /transcribe just before
+    this) can pass it in via the `transcript` field to skip a second Whisper call;
+    otherwise this transcribes the audio itself when OPENAI_API_KEY is configured. With
+    no transcript available either way, this falls back to acoustic-only analysis (with
+    its own MIN_VOICED_SECONDS gate against misreading silence), so it still degrades
+    gracefully without Whisper."""
     provider = os.getenv("VOICE_BIOMARKER_PROVIDER", "local")
     if provider != "local":
         raise HTTPException(status_code=503, detail=f"Voice biomarker provider '{provider}' is not implemented")
@@ -2477,20 +2483,55 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     finally:
         Path(temp_path).unlink(missing_ok=True)
 
-    # Whisper is a far more reliable voice-activity detector than the RMS
-    # threshold _prosodic_features uses: if it transcribed real words, that
-    # overrides an acoustic false "no speech" reading (e.g. quiet but real
-    # speech falling under the RMS threshold); if it heard nothing at all,
-    # that confirms - and overrides - an acoustic reading that mistook
-    # silence or background noise for voiced audio.
+    # Whisper is also a far more reliable voice-activity detector than the
+    # RMS threshold _prosodic_features uses: if it transcribed real words,
+    # that overrides an acoustic false "no speech" reading (e.g. quiet but
+    # real speech falling under the RMS threshold); if it heard nothing at
+    # all, that overrides an acoustic reading that mistook silence or
+    # background noise for voiced audio.
     if whisper_checked and not transcript_text:
         result["risk_signal"] = None
         result["emotion"] = None
-        result["note"] = "No speech was detected in this recording."
-    elif whisper_checked and transcript_text and result["risk_signal"] is None:
-        result["note"] = "Real speech was detected (via transcription), but there wasn't enough clearly voiced audio for a reliable tone reading."
 
-    result["has_speech"] = result["risk_signal"] is not None or (whisper_checked and bool(transcript_text))
+    acoustic_signal = result["risk_signal"]
+    content_signal: Optional[float] = None
+    sentiment: Optional[str] = None
+    crisis_language = False
+    if transcript_text:
+        text_lang = language if language in ("en", "ur") else ("ur" if is_urdu_script(transcript_text) else "en")
+        text_result = await analyze_text(TextAnalysisRequest(text=transcript_text, language=text_lang))
+        content_signal = _text_signal(text_result)
+        sentiment = text_result.get("sentiment")
+        crisis_language = bool(text_result.get("crisis_language"))
+
+    # Blend what was said with how it was said, rather than keeping them
+    # fully separate: acoustic tone still leads (it's what this endpoint is
+    # chiefly for), words fill in when tone alone isn't enough to go on, and
+    # a crisis disclosure in the words is never softened by a calm-sounding
+    # voice - same floor rule used for crisis detection elsewhere.
+    if acoustic_signal is not None and content_signal is not None:
+        combined: Optional[float] = round(min(1.0, 0.6 * acoustic_signal + 0.4 * content_signal), 2)
+        note = "Combines an acoustic tone reading (pause ratio, energy variability, speaking rate, pitch) with a content reading of the transcribed words - not a validated clinical signal."
+    elif acoustic_signal is not None:
+        combined = acoustic_signal
+        note = result["note"]
+    elif content_signal is not None:
+        combined = content_signal
+        note = "No reliable tone reading from this recording, so this reflects the transcribed words only."
+    else:
+        combined = None
+        note = "No speech was detected in this recording." if whisper_checked else result["note"]
+    if crisis_language:
+        combined = max(combined, 0.9) if combined is not None else 0.9
+
+    result["acoustic_signal"] = acoustic_signal
+    result["content_signal"] = content_signal
+    result["risk_signal"] = combined
+    result["sentiment"] = sentiment
+    result["crisis_language"] = crisis_language
+    result["transcript"] = transcript_text or None
+    result["note"] = note
+    result["has_speech"] = combined is not None or (whisper_checked and bool(transcript_text))
     result["voice_activity_checked_with_whisper"] = whisper_checked
     return result
 
