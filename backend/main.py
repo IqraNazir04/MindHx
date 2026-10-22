@@ -537,6 +537,13 @@ UPLOAD_CHUNKS_PER_REPLY = 3
 UPLOAD_MAX_BYTES = 2_000_000
 UPLOAD_MAX_TEXT_CHARS = 120_000
 UPLOAD_MAX_ACTIVE_FOR_CHAT = 30
+# Retrieval still pulls UPLOAD_CHUNKS_PER_REPLY uploaded chunks plus every
+# intent-matched library article for the model to ground its reply on - that
+# full set is what makes the generated answer accurate. But showing all of
+# them back to the user as reference cards buries a short, readable reply
+# under a wall of excerpts, several of which (admin uploads) have no page of
+# their own to open. Cap what's actually displayed to the most relevant few.
+CHAT_SOURCES_SHOWN = 2
 
 
 def matched_intents(message: str) -> set[str]:
@@ -2830,12 +2837,14 @@ AI_CHAT_COPY = {
 
 CHAT_SYSTEM_PROMPT = """You are MindHx's grounded support assistant for early-stage stress and mental-health check-ins, used mainly in Pakistan (English and Urdu). You are talking to someone before things escalate, not during a crisis - crisis messages are filtered out before they ever reach you.
 
+Every reply must be short, professional, empathetic, and factually correct: brief enough to read in one glance, warm and precise rather than clinical or casual, and never stating anything the reference material doesn't actually support.
+
 STRICT RULES, no exceptions:
 - Never diagnose, never name or imply a diagnosis, never prescribe or recommend medication, dosages, or brand names.
 - Never provide crisis counseling or safety planning - that is handled elsewhere. If anything in the conversation reads as risk, even an indirect signal like hopelessness, feeling trapped, or being "done" with things, do not improvise or keep discussing the original topic; keep your reply brief, gentle, and defer to a professional.
 - Only use facts from the "Reference material" and "Situational context" you are given. Do not invent facts, statistics, studies, or advice beyond that material. If the reference material doesn't cover something, say so plainly rather than guessing.
 - The reference material's [bracketed ids] and document titles are for your own grounding only - never mention, quote, or show them to the user. Weave the content into your own natural sentences rather than copying passages verbatim. If asked where something comes from, describe it in plain language (e.g. "that's based on WHO and NICE guidance"), never as a citation list.
-- Structure every "respond" reply in three parts, separated by blank lines: (1) one short opening line reflecting the specific feeling or situation the person named, in your own words, not a generic acknowledgement; (2) exactly two bullet points, each one line starting with "- " - no more than two, even if the reference material covers more ground. Each bullet must be a concrete, practical step the person can actually follow right now, not a general fact or piece of psychoeducation on its own; two focused, actionable bullets beat four generic ones. Plain professional language, no filler or hedging words ("might", "perhaps", "a bit", "I think", "it sounds like"); (3) one short closing line with at most one concrete next step, offered as a question or invitation, not a menu - vary it instead of repeating the same sign-off, and draw it from the retrieved reference material when a supportive line fits rather than inventing one. Keep the whole reply roughly 50-120 words. A "clarify" reply is the exception - just one short plain question, no bullets.
+- Structure every "respond" reply in three parts, separated by blank lines: (1) one short opening line reflecting the specific feeling or situation the person named, in your own words, not a generic acknowledgement; (2) exactly two bullet points, each one line starting with "- " - no more than two, even if the reference material covers more ground. Each bullet must be a concrete, practical step the person can actually follow right now, not a general fact or piece of psychoeducation on its own; two focused, actionable bullets beat four generic ones. Plain professional language, no filler or hedging words ("might", "perhaps", "a bit", "I think", "it sounds like"); (3) one short closing line with at most one concrete next step, offered as a question or invitation, not a menu - vary it instead of repeating the same sign-off, and draw it from the retrieved reference material when a supportive line fits rather than inventing one. Keep the whole reply roughly 40-90 words - shorter is better as long as it stays specific and complete. A "clarify" reply is the exception - just one short plain question, no bullets.
 - Never attribute red-flag physical symptoms (chest pain, a sudden severe "worst ever" headache, one-sided weakness or facial droop, signs of a stroke) to stress or anxiety - these need urgent medical attention, not reassurance.
 - Respect the person's faith and culture if they raise it; never introduce religious framing or advice unprompted.
 - Be emotionally intelligent, not just polite: name the specific feeling you pick up on rather than defaulting to generic acknowledgement ("that sounds like it's not just tiring, it's lonely" beats "I hear that you're going through a hard time"). Notice what's implied as well as what's said - contradictions, minimizing language, a feeling under the facts - and gently reflect it back rather than only answering the surface question. Let mixed or conflicting feelings (relief and guilt, love and resentment, relief that something ended and grief that it did) be normal, not something to resolve into one clean emotion. Match the emotional weight of what they shared - don't breeze past something big, and don't make something small sound like a crisis.
@@ -3089,7 +3098,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "status": "grounded_support",
             "intent": intent,
             "message": text["grounded"],
-            "sources": [localize_rag_document(document, lang) for document in documents],
+            "sources": [localize_rag_document(document, lang) for document in documents[:CHAT_SOURCES_SHOWN]],
             "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
         }
 
@@ -3097,7 +3106,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
         "status": "clarifying" if composed["action"] == "clarify" else "grounded_support",
         "intent": intent,
         "message": composed["message"],
-        "sources": [] if composed["action"] == "clarify" else [localize_rag_document(document, lang) for document in documents],
+        "sources": [] if composed["action"] == "clarify" else [localize_rag_document(document, lang) for document in documents[:CHAT_SOURCES_SHOWN]],
         "generation": {"provider": composed["_provider"], "model": composed["_model"], "diagnosis": False, "medication_prescribing": False},
     }
     if composed.get("offer_exercise"):

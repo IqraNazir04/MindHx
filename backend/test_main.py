@@ -543,6 +543,20 @@ def test_ai_chat_retrieves_exam_pressure_content() -> None:
     assert body["sources"][0]["id"] == "exam-work-pressure"
 
 
+def test_ai_chat_caps_the_number_of_source_cards_shown() -> None:
+    """A message that matches several library articles at once (anxiety + exam
+    pressure + family stigma here) used to attach every one of them as a full
+    reference card - CHAT_SOURCES_SHOWN caps what's actually displayed so a
+    short reply doesn't end up buried under a wall of excerpts."""
+    response = client.post("/ai/chat", json={
+        "message": "I am anxious and worried about my exam next week, and ashamed of what my family will think",
+        "risk_clear": True,
+    })
+    body = response.json()
+    assert response.status_code == 200
+    assert 1 <= len(body["sources"]) <= main.CHAT_SOURCES_SHOWN
+
+
 def test_ai_chat_still_escalates_with_history_and_context_supplied() -> None:
     """The safety gate must run before any of the new personalization fields matter."""
     response = client.post("/ai/chat", json={

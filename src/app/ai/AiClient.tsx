@@ -213,7 +213,7 @@ export default function AiClient() {
                 <article key={source.id} className="chat-source">
                   <h3>{source.title}</h3>
                   <p>{source.content}</p>
-                  <Link href={source.link}>{text.openReference}</Link>
+                  {source.link && <Link href={source.link}>{text.openReference}</Link>}
                 </article>
               ))}
               {entry.exercise && (
