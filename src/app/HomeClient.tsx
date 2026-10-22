@@ -188,7 +188,14 @@ export default function HomeClient() {
         setTranscript(signals.transcript);
         setTypedText(signals.typedText);
         setVoiceFeatures(signals.voiceFeatures as typeof voiceFeatures);
-        setTextSubmitResult(signals.textSubmitResult as typeof textSubmitResult);
+        // Sessions saved before anger_level/calm_level existed won't have
+        // them in their stored draft - backfill to 0 rather than leaving
+        // them undefined, which renders as NaN% in TextMoodBars.
+        setTextSubmitResult(
+          signals.textSubmitResult
+            ? ({ anger_level: 0, calm_level: 0, ...signals.textSubmitResult } as typeof textSubmitResult)
+            : null
+        );
       }
       setSignalsRestored(true);
     });
