@@ -167,7 +167,10 @@ scene.add(caustic);
 /* ---------- the breathing drop ---------- */
 const drop = new THREE.Group();
 const glass = new THREE.Mesh(
-  new THREE.SphereGeometry(1, 128, 128),
+  // 64 segments (not 128) - the transmission material already costs an extra
+  // render pass per frame; doubling the polygon count on top of that bought
+  // no visible smoothness at the drop's on-screen size.
+  new THREE.SphereGeometry(1, 64, 64),
   new THREE.MeshPhysicalMaterial({
     color: 0x9BE0C2, transmission: 1, thickness: 1.7, roughness: 0.035, ior: 1.36,
     attenuationColor: new THREE.Color(0x2F8F6E), attenuationDistance: 1.05,
@@ -357,7 +360,21 @@ function slopeOf(x, z, t, b) {
   ];
 }
 
+// Scrolled past (this embeds in a banner further down the home page than
+// it's tall) or the tab is backgrounded: stop scheduling frames entirely
+// rather than rendering a full WebGL scene nobody can see. clock.getElapsedTime()
+// tracks real time regardless, so the breathing cycle resumes in-phase -
+// no state to restore, just start scheduling frames again.
+let inView = true, tabVisible = !document.hidden, rafId = 0;
+function scheduleIfActive() { if (inView && tabVisible && !rafId) rafId = requestAnimationFrame(frame); }
+if (typeof IntersectionObserver !== 'undefined') {
+  new IntersectionObserver((entries) => { inView = entries[0].isIntersecting; scheduleIfActive(); }).observe(canvas);
+}
+addEventListener('visibilitychange', () => { tabVisible = !document.hidden; scheduleIfActive(); });
+
 function frame() {
+  rafId = 0;
+  if (!inView || !tabVisible) return;
   const t = clock.getElapsedTime();
   const phase = (t % BREATH) / BREATH;            // 0..1
   const b = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2);   // 0 → 1 (inhale) → 0 (exhale)
@@ -426,7 +443,7 @@ function frame() {
   camera.lookAt(lookAt);
 
   renderer.render(scene, camera);
-  requestAnimationFrame(frame);
+  rafId = requestAnimationFrame(frame);
 }
 frame();
 </script>
