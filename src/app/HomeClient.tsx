@@ -92,7 +92,7 @@ export default function HomeClient() {
   const [speaking, setSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [voiceFeatures, setVoiceFeatures] = useState<{ risk_signal?: number | null; pause_ratio?: number; energy_variability?: number; speaking_rate?: number; emotion?: VoiceEmotion | null; has_speech?: boolean }>({});
+  const [voiceFeatures, setVoiceFeatures] = useState<{ risk_signal?: number | null; pause_ratio?: number; energy_variability?: number; speaking_rate?: number; emotion?: VoiceEmotion | null; has_speech?: boolean; provider?: string }>({});
   const [typedText, setTypedText] = useState("");
   const [textSubmitting, setTextSubmitting] = useState(false);
   const [textSubmitError, setTextSubmitError] = useState("");
@@ -341,8 +341,11 @@ export default function HomeClient() {
           voiceFormData.append("language", languageCode);
           const voiceResponse = await fetch(`${API_BASE}/analyze-voice`, { method: "POST", body: voiceFormData });
           if (!voiceResponse.ok) throw new Error("Voice analysis unavailable");
-          const voiceResult = await voiceResponse.json() as { risk_signal: number | null; pause_ratio: number; energy_variability: number; speaking_rate: number; emotion: VoiceEmotion | null; has_speech: boolean };
-          setVoiceFeatures({ risk_signal: voiceResult.risk_signal, pause_ratio: voiceResult.pause_ratio, energy_variability: voiceResult.energy_variability, speaking_rate: voiceResult.speaking_rate, emotion: voiceResult.emotion, has_speech: voiceResult.has_speech });
+          const voiceResult = await voiceResponse.json() as { risk_signal: number | null; pause_ratio: number; energy_variability: number; speaking_rate: number; emotion: VoiceEmotion | null; has_speech: boolean; provider?: string };
+          // provider ("qwen-omni" vs "local-heuristic") travels with risk_signal all
+          // the way to /risk-assess, so the results page can say which actually read
+          // this recording's tone instead of always claiming the local heuristic.
+          setVoiceFeatures({ risk_signal: voiceResult.risk_signal, pause_ratio: voiceResult.pause_ratio, energy_variability: voiceResult.energy_variability, speaking_rate: voiceResult.speaking_rate, emotion: voiceResult.emotion, has_speech: voiceResult.has_speech, provider: voiceResult.provider });
         } catch {
           setVoiceFeatures({});
         }

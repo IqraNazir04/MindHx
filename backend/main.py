@@ -5,6 +5,7 @@ to save their check-in history across visits."""
 
 import envfile  # noqa: F401  - must load .env before modules read settings
 
+import base64
 import io
 import json
 import logging
@@ -14,6 +15,7 @@ import re
 import secrets
 import uuid
 import tempfile
+import wave
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1164,7 +1166,11 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
             "signal": voice_signal,
             "available": voice_signal is not None,
             "emotion": voice_features.get("emotion") if voice_signal is not None else None,
-            "note": "Acoustic voice risk features are not available for this check-in." if voice_signal is None else "Heuristic acoustic features included (pause ratio, loudness variability, speaking rate) - not a validated clinical biomarker.",
+            "note": (
+                "Acoustic voice risk features are not available for this check-in." if voice_signal is None
+                else "Hosted audio-understanding model (Qwen-Omni) read of vocal tone and delivery - not a validated clinical biomarker." if voice_features.get("provider") == "qwen-omni"
+                else "Heuristic acoustic features included (pause ratio, loudness variability, speaking rate) - not a validated clinical biomarker."
+            ),
         },
         "combined_signal": combined,
         "attribution": {
@@ -2406,15 +2412,18 @@ def _voice_emotion_scores(features: dict) -> Optional[dict]:
     }
 
 
-def _analyze_audio_file(av_module, path: str) -> dict:
+def _analyze_audio_file(av_module, path: str) -> tuple[np.ndarray, int, dict]:
     """CPU-bound decode + feature extraction - run off the event loop (see
-    analyze_voice) so one recording doesn't stall every other request."""
+    analyze_voice) so one recording doesn't stall every other request. Returns the
+    decoded PCM and sample rate too (not just the feature dict), so analyze_voice
+    can also hand the same audio to a hosted audio-understanding model without
+    decoding the file a second time."""
     audio, sample_rate = _decode_audio_mono(av_module, path)
     if audio.size < sample_rate * 0.5:
         raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
     features = _prosodic_features(audio, sample_rate)
     risk_signal = _prosodic_risk_signal(features)
-    return {
+    result = {
         "provider": "local-heuristic",
         "risk_signal": risk_signal,
         "emotion": _voice_emotion_scores(features),
@@ -2425,29 +2434,152 @@ def _analyze_audio_file(av_module, path: str) -> dict:
             "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker."
         ),
     }
+    return audio, sample_rate, result
+
+
+def _pcm_to_wav_bytes(audio: np.ndarray, sample_rate: int) -> bytes:
+    """Mono float32 PCM (as _decode_audio_mono returns) packaged as 16-bit WAV -
+    the format the hosted audio-understanding model below requires; it doesn't
+    accept the webm/opus browsers actually record voice notes in."""
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(sample_rate)
+        writer.writeframes((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
+    return buffer.getvalue()
+
+
+# A fixed, small vocabulary the model is asked to answer in (never free text),
+# so the reply is always parseable, and a base risk reading per label - tired/
+# flat lean on the same psychomotor-slowing association _prosodic_risk_signal
+# uses, stressed/agitated read as activation/distress rather than low mood.
+# Heuristic mappings, same honesty as the rest of this file: not fitted to
+# labeled outcome data, because none exists for this app yet.
+QWEN_AUDIO_TONE_LABELS = {"calm": 0.05, "neutral": 0.25, "tired": 0.55, "flat": 0.6, "stressed": 0.6, "agitated": 0.65}
+QWEN_AUDIO_TONE_PROMPT = (
+    "Listen to this short voice recording. Describe ONLY the vocal delivery - tone, pacing, pitch, pauses, "
+    "energy - never the words said or their meaning or language. Reply with exactly one line, this exact "
+    "format and nothing else, no punctuation or explanation: "
+    "LABEL=<one of calm, neutral, tired, flat, stressed, agitated> INTENSITY=<integer 0-10>"
+)
+_QWEN_TONE_REPLY_PATTERN = re.compile(r"LABEL\s*=\s*(\w+)\s+INTENSITY\s*=\s*(\d+)", re.IGNORECASE)
+
+
+def _tone_label_to_emotion_bars(label: str, intensity: int) -> dict:
+    """Maps the model's single label+intensity onto the same five bars the local
+    heuristic produces (calm/stress/anger/fatigue/depression_indicator), so the UI
+    renders one shape regardless of which provider actually answered."""
+    strength = intensity / 10.0
+    bars = {"calm": 0.0, "stress": 0.0, "anger": 0.0, "fatigue": 0.0, "depression_indicator": 0.0}
+    if label == "calm":
+        bars["calm"] = round(0.6 + 0.4 * strength, 2)
+    elif label == "neutral":
+        bars["calm"] = 0.5
+    elif label in ("tired", "flat"):
+        bars["fatigue"] = round(0.4 + 0.5 * strength, 2)
+        bars["depression_indicator"] = round(0.3 + 0.5 * strength, 2)
+        bars["calm"] = 0.3
+    elif label == "stressed":
+        bars["stress"] = round(0.4 + 0.5 * strength, 2)
+    elif label == "agitated":
+        bars["stress"] = round(0.3 + 0.4 * strength, 2)
+        bars["anger"] = round(0.3 + 0.4 * strength, 2)
+    return bars
+
+
+async def _qwen_omni_tone_signal(audio: np.ndarray, sample_rate: int) -> Optional[dict]:
+    """A hosted audio-understanding model's (Qwen-Omni, on Alibaba Cloud Model Studio)
+    read of vocal delivery - tone, pacing, pauses, energy - as a genuine trained-model
+    complement to the local RMS/pause heuristic above, which this takes priority over
+    in analyze_voice when it succeeds. Reuses the same DASHSCOPE_API_KEY/
+    DASHSCOPE_BASE_URL configuration as the text-chat provider (_llm_provider), since
+    Qwen-Omni is served from the same OpenAI-compatible endpoint - but needs its own
+    model id (DASHSCOPE_AUDIO_MODEL), since the text chat default (qwen-plus) doesn't
+    take audio input.
+
+    Explicitly prompted to ignore the words entirely, so this stays a tone signal
+    distinct from content_signal's read of the transcript rather than a second,
+    redundant read of the same thing. Not a clinical emotion classifier - a general-
+    purpose model's prompted read of a short clip, with the same honesty as every
+    other heuristic signal in this file about what it is and isn't. Returns None on
+    any failure (not configured, request error, oversized audio, an unparseable
+    reply) so callers fall back to the local heuristic without special-casing."""
+    api_key = os.getenv("DASHSCOPE_API_KEY")
+    if not api_key:
+        return None
+    wav_bytes = _pcm_to_wav_bytes(audio, sample_rate)
+    if len(wav_bytes) > 7_000_000:  # stays well under the provider's 10MB base64-encoded limit
+        return None
+    base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
+    model = os.getenv("DASHSCOPE_AUDIO_MODEL", "qwen3.8-omni-flash")
+    payload = {
+        "model": model,
+        "modalities": ["text"],
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": QWEN_AUDIO_TONE_PROMPT},
+                {"type": "input_audio", "input_audio": {"data": base64.b64encode(wav_bytes).decode("ascii"), "format": "wav"}},
+            ],
+        }],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+    except (httpx.HTTPError, KeyError, TypeError, IndexError) as error:
+        logger.error("Qwen-Omni voice-tone request failed: %r", error)
+        return None
+    match = _QWEN_TONE_REPLY_PATTERN.search(content or "")
+    if not match or match.group(1).lower() not in QWEN_AUDIO_TONE_LABELS:
+        logger.warning("Qwen-Omni voice-tone reply did not match the expected format: %r", (content or "")[:200])
+        return None
+    label = match.group(1).lower()
+    intensity = max(0, min(10, int(match.group(2))))
+    base = QWEN_AUDIO_TONE_LABELS[label]
+    # Intensity nudges the base reading rather than overriding it outright - a
+    # "calm" read at intensity 10 should still land as calm, not swing to risky.
+    signal = round(max(0.0, min(1.0, base + (intensity - 5) * 0.03)), 2)
+    return {"signal": signal, "label": label, "intensity": intensity, "emotion": _tone_label_to_emotion_bars(label, intensity)}
 
 
 @app.post("/analyze-voice", dependencies=[Depends(rate_limit("analyze-voice", 20, 3600))])
 async def analyze_voice(file: UploadFile = File(...), transcript: str = Form(""), language: str = Form("auto")) -> dict:
     """Reads both how a recording sounds and what was said in it.
 
-    An acoustic tone signal (pause ratio, loudness variability, speaking rate, pitch
-    variability - see _prosodic_risk_signal) is combined with a content signal from the
-    transcribed words (via Whisper, the same hosted model /transcribe uses, then the
-    same analyze_text pipeline the typed-text signal uses) into one risk_signal, with
-    both kept in the response (acoustic_signal, content_signal) so the blend is never a
-    black box. Tone leads the blend (60/40) since that's this endpoint's primary signal,
-    words fill in when tone alone isn't available, and a crisis disclosure in the words
-    is never softened by a calm-sounding voice - the same floor rule used for crisis
-    detection elsewhere. VOICE_BIOMARKER_PROVIDER selects the acoustic provider; only
-    'local' is implemented - no clinical voice-biomarker vendor is integrated.
+    An acoustic tone signal is combined with a content signal from the transcribed
+    words (via Whisper, the same hosted model /transcribe uses, then the same
+    analyze_text pipeline the typed-text signal uses) into one risk_signal, with both
+    kept in the response (acoustic_signal, content_signal) so the blend is never a
+    black box. Tone leads the blend (60/40) since that's this endpoint's primary
+    signal, words fill in when tone alone isn't available, and a crisis disclosure in
+    the words is never softened by a calm-sounding voice - the same floor rule used
+    for crisis detection elsewhere.
+
+    The acoustic tone signal itself comes from whichever provider is actually
+    available, most sophisticated first - the same cascade shape analyze_text already
+    uses for text:
+      1. Qwen-Omni (_qwen_omni_tone_signal), a hosted audio-understanding model, when
+         DASHSCOPE_API_KEY is configured - a genuine trained model's read of tone,
+         pacing, pauses and energy, prompted to ignore the words entirely.
+      2. Otherwise the local RMS/pause-ratio heuristic (_prosodic_risk_signal) -
+         always available, no API key needed, the one this whole feature started as.
+    VOICE_BIOMARKER_PROVIDER picks between this cascade ('local', the default - which,
+    despite the name, still prefers Qwen-Omni when configured) and a clinical voice-
+    biomarker vendor, which isn't integrated.
 
     A caller that already has a transcript (the frontend calls /transcribe just before
     this) can pass it in via the `transcript` field to skip a second Whisper call;
     otherwise this transcribes the audio itself when OPENAI_API_KEY is configured. With
     no transcript available either way, this falls back to acoustic-only analysis (with
     its own MIN_VOICED_SECONDS gate against misreading silence), so it still degrades
-    gracefully without Whisper."""
+    gracefully without Whisper, and without Qwen-Omni, and without both."""
     provider = os.getenv("VOICE_BIOMARKER_PROVIDER", "local")
     if provider != "local":
         raise HTTPException(status_code=503, detail=f"Voice biomarker provider '{provider}' is not implemented")
@@ -2475,7 +2607,7 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
         temp_path = temp_file.name
 
     try:
-        result = await run_in_threadpool(_analyze_audio_file, av, temp_path)
+        audio, sample_rate, result = await run_in_threadpool(_analyze_audio_file, av, temp_path)
     except HTTPException:
         raise
     except Exception as error:
@@ -2483,12 +2615,25 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     finally:
         Path(temp_path).unlink(missing_ok=True)
 
-    # Whisper is also a far more reliable voice-activity detector than the
-    # RMS threshold _prosodic_features uses: if it transcribed real words,
-    # that overrides an acoustic false "no speech" reading (e.g. quiet but
-    # real speech falling under the RMS threshold); if it heard nothing at
-    # all, that overrides an acoustic reading that mistook silence or
-    # background noise for voiced audio.
+    # A hosted audio-understanding model's own read of tone, when configured,
+    # takes priority over the local RMS/pause heuristic above - the same
+    # "most capable provider available" cascade analyze_text already uses for
+    # text. Still unconditionally attempted (not just as a fallback when the
+    # heuristic looks uncertain), matching that same pattern.
+    tone_model = await _qwen_omni_tone_signal(audio, sample_rate)
+    if tone_model is not None:
+        result["provider"] = "qwen-omni"
+        result["risk_signal"] = tone_model["signal"]
+        result["emotion"] = tone_model["emotion"]
+        result["tone_label"] = tone_model["label"]
+        result["note"] = f"Hosted audio-understanding model (Qwen-Omni) read of vocal delivery: {tone_model['label']}. Prompted to describe tone only, not the words said - not a validated clinical signal."
+
+    # Whisper is a far more reliable voice-activity detector than either
+    # acoustic provider above: if it transcribed real words, that overrides a
+    # false "no speech" reading (e.g. quiet speech under the RMS threshold);
+    # if it heard nothing at all, that overrides a reading - heuristic or
+    # model - that mistook silence or background noise for voiced audio. This
+    # applies last and unconditionally, regardless of which provider answered.
     if whisper_checked and not transcript_text:
         result["risk_signal"] = None
         result["emotion"] = None
@@ -3007,7 +3152,13 @@ def _sanitize_voice_features(supplied: dict) -> dict:
     if isinstance(emotion, dict):
         clean_emotion = {key: _unit_float(emotion.get(key)) for key in ("calm", "stress", "anger", "fatigue", "depression_indicator")}
         clean_emotion = {key: value for key, value in clean_emotion.items() if value is not None} or None
-    return {"risk_signal": risk_signal, "emotion": clean_emotion}
+    # Which provider actually produced risk_signal (see analyze_voice's cascade) -
+    # kept so evaluate_components can describe the signal accurately instead of
+    # always claiming the local heuristic, whitelisted against known values so a
+    # client can't inject an arbitrary provider label into its own results.
+    provider = supplied.get("provider")
+    clean_provider = provider if provider in ("qwen-omni", "local-heuristic") else None
+    return {"risk_signal": risk_signal, "emotion": clean_emotion, "provider": clean_provider}
 
 
 @app.post("/risk-assess")

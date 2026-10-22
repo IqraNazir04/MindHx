@@ -861,6 +861,27 @@ def test_risk_assess_tolerates_malformed_client_fields() -> None:
     assert body["components"]["text"]["sentiment"] == "neutral"
 
 
+def test_risk_assess_attributes_the_voice_signal_to_whichever_provider_read_it() -> None:
+    """The note shown on the results page must say which provider actually
+    produced the voice signal - /analyze-voice's cascade (Qwen-Omni when
+    configured, else the local heuristic) - not always claim the heuristic."""
+    heuristic = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4},
+    }).json()
+    assert "Heuristic" in heuristic["components"]["voice"]["note"]
+
+    hosted = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4, "provider": "qwen-omni"},
+    }).json()
+    assert "Qwen-Omni" in hosted["components"]["voice"]["note"]
+
+    # Whitelisted, not whatever string the client sends.
+    spoofed = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4, "provider": "a validated clinical device"},
+    }).json()
+    assert "Heuristic" in spoofed["components"]["voice"]["note"]
+
+
 def test_band_never_says_low_when_the_plan_says_see_a_professional() -> None:
     for phq, gad in [([2, 2, 2, 2, 2, 2, 0, 0, 0], [0] * 7), ([0] * 9, [3, 3, 3, 3, 3, 0, 0])]:
         body = client.post("/risk-assess", json={"phq9_answers": phq, "gad7_answers": gad, "typed_text": "ok"}).json()

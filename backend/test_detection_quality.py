@@ -7,6 +7,7 @@ they measure the same lexicon/heuristic path a deployment falls back to.
 
 import asyncio
 
+import httpx
 import pytest
 
 import main
@@ -250,3 +251,105 @@ def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None
     body = response.json()
     assert body["crisis_language"] is True
     assert body["risk_signal"] >= 0.9
+
+
+def test_tone_label_to_emotion_bars_covers_every_label() -> None:
+    for label in main.QWEN_AUDIO_TONE_LABELS:
+        bars = main._tone_label_to_emotion_bars(label, intensity=7)
+        assert set(bars) == {"calm", "stress", "anger", "fatigue", "depression_indicator"}
+        assert all(0.0 <= value <= 1.0 for value in bars.values())
+    assert main._tone_label_to_emotion_bars("calm", 10)["calm"] > main._tone_label_to_emotion_bars("calm", 0)["calm"]
+
+
+def test_qwen_tone_reply_pattern_parses_the_expected_format() -> None:
+    match = main._QWEN_TONE_REPLY_PATTERN.search("LABEL=stressed INTENSITY=8")
+    assert match and match.group(1) == "stressed" and match.group(2) == "8"
+    # Tolerates the model adding stray whitespace or casing without failing closed.
+    match = main._QWEN_TONE_REPLY_PATTERN.search("  label = Calm   intensity=3  ")
+    assert match and match.group(1).lower() == "calm" and match.group(2) == "3"
+    assert main._QWEN_TONE_REPLY_PATTERN.search("I heard someone speaking calmly.") is None
+
+
+def test_pcm_to_wav_bytes_is_a_valid_wav_the_wave_module_can_read_back() -> None:
+    samples = _signals()["monotone"].astype(np.float32)
+    wav_bytes = main._pcm_to_wav_bytes(samples, SAMPLE_RATE)
+    with wave.open(io.BytesIO(wav_bytes), "rb") as reader:
+        assert reader.getnchannels() == 1
+        assert reader.getsampwidth() == 2
+        assert reader.getframerate() == SAMPLE_RATE
+        assert reader.getnframes() == len(samples)
+
+
+def test_qwen_omni_tone_signal_is_none_without_a_configured_key(monkeypatch) -> None:
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    result = asyncio.run(main._qwen_omni_tone_signal(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
+    assert result is None
+
+
+def test_qwen_omni_tone_signal_fails_closed_on_an_unparseable_reply(monkeypatch) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "I'm not able to describe that."}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    result = asyncio.run(main._qwen_omni_tone_signal(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
+    assert result is None
+
+
+def test_analyze_voice_prefers_qwen_omni_tone_over_the_local_heuristic_when_configured(monkeypatch) -> None:
+    """The cascade's whole point: a configured, successfully-parsed hosted
+    read must win over the always-available local RMS/pause heuristic, the
+    same way Claude/Qwen already take priority over the text heuristic."""
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "LABEL=calm INTENSITY=2"}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+
+    client = TestClient(main.app)
+    # The monotone signal reads as high-risk under the local heuristic (see
+    # test_flat_monotone_speech_scores_higher_risk_than_expressive_speech);
+    # a "calm" reply from the hosted model must override that, not blend with it.
+    local_only = main._prosodic_risk_signal(main._prosodic_features(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
+    response = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_signals()["monotone"]), "audio/wav")})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["provider"] == "qwen-omni"
+    assert body["tone_label"] == "calm"
+    assert body["acoustic_signal"] < local_only
