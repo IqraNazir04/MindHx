@@ -81,6 +81,13 @@ NEUTRAL_OR_POSITIVE = [
     "Feeling much more relaxed after the breathing exercise",
     "aaj mera din acha guzra, bohat sukoon tha",
     "آج کا دن اچھا گزرا، میں پرسکون ہوں",
+    # Regression cases: "happy"/"great"/"glad"/"fine" were missing from the
+    # positive lexicon, so an ordinary sentence mentioning fatigue (a real
+    # word, legitimately tracked elsewhere for depression screening) read as
+    # negative even when paired with a clearly positive word right next to it.
+    "I am a bit tired from a late night but otherwise great",
+    "I am tired but happy with how things went",
+    "Work was busy but I handled it fine",
 ]
 
 
@@ -235,6 +242,47 @@ def test_voice_endpoint_blends_acoustic_tone_with_transcribed_words() -> None:
     assert blended["content_signal"] is not None and blended["content_signal"] < 0.3
     assert blended["risk_signal"] < acoustic_only["risk_signal"]
     assert blended["sentiment"] == "positive"
+
+
+def test_voice_endpoint_moderates_emotion_bars_with_the_transcribed_words() -> None:
+    """Regression test for the exact reported bug: animated, fast, loud-swinging
+    delivery reads as high Anger/Stress under the acoustic-only heuristic
+    (_voice_emotion_scores has no way to tell "excited and happy" from "angry"),
+    even when the words themselves are calm and positive. The individual bars
+    shown in the UI must be corrected by the words, not just the single
+    combined risk_signal underneath them."""
+    client = TestClient(main.app)
+    t = np.arange(int(SAMPLE_RATE * 4)) / SAMPLE_RATE
+    # Erratic, rapid loud/quiet swings - the acoustic profile that trips
+    # anger/stress under _voice_emotion_scores (high energy variability, fast
+    # segment rate), independent of what's actually said.
+    amp = 0.05 + 0.9 * np.abs(np.sin(2 * np.pi * 8 * t) * np.sin(2 * np.pi * 1.3 * t))
+    animated = (amp * np.sin(2 * np.pi * 220 * t) * ((t % 0.15) < 0.09)).astype(np.float32)
+
+    acoustic_only = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(animated), "audio/wav")}).json()
+    assert acoustic_only["emotion"]["anger"] > 0.2  # the fixture must actually trigger the bug being guarded against
+
+    moderated = client.post(
+        "/analyze-voice",
+        files={"file": ("voice.wav", _wav_bytes(animated), "audio/wav")},
+        data={"transcript": "I am feeling good today, calm and relaxed, nothing is bothering me"},
+    ).json()
+    assert moderated["sentiment"] in ("positive", "neutral")
+    assert moderated["emotion"]["anger"] < acoustic_only["emotion"]["anger"]
+    assert moderated["emotion"]["stress"] < acoustic_only["emotion"]["stress"]
+    assert moderated["emotion"]["calm"] > acoustic_only["emotion"]["calm"]
+
+
+def test_moderate_emotion_with_content_escalates_for_crisis_words_not_just_dampens() -> None:
+    """The moderation isn't one-directional "always calm things down" - words
+    that disagree the other way (real distress under a calm-sounding voice)
+    must pull the bars up, and a crisis disclosure hits the same 0.9 floor
+    risk_signal does, regardless of how calm the voice sounded."""
+    emotion = {"calm": 0.8, "stress": 0.1, "anger": 0.05, "fatigue": 0.1, "depression_indicator": 0.1}
+    escalated = main._moderate_emotion_with_content(emotion, content_signal=1.0, crisis_language=True)
+    assert escalated["depression_indicator"] >= 0.9
+    assert escalated["stress"] > emotion["stress"]
+    assert escalated["calm"] < emotion["calm"]
 
 
 def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None:

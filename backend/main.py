@@ -2488,6 +2488,29 @@ def _tone_label_to_emotion_bars(label: str, intensity: int) -> dict:
     return bars
 
 
+def _moderate_emotion_with_content(emotion: dict, content_signal: float, crisis_language: bool) -> dict:
+    """Blends each acoustic-only emotion bar with the same content_signal that
+    already corrects risk_signal (same 60/40 weighting), so a misreading like
+    animated-but-happy speech scoring high on the Anger bar gets pulled back
+    toward what the words actually say - not just the single combined number
+    underneath it. calm is recomputed from the moderated bars rather than
+    blended on its own, since it's defined as their absence, not measured
+    independently (see _voice_emotion_scores).
+
+    A crisis disclosure in the words still isn't softened by a calm-sounding
+    voice here either: depression_indicator gets the same 0.9 floor
+    risk_signal does, for the same reason."""
+    moderated = dict(emotion)
+    for key in ("stress", "anger", "fatigue", "depression_indicator"):
+        if key in moderated:
+            moderated[key] = round(min(1.0, max(0.0, 0.6 * moderated[key] + 0.4 * content_signal)), 2)
+    if crisis_language and "depression_indicator" in moderated:
+        moderated["depression_indicator"] = max(moderated["depression_indicator"], 0.9)
+    if "calm" in moderated:
+        moderated["calm"] = round(min(1.0, max(0.0, 1.0 - max(moderated.get("stress", 0.0), moderated.get("anger", 0.0), 0.7 * moderated.get("fatigue", 0.0)))), 2)
+    return moderated
+
+
 async def _qwen_omni_tone_signal(audio: np.ndarray, sample_rate: int) -> Optional[dict]:
     """A hosted audio-understanding model's (Qwen-Omni, on Alibaba Cloud Model Studio)
     read of vocal delivery - tone, pacing, pauses, energy - as a genuine trained-model
@@ -2669,6 +2692,16 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     if crisis_language:
         combined = max(combined, 0.9) if combined is not None else 0.9
 
+    # The blend above already lets the words correct a misleading acoustic
+    # risk_signal (e.g. animated-but-happy speech wrongly read as agitated by
+    # the local heuristic) - but the five individual bars (calm/stress/anger/
+    # fatigue/depression_indicator) shown in the UI came straight from the
+    # acoustic provider alone, untouched by that correction. Apply the same
+    # 60/40 blend per bar, not just to the single combined number, so what's
+    # actually displayed agrees with what the words say too.
+    if result["emotion"] is not None and content_signal is not None:
+        result["emotion"] = _moderate_emotion_with_content(result["emotion"], content_signal, crisis_language)
+
     result["acoustic_signal"] = acoustic_signal
     result["content_signal"] = content_signal
     result["risk_signal"] = combined
@@ -2687,7 +2720,7 @@ async def analyze_text(payload: TextAnalysisRequest) -> dict:
     lowered = text.lower()
     crisis = has_crisis_language(text)
     negative_terms = ["hopeless", "empty", "worthless", "alone", "tired", "sad", "depressed", "failure", "failed", "burden", "crying", "cry", "exhausted", "exhaustion", "lost interest", "no interest", "nothing feels", "nothing motivates", "can't sleep", "cant sleep", "insomnia", "racing thoughts", "on edge", "chest feels tight", "pointless", "no point", "lonely", "loneliness", "worried", "worrying", "anxious", "overwhelmed", "stressed", "stopped seeing", "not enjoy", "don't enjoy", "dont enjoy", "nothing matters", "give up", "hate myself", "useless", "خالی", "مایوس", "اداس", "تنہا", "پریشان", "بے کار", "رونا", "تھک"]
-    positive_terms = ["better", "hopeful", "calm", "grateful", "good day", "looking forward", "relaxed", "enjoyed", "enjoy", "feel good", "sukoon", "خوش", "بہتر", "پُرسکون", "سکون", "اچھا"]
+    positive_terms = ["better", "hopeful", "calm", "grateful", "good day", "looking forward", "relaxed", "enjoyed", "enjoy", "feel good", "sukoon", "happy", "happiness", "great", "glad", "wonderful", "fine", "content", "peaceful", "joy", "joyful", "excited", "proud", "cheerful", "optimistic", "doing well", "feeling well", "pleasant", "fun", "خوش", "بہتر", "پُرسکون", "سکون", "اچھا", "خوشی", "مزہ", "اطمینان"]
     keywords = sorted({term for term in negative_terms + positive_terms if term in lowered})
     negative_hits = sum(term in lowered for term in negative_terms)
     positive_hits = sum(term in lowered for term in positive_terms)
