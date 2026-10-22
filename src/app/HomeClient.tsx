@@ -25,24 +25,19 @@ import { answerOptions, gadQuestions, gadQuestionsEn, k10Options, k10Questions, 
 const copy = {
   English: {
     eyebrow: "EARLY SIGNALS, HUMAN CARE", title: "Check in with yourself.", intro: "A quiet, private way to notice changes in how you're feeling. MindHx brings together your voice, words, and a short clinical questionnaire.", ready: "Session ready", private: "Private & secure", sound: "How you sound", soundDescription: "Share a short voice note in English or Urdu. We listen for changes in vocal patterns, and read the words themselves too.", record: "Record a voice note", stop: "Stop recording", listening: "Listening... tap to finish", processing: "Transcribing securely...", recordingHint: "Up to 60 seconds · Nothing is saved", transcriptReady: "Transcript added below", voiceError: "Microphone or transcription unavailable", micBlocked: "Microphone access was blocked. Allow the microphone for this site in your browser's address bar, then try again.", micMissing: "No microphone was found. Connect one, or type how you feel below.", micUnsupported: "This browser can't record audio here. Open the page in Chrome, Edge, Firefox or Safari, or type how you feel below.", transcriptionFailed: "Your voice note couldn't be written out right now. Your voice tone was still read - please try again, or type below.", transcriptionOff: "Voice-to-text isn't set up on this server, so your words weren't written out. Your voice tone was still read - you can type how you feel below.", voiceNoSignal: "We couldn't pick up enough clear speech to read your tone from that recording - that's fine, your check-in continues without it. Feel free to try again.", words: "What you say", wordsDescription: "Write a little about how things have been lately. Be as brief or open as feels right.", placeholder: "I've been feeling...", optional: "Required", speakUrdu: "Hear this in Urdu", speaking: "Generating Urdu voice...", speechError: "Urdu voice generation unavailable", submitText: "Submit", submittingText: "Analyzing...", textSentiment: "Sentiment read", textSubmitHint: "Analysed right away. Kept only inside your saved check-in report, which you can delete from your dashboard.", clinical: "Clinical check-in", clinicalDescription: "PHQ-9, GAD-7, and K10 are validated questionnaires used by healthcare professionals. Think about the last two weeks.", question: "QUESTION", back: "Back", next: "Next test", review: "Review answers", estimate: "LIVE ESTIMATE", picture: "Your combined picture", pictureDescription: "Complete your check-in to see how the signals come together.", seeCheckIn: "See my check-in", startCheckIn: "Start my check-in", disclaimer: "MindHx is a screening and triage aid, not a diagnosis. Your results are a starting point for a conversation with a qualified professional.", modalEyebrow: "YOUR PRIVATE CHECK-IN", modalTitle: "Your signals are ready to review.", modalDescription: "MindHx combines the three signals into an explainable estimate. A professional should interpret this result with you.", modalScore: "estimated signal strength", continue: "Continue to results", bannerLine1: "Slow down.", bannerLine2: "You are not alone.", aboutEyebrow: "ABOUT MINDHX", aboutTitle: "Understanding MindHx", aboutTeaserBody: "Why this exists, how the three signals work together, what we keep and what we don't, and who it's built for.", aboutTeaserCta: "Read the full story", startTests: "Start the tests", continueTests: "Continue the tests", reviewTests: "Review your answers",
-    heroTitleA: "Notice the signal.", heroTitleB: "Keep the human.", voiceOptional: "Optional", recordingHintFull: "Up to 60 seconds · stops automatically · the audio itself is never saved", voiceTone: "Voice tone", wordChoice: "Word-choice breakdown", signInToView: "Sign in or create an account to view your results.",
+    heroTitleA: "Notice the signal.", heroTitleB: "Keep the human.", voiceOptional: "Optional", recordingHintFull: "Up to 60 seconds · stops automatically · the audio itself is never saved", voiceTone: "Voice tone", wordChoice: "Word-choice breakdown", signInToView: "See your results right away - sign in to save them and track changes over time.",
     contextKicker: "PRIVATE SESSION CONTEXT", contextReady: "Your context is ready for this session.", contextPrompt: "Personal context helps MindHx tailor support.", contextEdit: "Edit context", contextSet: "Set session context",
     modalContextTitle: "Share only what helps.", modalContextBody: "These fields are optional except age range. They stay in memory for this session and are not saved to your account.", ageRange: "Age range", genderOptional: "Gender (optional)", relationship: "Relationship status", lifeContext: "Life context (optional)", preferNot: "Prefer not to say", updateContext: "Update session context", continuePrivately: "Continue privately", modalAuthA: "Sign in", modalAuthOr: "or", modalAuthB: "create an account", modalAuthC: "to view your check-in results and save your history.", closeLabel: "Close", openProfile: "Open private profile",
     options: { Woman: "Woman", Man: "Man", "Non-binary": "Non-binary", "Prefer not to say": "Prefer not to say", Single: "Single", Partnered: "Partnered", Married: "Married", Student: "Student", Working: "Working", Retired: "Retired", "Between roles": "Between roles", Caregiving: "Caregiving" }
   },
   اردو: {
     eyebrow: "ابتدائی اشارے، انسانی نگہداشت", title: "اپنا حال جانچیں۔", intro: "اپنی کیفیت میں آنے والی تبدیلیوں کو سمجھنے کا ایک پُرسکون اور نجی طریقہ۔ MindHx آپ کی آواز، الفاظ اور مختصر طبی سوالنامے کو یکجا کرتا ہے۔", ready: "سیشن تیار ہے", private: "نجی اور محفوظ", sound: "آپ کی آواز", soundDescription: "انگریزی یا اردو میں ایک مختصر صوتی پیغام ریکارڈ کریں۔ ہم آواز کے انداز میں تبدیلیاں دیکھتے ہیں، اور الفاظ کو بھی پڑھتے ہیں۔", record: "صوتی پیغام ریکارڈ کریں", stop: "ریکارڈنگ روکیں", listening: "سن رہے ہیں... مکمل کرنے کے لیے دبائیں", processing: "محفوظ طریقے سے متن تیار کیا جا رہا ہے...", recordingHint: "60 سیکنڈ تک · کچھ محفوظ نہیں کیا جاتا", transcriptReady: "متن نیچے شامل کر دیا گیا ہے", voiceError: "مائیکروفون یا متن کی سہولت دستیاب نہیں", micBlocked: "مائیکروفون کی اجازت روک دی گئی ہے۔ براؤزر کے ایڈریس بار میں اس سائٹ کے لیے مائیکروفون کی اجازت دیں، پھر دوبارہ کوشش کریں۔", micMissing: "کوئی مائیکروفون نہیں ملا۔ مائیکروفون لگائیں، یا نیچے لکھ کر بتائیں کہ آپ کیسا محسوس کر رہے ہیں۔", micUnsupported: "یہ براؤزر یہاں آواز ریکارڈ نہیں کر سکتا۔ صفحہ Chrome، Edge، Firefox یا Safari میں کھولیں، یا نیچے لکھیں۔", transcriptionFailed: "آپ کا صوتی پیغام ابھی متن میں نہیں بدلا جا سکا۔ آپ کی آواز کا انداز پھر بھی جانچا گیا - دوبارہ کوشش کریں یا نیچے لکھیں۔", transcriptionOff: "اس سرور پر آواز سے متن کی سہولت فعال نہیں، اس لیے آپ کے الفاظ لکھے نہیں جا سکے۔ آپ کی آواز کا انداز پھر بھی جانچا گیا - آپ نیچے لکھ کر بتا سکتے ہیں کہ آپ کیسا محسوس کر رہے ہیں۔", voiceNoSignal: "ہم اس ریکارڈنگ سے کافی واضح آواز حاصل نہیں کر سکے - کوئی بات نہیں، آپ کا جائزہ اس کے بغیر جاری رہے گا۔ آپ دوبارہ کوشش کر سکتے ہیں۔", words: "آپ کے الفاظ", wordsDescription: "حال ہی میں آپ کیسا محسوس کر رہے ہیں، اس کے بارے میں کچھ لکھیں۔ جتنا مناسب لگے اتنا ہی لکھیں۔", placeholder: "میں محسوس کر رہا/رہی ہوں...", optional: "ضروری", speakUrdu: "یہ اردو میں سنیں", speaking: "اردو آواز تیار ہو رہی ہے...", speechError: "اردو آواز دستیاب نہیں", submitText: "جمع کریں", submittingText: "تجزیہ ہو رہا ہے...", textSentiment: "جذباتی کیفیت", textSubmitHint: "فوراً تجزیہ کیا جاتا ہے۔ صرف آپ کی محفوظ شدہ جائزہ رپورٹ میں رکھا جاتا ہے، جسے آپ اپنے ڈیش بورڈ سے حذف کر سکتے ہیں۔", clinical: "طبی جائزہ", clinicalDescription: "PHQ-9، GAD-7، اور K10 مستند سوالنامے ہیں جو ماہرین صحت استعمال کرتے ہیں۔ گزشتہ دو ہفتوں کے بارے میں سوچیں۔", question: "سوال", back: "واپس", next: "اگلا ٹیسٹ", review: "جوابات کا جائزہ", estimate: "موجودہ اندازہ", picture: "آپ کی مجموعی کیفیت", pictureDescription: "اپنا جائزہ مکمل کریں تاکہ تمام اشارے ایک ساتھ دیکھے جا سکیں۔", seeCheckIn: "میرا جائزہ دیکھیں", startCheckIn: "اپنا جائزہ شروع کریں", disclaimer: "MindHx ایک ابتدائی اسکریننگ اور رہنمائی کا ذریعہ ہے، تشخیص نہیں۔ آپ کے نتائج کسی مستند ماہر سے گفتگو کا آغاز ہیں۔ سوالنامے کا اردو متن اس سیشن کے لیے ترجمہ کیا گیا ہے؛ حتمی الفاظ کے لیے انگریزی نسخہ ملاحظہ کریں۔", modalEyebrow: "آپ کا نجی جائزہ", modalTitle: "آپ کے اشارے جائزے کے لیے تیار ہیں۔", modalDescription: "MindHx تینوں اشاروں کو ایک قابلِ وضاحت اندازے میں یکجا کرتا ہے۔ اس نتیجے کی تشریح کسی ماہر کو آپ کے ساتھ کرنی چاہیے۔", modalScore: "اندازاً سگنل کی شدت", continue: "نتائج کی طرف جائیں", bannerLine1: "آہستہ چلیں۔", bannerLine2: "آپ تنہا نہیں ہیں۔", aboutEyebrow: "MindHx کے بارے میں", aboutTitle: "MindHx کو سمجھنا", aboutTeaserBody: "یہ کیوں موجود ہے، تینوں اشارے مل کر کیسے کام کرتے ہیں، ہم کیا محفوظ کرتے ہیں اور کیا نہیں، اور یہ کس کے لیے بنایا گیا ہے۔", aboutTeaserCta: "مکمل کہانی پڑھیں", startTests: "ٹیسٹ شروع کریں", continueTests: "ٹیسٹ جاری رکھیں", reviewTests: "اپنے جوابات کا جائزہ لیں",
-    heroTitleA: "اشارے کو پہچانیں۔", heroTitleB: "انسانی رابطہ برقرار رکھیں۔", voiceOptional: "اختیاری", recordingHintFull: "60 سیکنڈ تک · خود بخود رک جاتا ہے · آواز کبھی محفوظ نہیں کی جاتی", voiceTone: "آواز کا انداز", wordChoice: "الفاظ کے انتخاب کا جائزہ", signInToView: "نتائج دیکھنے کے لیے سائن ان کریں یا اکاؤنٹ بنائیں۔",
+    heroTitleA: "اشارے کو پہچانیں۔", heroTitleB: "انسانی رابطہ برقرار رکھیں۔", voiceOptional: "اختیاری", recordingHintFull: "60 سیکنڈ تک · خود بخود رک جاتا ہے · آواز کبھی محفوظ نہیں کی جاتی", voiceTone: "آواز کا انداز", wordChoice: "الفاظ کے انتخاب کا جائزہ", signInToView: "اپنے نتائج فوراً دیکھیں - انہیں محفوظ کرنے اور وقت کے ساتھ تبدیلیاں دیکھنے کے لیے سائن ان کریں۔",
     contextKicker: "نجی سیشن کا سیاق", contextReady: "اس سیشن کے لیے آپ کا سیاق تیار ہے۔", contextPrompt: "ذاتی سیاق MindHx کو بہتر مدد دینے میں مدد کرتا ہے۔", contextEdit: "سیاق میں ترمیم کریں", contextSet: "سیشن کا سیاق طے کریں",
     modalContextTitle: "صرف وہی بتائیں جو مددگار ہو۔", modalContextBody: "عمر کی حد کے علاوہ یہ تمام خانے اختیاری ہیں۔ یہ صرف اسی سیشن کے دوران یادداشت میں رہتے ہیں اور آپ کے اکاؤنٹ میں محفوظ نہیں ہوتے۔", ageRange: "عمر کی حد", genderOptional: "جنس (اختیاری)", relationship: "ازدواجی حیثیت", lifeContext: "زندگی کی صورتحال (اختیاری)", preferNot: "بتانا نہیں چاہتے", updateContext: "سیشن کا سیاق اپ ڈیٹ کریں", continuePrivately: "نجی طور پر جاری رکھیں", modalAuthA: "سائن ان کریں", modalAuthOr: "یا", modalAuthB: "اکاؤنٹ بنائیں", modalAuthC: "تاکہ اپنے جائزے کے نتائج دیکھ سکیں اور اپنی تاریخ محفوظ کر سکیں۔", closeLabel: "بند کریں", openProfile: "نجی پروفائل کھولیں",
     options: { Woman: "خاتون", Man: "مرد", "Non-binary": "نان بائنری", "Prefer not to say": "بتانا نہیں چاہتے", Single: "غیر شادی شدہ", Partnered: "رشتے میں", Married: "شادی شدہ", Student: "طالب علم", Working: "ملازمت پیشہ", Retired: "ریٹائرڈ", "Between roles": "فی الحال بے روزگار", Caregiving: "نگہداشت کرنے والے" }
   }
 };
-
-// Holds the in-progress check-in (recording, answers, profile) across the
-// redirect to sign in - viewing results now requires an account, but
-// bouncing someone to /login shouldn't throw away what they just recorded.
-const CHECKIN_DRAFT_KEY = "mindhx:pending-checkin";
 
 function cooldownMessage(eligibility: CheckInEligibility, isUrdu: boolean): string {
   const days = eligibility.cooldown_days;
@@ -154,7 +149,6 @@ export default function HomeClient() {
   }, []);
   const [assessmentLoading, setAssessmentLoading] = useState(false);
   const [assessmentError, setAssessmentError] = useState("");
-  const [resumeNotice, setResumeNotice] = useState("");
   const [latestStageAvailable, setLatestStageAvailable] = useState(false);
   // Set while this account is inside its check-in cooldown (one saved
   // check-in per CHECKIN_COOLDOWN_DAYS, enforced by the backend).
@@ -203,33 +197,8 @@ export default function HomeClient() {
     fetchCheckInEligibility().then((eligibility) => {
       startTransition(() => setCooldown(eligibility && !eligibility.can_check_in ? eligibility : null));
     });
-    try {
-      const raw = sessionStorage.getItem(CHECKIN_DRAFT_KEY);
-      if (!raw) return;
-      sessionStorage.removeItem(CHECKIN_DRAFT_KEY);
-      const draft = JSON.parse(raw);
-      startTransition(() => {
-        if (typeof draft.transcript === "string") setTranscript(draft.transcript);
-        if (typeof draft.typedText === "string") setTypedText(draft.typedText);
-        if (Array.isArray(draft.answers)) setAnswers(draft.answers);
-        if (Array.isArray(draft.gadAnswers)) setGadAnswers(draft.gadAnswers);
-        if (Array.isArray(draft.k10Answers)) setK10Answers(draft.k10Answers);
-        if (draft.profile) setProfile(draft.profile);
-        if (typeof draft.language === "string") setLanguage(draft.language);
-        if (draft.voiceFeatures) setVoiceFeatures(draft.voiceFeatures);
-        if (typeof draft.sessionToken === "string") setSessionToken(draft.sessionToken);
-        setResumeNotice(
-          draft.language === "اردو"
-            ? "خوش آمدید - آپ کے جوابات بحال کر دیے گئے ہیں۔ نتائج دیکھنے کے لیے دوبارہ \"میرا جائزہ دیکھیں\" دبائیں۔"
-            : "Welcome back - your answers were restored. Click “See my check-in” again to view your results."
-        );
-      });
-    } catch {
-      // Corrupt or unavailable draft - nothing to restore, no harm done.
-    }
-    // setLanguage (from useLanguage) is listed because it's a real dependency
-    // ESLint can see; it's useCallback-memoized so this still only runs once.
-  }, [setLanguage]);
+    // Runs once on mount; every setter above is stable (useState/useCallback).
+  }, []);
 
   async function handleSubmitText() {
     if (!typedText.trim()) return;
@@ -517,17 +486,23 @@ export default function HomeClient() {
       );
       return;
     }
+    // Signing in is never required just to see your own check-in: /risk-assess
+    // needs no auth and /recommendations reads straight from sessionStorage
+    // (the same path the crisis flow above already uses, signed in or not).
+    // An account only changes whether this result also gets SAVED to history.
     if (!isLoggedIn()) {
+      setAssessmentLoading(true);
       try {
-        sessionStorage.setItem(CHECKIN_DRAFT_KEY, JSON.stringify({
-          transcript, typedText, answers, gadAnswers, k10Answers, profile, language, voiceFeatures, sessionToken,
-        }));
+        await assessAndStore(textAnalysis);
+        router.push("/recommendations");
       } catch {
-        // Storage unavailable - proceed anyway; they'll just re-enter answers after signing in.
+        setAssessmentError(isUrdu ? "MindHx سروس دستیاب نہیں۔ براہ کرم تھوڑی دیر بعد دوبارہ کوشش کریں۔" : "MindHx service unavailable. Please try again in a moment.");
+      } finally {
+        setAssessmentLoading(false);
       }
-      router.push("/login?next=%2F");
       return;
     }
+
     if (!profile.ageRange) {
       setAssessmentError(isUrdu ? "پہلے نجی سیشن کا سیاق مکمل کریں۔" : "Set your private session context before starting the assessment.");
       setShowProfile(true);
@@ -658,7 +633,7 @@ export default function HomeClient() {
             </div>
           </div>
         </div>
-        <section className="bottom-row"><div className="score-preview"><div className="score-ring" style={{ "--score": score } as CSSProperties}><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{resumeNotice && <p className="microcopy">{resumeNotice}</p>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}{latestStageAvailable && <> <Link href="/recommendations">{language === "اردو" ? "آپ کا تازہ ترین مرحلہ دیکھیں" : "View your latest stage and next steps"} →</Link></>}</p>}</div></section>
+        <section className="bottom-row"><div className="score-preview"><div className="score-ring" style={{ "--score": score } as CSSProperties}><strong>{score}</strong><span>/ 100</span></div><div><p className="card-kicker">{text.estimate}</p><h2>{text.picture}</h2><p>{text.pictureDescription}</p><div className="scale-outcomes"><span><b>PHQ-9</b> {liveScores.phq9}/27</span><span><b>GAD-7</b> {liveScores.gad7}/21</span><span><b>K10</b> {liveScores.k10}/50</span></div></div></div><div><button className="check-in-button" onClick={handleCheckIn} disabled={assessmentLoading}>{assessmentLoading ? text.processing : text.seeCheckIn} <span>→</span></button>{!hasAccount && <span className="microcopy">{text.signInToView}</span>}{cooldown && !assessmentError && <p className="checkin-cooldown-note">{cooldownMessage(cooldown, language === "اردو")}</p>}{assessmentError && <p className="assessment-error">{assessmentError}{latestStageAvailable && <> <Link href="/recommendations">{language === "اردو" ? "آپ کا تازہ ترین مرحلہ دیکھیں" : "View your latest stage and next steps"} →</Link></>}</p>}</div></section>
         <FeatureCarousel isUrdu={language === "اردو"} />
         <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-teaser">
