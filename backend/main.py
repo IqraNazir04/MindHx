@@ -513,6 +513,19 @@ def is_urdu_script(text: str) -> bool:
     return (urdu_letters / total_letters) >= 0.4
 
 
+_MARKDOWN_HEADING_PATTERN = re.compile(r"^#{1,6}\s*", re.MULTILINE)
+_MARKDOWN_BOLD_PATTERN = re.compile(r"\*\*(.+?)\*\*")
+
+
+def _strip_markdown_for_display(text: str) -> str:
+    """Admin-uploaded reference chunks are often markdown (## headings,
+    **bold**), but a reference card renders its content as plain text, not
+    through a markdown renderer - left as-is, the raw "##"/"**" syntax leaks
+    into the UI as literal characters instead of being formatted. Strips the
+    markers library content tends to use, keeping the words themselves."""
+    return _MARKDOWN_BOLD_PATTERN.sub(r"\1", _MARKDOWN_HEADING_PATTERN.sub("", text))
+
+
 RAG_INTENT_KEYWORDS = {
     "anxiety": ("anx", "worry", "panic", "نروس", "فکر", "گھبرا"),
     "depression": ("sad", "empty", "motivation", "depress", "اداس", "مایوس"),
@@ -777,7 +790,7 @@ async def retrieve_reference_chunks(db: Session, message: str) -> list[dict]:
         label = f"{row.title}{part}"
         if row.source_name:
             label = f"{row.title}{part} - {row.source_name}"
-        locale = {"title": label, "content": chunk.text}
+        locale = {"title": label, "content": _strip_markdown_for_display(chunk.text)}
         documents.append({"id": f"upload-{chunk.id}", "intent": row.intent, "source": "admin_upload", "en": locale, "ur": locale, "link": ""})
     return documents
 
@@ -838,7 +851,12 @@ async def localize_sources_for_display(documents: list[dict], language: str) -> 
     sources = []
     for document in documents:
         localized = localize_rag_document(document, language)
-        if language == "ur" and localized["source"] == "admin_upload" and not is_urdu_script(f"{localized['title']} {localized['content']}"):
+        # Checked separately, not combined: a chunk that's already partly Urdu
+        # (e.g. a bilingual document) can push a combined ratio over the
+        # threshold while the auto-generated title - built from the admin's
+        # English document metadata - stays untranslated.
+        needs_translation = language == "ur" and localized["source"] == "admin_upload" and not (is_urdu_script(localized["title"]) and is_urdu_script(localized["content"]))
+        if needs_translation:
             translated = await _translate_reference_card_to_urdu(localized["title"], localized["content"])
             if translated is not None:
                 localized["title"], localized["content"] = translated

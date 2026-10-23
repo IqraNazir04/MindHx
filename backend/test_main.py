@@ -10,7 +10,7 @@ import main
 from database import init_db
 from manage import set_admin
 from ratelimit import limiter
-from main import RAG_DOCUMENTS, _prosodic_features, _prosodic_risk_signal, _voice_emotion_scores, app, compose_chat_reply, is_urdu_script, summarize_trajectory
+from main import RAG_DOCUMENTS, _prosodic_features, _prosodic_risk_signal, _voice_emotion_scores, app, compose_chat_reply, is_urdu_script, localize_sources_for_display, summarize_trajectory
 from models import CheckIn
 
 init_db()
@@ -1368,6 +1368,28 @@ def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> Non
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
 
 
+def test_uploaded_source_content_has_markdown_syntax_stripped_for_display() -> None:
+    """A reference card renders its content as plain text, not through a
+    markdown renderer - left as raw markdown, "## " and "**" show up as
+    literal characters in the UI instead of being formatted."""
+    admin_headers = {"Authorization": f"Bearer {_register_admin('markdown-admin@example.com')}"}
+    raw = "## Generalised anxiety disorder\n\n**GAD-7 screening:** worry that gets in the way of life."
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("gad.txt", raw.encode("utf-8"), "text/plain")},
+        data={"title": "GAD guide", "intent": "anxiety"},
+        headers=admin_headers,
+    ).json()
+
+    body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "risk_clear": True}).json()
+    uploaded = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert uploaded, body
+    assert "##" not in uploaded[0]["content"] and "**" not in uploaded[0]["content"]
+    assert "Generalised anxiety disorder" in uploaded[0]["content"] and "GAD-7 screening:" in uploaded[0]["content"]
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
 def test_admin_uploaded_source_is_translated_to_urdu_for_an_urdu_session(monkeypatch) -> None:
     """Admin uploads are authored once, not bilingually like RAG_DOCUMENTS, so
     without translation an Urdu chat session would show an English reference
@@ -1398,6 +1420,24 @@ def test_admin_uploaded_source_is_translated_to_urdu_for_an_urdu_session(monkeyp
     assert english_uploaded and english_uploaded[0]["title"].startswith("Worry guide")
 
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_mostly_urdu_content_does_not_mask_an_untranslated_english_title(monkeypatch) -> None:
+    """A bilingual admin-uploaded chunk can have content that's already
+    mostly Urdu while its auto-generated title (built from the admin's
+    English document metadata) is still plain English. Checking the
+    combined title+content ratio let that title slip through untranslated -
+    title and content must be checked independently."""
+    fake = _FakeClaude(reply={"title": "ترجمہ شدہ عنوان", "content": "ترجمہ شدہ مواد"})
+    _use_claude(monkeypatch, fake)
+    document = {
+        "id": "upload-mixed", "intent": "anxiety", "source": "admin_upload", "link": "",
+        "en": {"title": "Supportive Messages (part 12) - Adapted from motivational-interviewing principles", "content": "## اردو پیغامات\n\n**ذہنی دباؤ**\n- آج سب کچھ حل کرنا ضروری نہیں۔"},
+        "ur": {"title": "Supportive Messages (part 12) - Adapted from motivational-interviewing principles", "content": "## اردو پیغامات\n\n**ذہنی دباؤ**\n- آج سب کچھ حل کرنا ضروری نہیں۔"},
+    }
+    sources = asyncio.run(localize_sources_for_display([document], "ur"))
+    assert sources[0]["title"] == "ترجمہ شدہ عنوان"
+    assert fake.calls  # translation was actually invoked, not skipped
 
 
 def test_deep_passage_in_long_pdf_style_document_is_cited_for_matching_question() -> None:
