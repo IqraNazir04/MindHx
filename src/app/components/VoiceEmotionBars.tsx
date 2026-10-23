@@ -37,7 +37,7 @@ export function isVoiceEmotion(value: unknown): value is VoiceEmotion {
 // particular reading - a per-reading attribution lives in the backend's own
 // components.voice.note (evaluate_components), shown separately wherever
 // that's rendered; this one just explains the feature in general.
-const EMOTION_NOTE = "Emotion probabilities from a speech-emotion model - Qwen-Omni or wav2vec2 (local, trained on acted English recordings) - a rough reading of tone of voice, not a diagnosis.";
+const EMOTION_NOTE = "Emotion probabilities from a speech-emotion model - Qwen-Omni and wav2vec2 (local, trained on acted English recordings) - a rough reading of tone of voice, not a diagnosis.";
 
 export default function VoiceEmotionBars({ emotion, title }: { emotion: VoiceEmotion; title?: string }) {
   return (
