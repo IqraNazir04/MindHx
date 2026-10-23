@@ -2,6 +2,12 @@
 // premium images, which are not free to use). Centralized here so every page
 // credits the same photographer consistently and URLs are typed once.
 export const naturePhotos = {
+  sunlitLeaves: {
+    src: "https://images.unsplash.com/photo-1781875498080-f293d6456c38?q=80&w=2600&auto=format&fit=max",
+    alt: "Dark green leaves with a sunlit patch",
+    photographerName: "Spruce",
+    photographerUrl: "https://unsplash.com/@sprucejpg",
+  },
   mountainLake: {
     src: "https://images.unsplash.com/photo-1761880743944-af860cbcc211?q=80&w=2600&auto=format&fit=max",
     alt: "Calm lake reflecting mountains and trees at sunrise, Banff, Canada",
