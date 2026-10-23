@@ -1368,6 +1368,38 @@ def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> Non
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
 
 
+def test_admin_uploaded_source_is_translated_to_urdu_for_an_urdu_session(monkeypatch) -> None:
+    """Admin uploads are authored once, not bilingually like RAG_DOCUMENTS, so
+    without translation an Urdu chat session would show an English reference
+    card mid-conversation. localize_sources_for_display should catch this."""
+    admin_headers = {"Authorization": f"Bearer {_register_admin('translate-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("worry.txt", b"Naming the feared outcome and testing it against evidence eases worry.", "text/plain")},
+        data={"title": "Worry guide", "intent": "anxiety"},
+        headers=admin_headers,
+    ).json()
+
+    def reply(kwargs):
+        if kwargs["output_config"]["format"]["schema"] == main.REFERENCE_TRANSLATION_SCHEMA:
+            return {"title": "پریشانی کی رہنمائی", "content": "خوف زدہ نتیجے کا نام لینا اور اسے ثبوت کے خلاف جانچنا پریشانی کو کم کرتا ہے۔"}
+        return {"action": "respond", "message": "بے چینی کو سمجھنا ممکن ہے، آہستہ سانس لینے کی کوشش کریں۔", "offer_exercise": "none", "suggested_cta": {"label": "x", "href": "none"}}
+
+    _use_claude(monkeypatch, _FakeClaude(reply=reply))
+    body = client.post("/ai/chat", json={"message": "میں بہت فکر مند اور پریشان ہوں", "language": "ur", "risk_clear": True}).json()
+    uploaded = [source for source in body["sources"] if source["source"] == "admin_upload"]
+    assert uploaded, body
+    assert uploaded[0]["title"] == "پریشانی کی رہنمائی"
+    assert main.is_urdu_script(uploaded[0]["content"])
+
+    # The same card in English is left untranslated.
+    english_body = client.post("/ai/chat", json={"message": "I am feeling anxious and worried", "language": "en", "risk_clear": True}).json()
+    english_uploaded = [source for source in english_body["sources"] if source["source"] == "admin_upload"]
+    assert english_uploaded and english_uploaded[0]["title"].startswith("Worry guide")
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
 def test_deep_passage_in_long_pdf_style_document_is_cited_for_matching_question() -> None:
     admin_headers = {"Authorization": f"Bearer {_register_admin('deep-doc-admin@example.com')}"}
     filler = "\n\n".join(f"Section {number}: general background about daily routines and rest, unrelated to the question." for number in range(60))
@@ -1484,7 +1516,10 @@ def test_saving_the_same_assessment_twice_returns_the_same_checkin(monkeypatch) 
 
 class _FakeClaude:
     """Stands in for anthropic.AsyncAnthropic: records each request and
-    returns the queued JSON reply (or raises the queued error)."""
+    returns the queued JSON reply (or raises the queued error). `reply` can
+    also be a callable(kwargs) -> dict, for tests where more than one kind of
+    Claude call happens in one request (e.g. a chat reply plus a reference
+    translation) and each needs a different canned answer."""
 
     def __init__(self, reply=None, error=None) -> None:
         self.calls: list[dict] = []
@@ -1496,7 +1531,8 @@ class _FakeClaude:
                 fake.calls.append(kwargs)
                 if fake._error:
                     raise fake._error
-                block = type("Block", (), {"type": "text", "text": json.dumps(fake._reply)})()
+                reply = fake._reply(kwargs) if callable(fake._reply) else fake._reply
+                block = type("Block", (), {"type": "text", "text": json.dumps(reply)})()
                 return type("Response", (), {"stop_reason": "end_turn", "content": [block]})()
 
         self.beta = type("Beta", (), {"messages": _Messages()})()

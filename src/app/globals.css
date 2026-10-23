@@ -646,6 +646,7 @@ textarea::placeholder { color:#9aa6b4; }
 .chat-bubble.assistant { align-self:flex-start; background:var(--surface-soft); border:1px solid var(--line); color:var(--navy); border-bottom-left-radius:3px; }
 .chat-bubble.escalation { background:var(--red-soft); border:1px solid rgba(200,79,79,.3); color:#8b3535; }
 .chat-loading { color:var(--muted); font-style:italic; }
+.chat-section-label { margin:14px 0 6px; }
 .chat-source { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
 .chat-source h3 { margin:0 0 5px; color:var(--navy); font-size:13px; }
 .chat-source p { color:var(--muted); font-size:12px; line-height:1.55; }

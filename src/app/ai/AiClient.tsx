@@ -48,6 +48,10 @@ const copy = {
     send: "Send",
     sending: "Thinking...",
     openReference: "Open reference ↗",
+    resourcesHeading: "Where to get help",
+    sourcesHeading: "Sources",
+    exerciseHeading: "Try this now",
+    nextStepHeading: "Next step",
     moodPrompt: "How are you feeling right now?",
     moodThanks: "Thanks for checking in - that helps me understand the moment.",
     exerciseStart: "Start",
@@ -77,6 +81,10 @@ const copy = {
     send: "بھیجیں",
     sending: "سوچ رہا ہوں...",
     openReference: "حوالہ کھولیں ↗",
+    resourcesHeading: "مدد کہاں سے ملے گی",
+    sourcesHeading: "ذرائع",
+    exerciseHeading: "ابھی آزمائیں",
+    nextStepHeading: "اگلا قدم",
     moodPrompt: "ابھی آپ کیسا محسوس کر رہے ہیں؟",
     moodThanks: "چیک ان کرنے کا شکریہ - اس سے مجھے اس لمحے کو سمجھنے میں مدد ملتی ہے۔",
     exerciseStart: "شروع کریں",
@@ -205,34 +213,48 @@ export default function AiClient() {
             <div key={index} className={`chat-bubble ${entry.role} ${entry.isEscalation ? "escalation" : ""}`}>
               <p>{entry.content}</p>
               {entry.resources && entry.resources.length > 0 && (
-                <div className="chat-escalation-links">
-                  {entry.resources.map((resource) => <Link key={resource.link} href={resource.link} className={resource.link === "/emergency" ? "result-primary result-primary-orange" : "result-primary"}>{resource.title} <span>→</span></Link>)}
-                </div>
+                <>
+                  <p className="card-kicker chat-section-label">{text.resourcesHeading}</p>
+                  <div className="chat-escalation-links">
+                    {entry.resources.map((resource) => <Link key={resource.link} href={resource.link} className={resource.link === "/emergency" ? "result-primary result-primary-orange" : "result-primary"}>{resource.title} <span>→</span></Link>)}
+                  </div>
+                </>
               )}
-              {entry.sources?.map((source) => (
-                <article key={source.id} className="chat-source">
-                  <h3>{source.title}</h3>
-                  <p>{source.content}</p>
-                  {source.link && <Link href={source.link}>{text.openReference}</Link>}
-                </article>
-              ))}
+              {entry.sources && entry.sources.length > 0 && (
+                <>
+                  <p className="card-kicker chat-section-label">{text.sourcesHeading}</p>
+                  {entry.sources.map((source) => (
+                    <article key={source.id} className="chat-source">
+                      <h3>{source.title}</h3>
+                      <p>{source.content}</p>
+                      {source.link && <Link href={source.link}>{text.openReference}</Link>}
+                    </article>
+                  ))}
+                </>
+              )}
               {entry.exercise && (
-                <ExerciseStepper
-                  id={entry.exercise.id}
-                  name={entry.exercise.name}
-                  steps={entry.exercise.steps}
-                  startLabel={text.exerciseStart}
-                  restartLabel={text.exerciseRestart}
-                  progressLabel={text.exerciseProgress}
-                  onComplete={() => {
-                    recordHelpfulPractice(entry.exercise!.name);
-                    setHelpedMessages((current) => new Set(current).add(index));
-                  }}
-                />
+                <>
+                  <p className="card-kicker chat-section-label">{text.exerciseHeading}</p>
+                  <ExerciseStepper
+                    id={entry.exercise.id}
+                    name={entry.exercise.name}
+                    steps={entry.exercise.steps}
+                    startLabel={text.exerciseStart}
+                    restartLabel={text.exerciseRestart}
+                    progressLabel={text.exerciseProgress}
+                    onComplete={() => {
+                      recordHelpfulPractice(entry.exercise!.name);
+                      setHelpedMessages((current) => new Set(current).add(index));
+                    }}
+                  />
+                </>
               )}
               {entry.exercise && helpedMessages.has(index) && <p className="chat-helped-note">{text.helpedThanks}</p>}
               {entry.suggestedCta && (
-                <Link href={entry.suggestedCta.href} className="chat-suggested-cta">{entry.suggestedCta.label} →</Link>
+                <>
+                  <p className="card-kicker chat-section-label">{text.nextStepHeading}</p>
+                  <Link href={entry.suggestedCta.href} className="chat-suggested-cta">{entry.suggestedCta.label} →</Link>
+                </>
               )}
             </div>
           ))}

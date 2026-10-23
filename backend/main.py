@@ -787,6 +787,65 @@ def localize_rag_document(document: dict, language: str) -> dict:
     return {"id": document["id"], "title": locale["title"], "content": locale["content"], "link": document["link"], "source": document.get("source", "approved-library")}
 
 
+REFERENCE_TRANSLATION_SCHEMA = {
+    "type": "object",
+    "properties": {"title": {"type": "string"}, "content": {"type": "string"}},
+    "required": ["title", "content"],
+    "additionalProperties": False,
+}
+
+
+async def _translate_reference_card_to_urdu(title: str, content: str) -> Optional[tuple[str, str]]:
+    """Admin-uploaded reference documents aren't authored bilingually like
+    RAG_DOCUMENTS (see retrieve_reference_chunks - the same text is stored for
+    both "en" and "ur"), so an Urdu-language chat session would otherwise show
+    an English reference card mid-conversation. Best-effort on-the-fly
+    translation via the same provider cascade /ai/chat already uses (Claude,
+    then Qwen/OpenAI); returns None on any failure so the caller falls back to
+    showing the English original rather than nothing."""
+    system = "You translate short mental-health reference excerpts into natural, plain Urdu (Nastaliq script) for a general audience. Preserve the meaning and any markdown formatting exactly. Do not add commentary, headers, or anything not in the source."
+    user_content = f"Title: {title}\n\nExcerpt: {content}"
+    result = await claude_json(system=system, messages=[{"role": "user", "content": user_content}], schema=REFERENCE_TRANSLATION_SCHEMA, max_tokens=1500, purpose="/ai/chat-translate")
+    if result is None and (provider_info := _llm_provider()) is not None:
+        provider, model, url, api_key = provider_info
+        payload = {
+            "model": model,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user_content}],
+        }
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                response = await client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                result = json.loads(response.json()["choices"][0]["message"]["content"])
+        except (httpx.HTTPError, KeyError, TypeError, IndexError, ValueError) as error:
+            logger.error("%s reference translation failed: %r", provider, error)
+            result = None
+    if not isinstance(result, dict):
+        return None
+    translated_title, translated_content = result.get("title"), result.get("content")
+    if not isinstance(translated_title, str) or not isinstance(translated_content, str) or not translated_title.strip() or not translated_content.strip():
+        return None
+    return translated_title.strip(), translated_content.strip()
+
+
+async def localize_sources_for_display(documents: list[dict], language: str) -> list[dict]:
+    """localize_rag_document per source, plus an on-the-fly Urdu translation for
+    admin-uploaded cards that aren't already in Urdu - so reference cards stay
+    in the user's language the same way the composed reply already is."""
+    sources = []
+    for document in documents:
+        localized = localize_rag_document(document, language)
+        if language == "ur" and localized["source"] == "admin_upload" and not is_urdu_script(f"{localized['title']} {localized['content']}"):
+            translated = await _translate_reference_card_to_urdu(localized["title"], localized["content"])
+            if translated is not None:
+                localized["title"], localized["content"] = translated
+        sources.append(localized)
+    return sources
+
+
 def severity_for(score: int) -> str:
     if score <= 4:
         return "minimal"
@@ -3098,7 +3157,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
             "status": "grounded_support",
             "intent": intent,
             "message": text["grounded"],
-            "sources": [localize_rag_document(document, lang) for document in documents[:CHAT_SOURCES_SHOWN]],
+            "sources": await localize_sources_for_display(documents[:CHAT_SOURCES_SHOWN], lang),
             "generation": {"provider": "approved-rag-library", "model": "bounded-template", "diagnosis": False, "medication_prescribing": False},
         }
 
@@ -3106,7 +3165,7 @@ async def ai_chat(payload: AiSupportRequest, current_user: Optional[User] = Depe
         "status": "clarifying" if composed["action"] == "clarify" else "grounded_support",
         "intent": intent,
         "message": composed["message"],
-        "sources": [] if composed["action"] == "clarify" else [localize_rag_document(document, lang) for document in documents[:CHAT_SOURCES_SHOWN]],
+        "sources": [] if composed["action"] == "clarify" else await localize_sources_for_display(documents[:CHAT_SOURCES_SHOWN], lang),
         "generation": {"provider": composed["_provider"], "model": composed["_model"], "diagnosis": False, "medication_prescribing": False},
     }
     if composed.get("offer_exercise"):
