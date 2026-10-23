@@ -1350,6 +1350,53 @@ def test_admin_reference_document_upload_list_toggle_and_delete() -> None:
     assert client.delete(f"/admin/documents/{document['id']}", headers=admin_headers).status_code == 404
 
 
+def test_pack_paragraphs_breaks_a_long_list_between_items_not_mid_word() -> None:
+    """Reproduces the reported bug: a numbered list with no blank lines
+    between items reads as a single long paragraph to _pack_paragraphs, and
+    the old code hard-cut it at exactly `size` characters regardless of word
+    boundaries - "9. Set a boundary..." could come out as "9. Se". Every
+    line in every produced chunk should be one of the original intact
+    items, never a truncated prefix of one."""
+    from main import _pack_paragraphs
+    items = [f"{n}. Item number {n} with some filler text to pad it out a little." for n in range(1, 15)]
+    long_list = "\n".join(items)
+    chunks = _pack_paragraphs(long_list, 200)
+    assert len(chunks) > 1
+    for chunk in chunks:
+        for line in chunk.splitlines():
+            assert line in items, f"chunk line was cut mid-item: {line!r}"
+
+
+def test_split_at_boundary_prefers_the_last_newline_within_the_limit() -> None:
+    from main import _split_at_boundary
+    text = "1. First item here.\n2. Second item here.\n3. Third item that goes well past the limit and keeps going on"
+    head, rest = _split_at_boundary(text, 30)
+    assert head == "1. First item here."
+    assert rest.startswith("2. Second item here.")
+
+
+def test_admin_can_reindex_a_document_to_pick_up_a_chunking_fix() -> None:
+    """Chunks are only ever generated once, the first time the chat retrieves
+    a document (see retrieve_reference_chunks) - a document uploaded before a
+    chunking fix keeps its old, possibly broken chunks until reindexed."""
+    admin_headers = {"Authorization": f"Bearer {_register_admin('reindex-admin@example.com')}"}
+    created = client.post(
+        "/admin/documents",
+        files={"file": ("list.txt", b"1. One\n2. Two\n3. Three", "text/plain")},
+        data={"title": "List doc", "intent": "general"},
+        headers=admin_headers,
+    ).json()
+    client.post("/ai/chat", json={"message": "tell me something general", "risk_clear": True})  # triggers the lazy first index
+
+    assert client.post(f"/admin/documents/{created['id']}/reindex").status_code == 401
+    response = client.post(f"/admin/documents/{created['id']}/reindex", headers=admin_headers)
+    assert response.status_code == 200
+    assert response.json()["id"] == created["id"]
+    assert client.post("/admin/documents/does-not-exist/reindex", headers=admin_headers).status_code == 404
+
+    client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
 def test_uploaded_reference_document_is_cited_in_chat_only_while_active() -> None:
     admin_headers = {"Authorization": f"Bearer {_register_admin('chat-docs-admin@example.com')}"}
     marker = "Naming the feared outcome and testing it against evidence eases worry.  "

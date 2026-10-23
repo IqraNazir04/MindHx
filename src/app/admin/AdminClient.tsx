@@ -11,7 +11,7 @@ import {
 } from "../lib/admin";
 import { logout, type CurrentUser } from "../lib/auth";
 import {
-  REFERENCE_INTENTS, deleteReferenceDocument, fetchReferenceDocuments, setReferenceDocumentActive, uploadReferenceDocument,
+  REFERENCE_INTENTS, deleteReferenceDocument, fetchReferenceDocuments, reindexReferenceDocument, setReferenceDocumentActive, uploadReferenceDocument,
   type ReferenceDocument, type ReferenceIntent,
 } from "../lib/admin";
 import { resizeImageToDataUrl } from "../lib/resizeImage";
@@ -347,6 +347,7 @@ function ReferenceDocumentsSection() {
   const [intent, setIntent] = useState<ReferenceIntent>("anxiety");
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
 
   function load() {
     fetchReferenceDocuments()
@@ -396,6 +397,18 @@ function ReferenceDocumentsSection() {
     }
   }
 
+  async function handleReindex(document: ReferenceDocument) {
+    setReindexingId(document.id);
+    try {
+      const updated = await reindexReferenceDocument(document.id);
+      setDocuments((current) => current?.map((item) => (item.id === updated.id ? updated : item)) ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reindex this document.");
+    } finally {
+      setReindexingId(null);
+    }
+  }
+
   return (
     <section className="admin-section">
       <div className="admin-section-heading">
@@ -437,6 +450,7 @@ function ReferenceDocumentsSection() {
               </div>
               <div className="admin-resource-actions">
                 <button type="button" onClick={() => handleToggle(document)}>{document.active ? "Deactivate" : "Activate"}</button>
+                <button type="button" onClick={() => handleReindex(document)} disabled={reindexingId === document.id} title="Re-split this document into passages with the current chunking logic - use this if a passage you uploaded before a chunking fix still reads cut off mid-sentence">{reindexingId === document.id ? "Reindexing…" : "Reindex"}</button>
                 <button type="button" onClick={() => handleDelete(document)}>Delete</button>
               </div>
             </article>

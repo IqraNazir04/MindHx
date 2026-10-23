@@ -635,6 +635,22 @@ def _expanded_terms(text: str) -> set[str]:
     return expanded
 
 
+def _split_at_boundary(text: str, size: int) -> tuple[str, str]:
+    """Splits text at `size` without cutting a line or word in half where
+    avoidable - prefers the last newline within the limit (so a numbered or
+    bulleted list, which has no blank lines between items and so reads as one
+    long paragraph to _pack_paragraphs, still breaks between items rather
+    than mid-item), then the last space, and only falls back to a hard
+    character cut if neither exists."""
+    window = text[:size]
+    cut = window.rfind("\n")
+    if cut == -1:
+        cut = window.rfind(" ")
+    if cut <= 0 or not text[:cut].strip():
+        cut = size
+    return text[:cut].rstrip(), text[cut:].lstrip()
+
+
 def _pack_paragraphs(text: str, size: int) -> list[str]:
     """Packs paragraphs into passages of roughly `size` characters, splitting on
     paragraph boundaries where possible."""
@@ -646,8 +662,8 @@ def _pack_paragraphs(text: str, size: int) -> list[str]:
             if current:
                 chunks.append(current)
                 current = ""
-            chunks.append(paragraph[:size])
-            paragraph = paragraph[size:]
+            head, paragraph = _split_at_boundary(paragraph, size)
+            chunks.append(head)
         if current and len(current) + len(paragraph) + 2 > size:
             chunks.append(current)
             current = paragraph
@@ -3313,3 +3329,19 @@ def admin_delete_reference_document(document_id: str, admin: User = Depends(get_
     db.query(ReferenceChunk).filter(ReferenceChunk.document_id == document.id).delete()
     db.delete(document)
     db.commit()
+
+
+@app.post("/admin/documents/{document_id}/reindex")
+async def admin_reindex_reference_document(document_id: str, admin: User = Depends(get_current_admin), db: Session = Depends(get_db)) -> dict:
+    """Re-chunks a document that's already been indexed, with the current
+    chunk_document_text logic - chunks are only ever generated once
+    (retrieve_reference_chunks only indexes a document that has none yet), so
+    a document uploaded before a chunking fix keeps its old, possibly broken
+    chunks until this is called."""
+    document = db.get(ReferenceDocument, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    db.query(ReferenceChunk).filter(ReferenceChunk.document_id == document.id).delete()
+    db.commit()
+    await index_reference_document(db, document)
+    return _serialize_reference_document(document)

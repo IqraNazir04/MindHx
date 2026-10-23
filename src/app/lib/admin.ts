@@ -202,3 +202,12 @@ export async function deleteReferenceDocument(id: string): Promise<void> {
   const response = await authFetch(`/admin/documents/${id}`, { method: "DELETE" });
   if (!response.ok) throw new Error(await parseErrorDetail(response));
 }
+
+// Chunks are generated once, the first time the chat retrieves a document,
+// and never regenerated automatically - a document uploaded before a
+// chunking fix keeps its old passages until this is called.
+export async function reindexReferenceDocument(id: string): Promise<ReferenceDocument> {
+  const response = await authFetch(`/admin/documents/${id}/reindex`, { method: "POST" });
+  if (!response.ok) throw new Error(await parseErrorDetail(response));
+  return await response.json() as ReferenceDocument;
+}
