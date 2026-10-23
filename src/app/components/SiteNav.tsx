@@ -10,6 +10,7 @@ const NAV_LINKS: { href: string; en: string; ur: string }[] = [
   { href: "/therapies", en: "Therapies", ur: "تھراپیز" },
   { href: "/therapist", en: "Therapist", ur: "معالج" },
   { href: "/resources", en: "Resources", ur: "وسائل" },
+  { href: "/about", en: "About", ur: "تعارف" },
 ];
 
 const EMERGENCY = { href: "/emergency", en: "Emergency support", short: "Emergency", ur: "فوری مدد" };

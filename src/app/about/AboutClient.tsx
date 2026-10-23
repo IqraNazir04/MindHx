@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SiteHeader from "../components/SiteHeader";
 import { DoodleLeaf, DoodleSun } from "../components/Doodles";
 import SiteFooter from "../components/SiteFooter";
@@ -129,8 +129,15 @@ export default function AboutClient() {
   const [language, setLanguage] = useLanguage();
   const text = copy[language];
   const isUrdu = language === "اردو";
-  const [openIndex, setOpenIndex] = useState(0);
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
   const featuredTherapies = FEATURED_THERAPY_SLUGS.map((slug) => therapies.find((therapy) => therapy.slug === slug)).filter((therapy): therapy is (typeof therapies)[number] => Boolean(therapy));
+
+  useEffect(() => {
+    if (paused) return;
+    const timer = setTimeout(() => setActive((current) => (current + 1) % ABOUT_SECTIONS.length), 6000);
+    return () => clearTimeout(timer);
+  }, [active, paused]);
 
   return (
     <>
@@ -143,28 +150,37 @@ export default function AboutClient() {
         <h1>{text.title}</h1>
         <p>{text.intro}</p>
       </section>
-      <section className="about-accordion">
-        {ABOUT_SECTIONS.map((item, index) => {
-          const content = item[isUrdu ? "ur" : "en"];
-          const open = openIndex === index;
-          return (
-            <article key={content.title} className="about-accordion-item" data-open={open}>
-              <button type="button" className="about-accordion-header" aria-expanded={open} onClick={() => setOpenIndex(open ? -1 : index)}>
-                <StepIcon icon={item.icon} />
-                <h2>{content.title}</h2>
-                <span className="about-accordion-chevron" aria-hidden="true">⌄</span>
-              </button>
-              <div className="about-accordion-panel">
-                <div>
-                  <div className="about-accordion-body">
-                    <p>{content.body}</p>
-                    <div className="about-image"><NatureBanner {...naturePhotos[item.image]} sizes="(max-width: 700px) 100vw, 320px" /></div>
-                  </div>
+      <section className="about-slider" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+        <div className="about-slider-track">
+          {ABOUT_SECTIONS.map((item, index) => {
+            const content = item[isUrdu ? "ur" : "en"];
+            return (
+              <article key={content.title} className={`about-slide ${index === active ? "about-slide-active" : ""}`} aria-hidden={index !== active}>
+                <div className="about-slide-text">
+                  <h2><StepIcon icon={item.icon} />{content.title}</h2>
+                  <p>{content.body}</p>
                 </div>
-              </div>
-            </article>
-          );
-        })}
+                <div className="about-image"><NatureBanner {...naturePhotos[item.image]} sizes="(max-width: 700px) 100vw, 320px" /></div>
+              </article>
+            );
+          })}
+        </div>
+        <div className="about-slider-controls">
+          <button type="button" className="about-slider-arrow" aria-label={isUrdu ? "پچھلا" : "Previous"} onClick={() => setActive((current) => (current - 1 + ABOUT_SECTIONS.length) % ABOUT_SECTIONS.length)}>‹</button>
+          <div className="about-slider-dots">
+            {ABOUT_SECTIONS.map((item, index) => (
+              <button
+                key={item[isUrdu ? "ur" : "en"].title}
+                type="button"
+                className={`about-slider-dot ${index === active ? "active" : ""}`}
+                aria-current={index === active ? "true" : undefined}
+                aria-label={`${isUrdu ? "سلائیڈ" : "Slide"} ${index + 1}`}
+                onClick={() => setActive(index)}
+              />
+            ))}
+          </div>
+          <button type="button" className="about-slider-arrow" aria-label={isUrdu ? "اگلا" : "Next"} onClick={() => setActive((current) => (current + 1) % ABOUT_SECTIONS.length)}>›</button>
+        </div>
       </section>
       <section className="about-therapies">
         <p className="eyebrow" style={{ textAlign: "center" }}>{text.therapiesEyebrow}</p>
