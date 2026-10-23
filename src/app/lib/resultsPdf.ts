@@ -23,7 +23,7 @@ export type ResultForPdf = {
     gad7: { score: number | null; band: string };
     k10: { score: number | null; band: string };
     text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null; anger_level?: number | null; calm_level?: number | null };
-    voice: { available: boolean; signal: number | null; note: string; emotion?: VoiceEmotion | null };
+    voice: { available: boolean; signal: number | null; note: string; emotion?: VoiceEmotion | null; provider?: string | null };
     attribution?: {
       note: string;
       contributions: { label: string; modality: string; share_pct: number }[];

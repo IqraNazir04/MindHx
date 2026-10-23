@@ -1,9 +1,10 @@
 // Renders the voice emotion breakdown returned by /analyze-voice (and echoed
 // back in /risk-assess's components.voice.emotion) as a set of labeled bars:
-// the seven class probabilities of the Dpngtm/wav2vec2-emotion-recognition
-// speech-emotion model (backend/main.py's _voice_emotion_model_scores). It was
-// trained on acted English speech - keep the disclaimer visible wherever this
-// renders.
+// the seven class probabilities of whichever provider answered - Qwen-Omni
+// (a hosted multimodal model) when backend/main.py's DASHSCOPE_API_KEY is
+// configured, else the Dpngtm/wav2vec2-emotion-recognition speech-emotion
+// model run locally (_voice_emotion_model_scores). Keep the disclaimer
+// visible wherever this renders.
 
 export type VoiceEmotion = {
   angry: number;
@@ -32,7 +33,14 @@ export function isVoiceEmotion(value: unknown): value is VoiceEmotion {
   return typeof value === "object" && value !== null && VOICE_EMOTION_ROWS.every(({ key }) => typeof (value as Record<string, unknown>)[key] === "number");
 }
 
-export default function VoiceEmotionBars({ emotion, title }: { emotion: VoiceEmotion; title?: string }) {
+// Mirrors backend/main.py's QWEN_VOICE_EMOTION_MODEL_ID / VOICE_EMOTION_MODEL_ID.
+const NOTE_BY_PROVIDER: Record<string, string> = {
+  "qwen-omni": "Emotion probabilities from Qwen-Omni, a hosted multimodal model's read of vocal tone - a rough reading of tone of voice, not a diagnosis.",
+  "Dpngtm/wav2vec2-emotion-recognition": "Emotion probabilities from a speech-emotion model (wav2vec2) trained on acted English recordings - a rough reading of tone of voice, not a diagnosis.",
+};
+const DEFAULT_NOTE = "Emotion probabilities from a speech-emotion model - Qwen-Omni (hosted) when available, otherwise wav2vec2 (local, trained on acted English recordings) - a rough reading of tone of voice, not a diagnosis.";
+
+export default function VoiceEmotionBars({ emotion, title, provider }: { emotion: VoiceEmotion; title?: string; provider?: string | null }) {
   return (
     <div className="emotion-bars">
       {title && <p className="emotion-bars-title">{title}</p>}
@@ -43,7 +51,7 @@ export default function VoiceEmotionBars({ emotion, title }: { emotion: VoiceEmo
           <span className="emotion-share">{Math.round(emotion[key] * 100)}%</span>
         </div>
       ))}
-      <p className="emotion-note">Emotion probabilities from a speech-emotion model (wav2vec2) trained on acted English recordings - a rough reading of tone of voice, not a diagnosis.</p>
+      <p className="emotion-note">{(provider && NOTE_BY_PROVIDER[provider]) || DEFAULT_NOTE}</p>
     </div>
   );
 }

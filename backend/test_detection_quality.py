@@ -260,3 +260,96 @@ def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None
     body = response.json()
     assert body["crisis_language"] is True
     assert body["risk_signal"] >= 0.9
+
+
+def test_label_confidence_to_emotion_probabilities_covers_every_label() -> None:
+    for label in main.VOICE_EMOTION_LABELS:
+        probabilities = main._label_confidence_to_emotion_probabilities(label, confidence=7)
+        assert set(probabilities) == set(main.VOICE_EMOTION_LABELS)
+        assert all(0.0 <= value <= 1.0 for value in probabilities.values())
+        assert probabilities[label] == max(probabilities.values())
+    low = main._label_confidence_to_emotion_probabilities("calm", confidence=0)
+    high = main._label_confidence_to_emotion_probabilities("calm", confidence=10)
+    assert high["calm"] > low["calm"]
+    assert high["calm"] < 1.0  # never a hard 100% from a single judgment call
+
+
+def test_qwen_voice_emotion_reply_pattern_parses_the_expected_format() -> None:
+    match = main._QWEN_VOICE_EMOTION_REPLY_PATTERN.search("LABEL=happy CONFIDENCE=8")
+    assert match and match.group(1) == "happy" and match.group(2) == "8"
+    # Tolerates the model adding stray whitespace or casing without failing closed.
+    match = main._QWEN_VOICE_EMOTION_REPLY_PATTERN.search("  label = Calm   confidence=3  ")
+    assert match and match.group(1).lower() == "calm" and match.group(2) == "3"
+    assert main._QWEN_VOICE_EMOTION_REPLY_PATTERN.search("I heard someone speaking calmly.") is None
+
+
+def test_qwen_omni_voice_emotion_is_none_without_a_configured_key(monkeypatch) -> None:
+    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
+    result = asyncio.run(main._qwen_omni_voice_emotion(_tone(), SAMPLE_RATE))
+    assert result is None
+
+
+def test_qwen_omni_voice_emotion_fails_closed_on_an_unparseable_reply(monkeypatch) -> None:
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "I'm not able to describe that."}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    result = asyncio.run(main._qwen_omni_voice_emotion(_tone(), SAMPLE_RATE))
+    assert result is None
+
+
+def test_voice_endpoint_prefers_qwen_omni_over_the_local_model_when_configured(stub_model, monkeypatch) -> None:
+    """The cascade's whole point: a configured, successfully-parsed hosted
+    read must win over the always-available local model, the same way
+    Claude/Qwen already take priority over the text heuristic."""
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "LABEL=happy CONFIDENCE=9"}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeAsyncClient":
+            return self
+
+        async def __aexit__(self, *args) -> bool:
+            return False
+
+        async def post(self, *args, **kwargs) -> FakeResponse:
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
+    client = TestClient(main.app)
+    response = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_tone()), "audio/wav")})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["provider"] == main.QWEN_VOICE_EMOTION_MODEL_ID
+    assert body["emotion"]["happy"] == max(body["emotion"].values())
+    # The local model still runs (so a fast fallback is ready if Qwen fails),
+    # but Qwen's reading is what actually wins once it succeeds.
+    assert stub_model.calls == 1

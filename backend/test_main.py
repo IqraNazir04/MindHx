@@ -911,6 +911,27 @@ def test_risk_assess_keeps_only_model_emotion_labels() -> None:
     assert "Speech-emotion model" in body["components"]["voice"]["note"]
 
 
+def test_risk_assess_voice_note_credits_whichever_provider_actually_read_it() -> None:
+    emotion = {"angry": 0.1, "calm": 0.6, "disgust": 0.0, "fearful": 0.1, "happy": 0.1, "sad": 0.1, "surprised": 0.0}
+    qwen_body = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9,
+        "voice_features": {"risk_signal": 0.3, "emotion": emotion, "provider": "qwen-omni"},
+    }).json()
+    assert qwen_body["components"]["voice"]["provider"] == "qwen-omni"
+    assert "Qwen-Omni" in qwen_body["components"]["voice"]["note"]
+
+    # A client can't inject an arbitrary provider label - it's whitelisted
+    # against known values in _sanitize_voice_features, so a bogus one is
+    # dropped rather than trusted and surfaced back in the note.
+    spoofed_body = client.post("/risk-assess", json={
+        "phq9_answers": [0] * 9,
+        "voice_features": {"risk_signal": 0.3, "emotion": emotion, "provider": "a-made-up-provider"},
+    }).json()
+    assert spoofed_body["components"]["voice"]["provider"] is None
+    assert "Qwen-Omni" not in spoofed_body["components"]["voice"]["note"]
+    assert "wav2vec2" in spoofed_body["components"]["voice"]["note"]
+
+
 def test_band_never_says_low_when_the_plan_says_see_a_professional() -> None:
     for phq, gad in [([2, 2, 2, 2, 2, 2, 0, 0, 0], [0] * 7), ([0] * 9, [3, 3, 3, 3, 3, 0, 0])]:
         body = client.post("/risk-assess", json={"phq9_answers": phq, "gad7_answers": gad, "typed_text": "ok"}).json()
