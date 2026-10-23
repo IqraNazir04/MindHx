@@ -380,24 +380,21 @@ textarea::placeholder { color:#9aa6b4; }
    framed, and gave it the same breathing 3D icon badge as the innovation
    grid just above it, so the page doesn't go flat right before the footer. */
 .about-teaser { position:relative; overflow:hidden; margin:56px auto 40px; padding:48px 40px; border:1px solid var(--line); border-radius:20px; background:var(--surface-soft); box-shadow:0 10px 26px var(--shadow); text-align:start; max-width:640px; }
-/* Green forest photo filling the card (contained within its own rounded
-   corners, not full-bleed like the page's other photo sections) with a
-   slow Ken Burns drift, plus a cream wash so text stays legible over it -
-   same fade colour the rest of the page's photo backdrops use, just
-   applied all-over rather than bottom-only. */
+/* Golden-hour field photo filling the card (contained within its own
+   rounded corners, not full-bleed like the page's other photo sections)
+   with a slow Ken Burns drift, plus a cream wash so text stays legible
+   over it - same fade colour the rest of the page's photo backdrops use,
+   just applied all-over rather than bottom-only and a touch stronger here
+   so black text keeps good contrast against the photo underneath. */
 .about-teaser-photo-bg { position:absolute; inset:0; z-index:0; }
 .about-teaser-photo-bg img { animation:aboutTeaserKenBurns 32s ease-in-out infinite alternate; }
 @keyframes aboutTeaserKenBurns { 0% { transform:scale(1) translate(0,0); } 100% { transform:scale(1.12) translate(-2%,-1.5%); } }
 @media (prefers-reduced-motion:reduce) { .about-teaser-photo-bg img { animation:none; } }
-.about-teaser-photo-bg:after { content:""; position:absolute; inset:0; background:rgba(251,243,230,.6); }
+.about-teaser-photo-bg:after { content:""; position:absolute; inset:0; background:rgba(251,243,230,.78); }
 .about-teaser-content { position:relative; z-index:1; }
-/* Text recoloured into the same green family as the forest photo behind
-   it (was navy/muted, the site's default body colours) - and the blue
-   icon badge that used to sit above the eyebrow is gone entirely, since
-   blue didn't belong in an otherwise all-green section. */
-.about-teaser-eyebrow { color:var(--teal-deep); }
-.about-teaser-content h2 { font:600 clamp(26px,3.6vw,34px)/1.2 'Playfair Display',serif; color:var(--teal-deep); margin:0 0 14px; }
-.about-teaser-content p { color:#3f6350; font-size:14.5px; line-height:1.6; margin:0 0 20px; }
+.about-teaser-eyebrow { color:#000; }
+.about-teaser-content h2 { font:600 clamp(26px,3.6vw,34px)/1.2 'Playfair Display',serif; color:#000; margin:0 0 14px; }
+.about-teaser-content p { color:#000; font-size:14.5px; line-height:1.6; margin:0 0 20px; }
 @media (max-width:600px) { .about-teaser { padding:36px 24px; } }
 
 /* ---------- /about page long-form sections ---------- */

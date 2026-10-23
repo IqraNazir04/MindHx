@@ -647,7 +647,7 @@ export default function HomeClient() {
         <FeatureCarousel isUrdu={language === "اردو"} />
         <InnovationGrid isUrdu={language === "اردو"} />
         <section className="about-teaser">
-          <div className="about-teaser-photo-bg"><Image src={naturePhotos.sunlitPathway.src} alt="" fill sizes="640px" style={{ objectFit: "cover" }} /></div>
+          <div className="about-teaser-photo-bg"><Image src={naturePhotos.goldenField.src} alt="" fill sizes="640px" style={{ objectFit: "cover" }} /></div>
           <div className="about-teaser-content">
             <p className="eyebrow about-teaser-eyebrow">{text.aboutEyebrow}</p>
             <h2>{text.aboutTitle}</h2>
