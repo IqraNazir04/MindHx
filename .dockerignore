@@ -1,0 +1,10 @@
+# Rebuilt inside the image; sending them as build context only slows builds
+# (and a local node_modules would overwrite the image's own in web-builder).
+.git
+node_modules
+.next
+backend/.venv
+backend/__pycache__
+backend/*.db
+# Exported inside the image by the voice-model stage.
+backend/voice_model

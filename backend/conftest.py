@@ -27,6 +27,10 @@ os.environ["CHECKIN_COOLDOWN_DAYS"] = "0"
 os.environ["ANTHROPIC_API_KEY"] = ""
 os.environ["OPENAI_API_KEY"] = ""
 os.environ["DASHSCOPE_API_KEY"] = ""
+# Blank turns the wav2vec2 voice-emotion model off, so voice results don't
+# depend on whether backend/voice_model/ has been built on this machine.
+# Tests that need the model swap in a fake session themselves.
+os.environ["VOICE_EMOTION_MODEL_PATH"] = ""
 
 
 @atexit.register

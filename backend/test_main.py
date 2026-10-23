@@ -10,7 +10,7 @@ import main
 from database import init_db
 from manage import set_admin
 from ratelimit import limiter
-from main import RAG_DOCUMENTS, _prosodic_features, _prosodic_risk_signal, _voice_emotion_scores, app, compose_chat_reply, is_urdu_script, localize_sources_for_display, summarize_trajectory
+from main import RAG_DOCUMENTS, VOICE_EMOTION_LABELS, app, compose_chat_reply, is_urdu_script, localize_sources_for_display, summarize_trajectory
 from models import CheckIn
 
 init_db()
@@ -442,39 +442,6 @@ def test_gad7_and_k10_scores_route_to_structured_referral() -> None:
     assert body["support_plan"]["meditation"] == []
 
 
-def test_prosodic_risk_signal_higher_for_flat_paused_audio() -> None:
-    """Operates on already-decoded PCM arrays, so it exercises the heuristic math without
-    needing PyAV (which requires a native ffmpeg build) to be installed."""
-    sample_rate = 16000
-    duration = 2
-    t = np.linspace(0, duration, sample_rate * duration, endpoint=False)
-
-    mostly_silent = np.zeros_like(t)
-    mostly_silent[: sample_rate // 4] = 0.05 * np.sin(2 * np.pi * 200 * t[: sample_rate // 4])
-    mostly_silent[-sample_rate // 4:] = 0.05 * np.sin(2 * np.pi * 200 * t[-sample_rate // 4:])
-
-    continuous_varied = (0.3 + 0.2 * np.sin(2 * np.pi * 3 * t)) * np.sin(2 * np.pi * 220 * t)
-
-    quiet_features = _prosodic_features(mostly_silent.astype(np.float32), sample_rate)
-    active_features = _prosodic_features(continuous_varied.astype(np.float32), sample_rate)
-
-    assert quiet_features["pause_ratio"] > active_features["pause_ratio"]
-    assert _prosodic_risk_signal(quiet_features) > _prosodic_risk_signal(active_features)
-
-    quiet_emotion = _voice_emotion_scores(quiet_features)
-    active_emotion = _voice_emotion_scores(active_features)
-    # Mostly-silent, flat, slow audio should read as fatigued and depression-coded rather
-    # than stressed or angry; continuous, more energetically varied audio should read the
-    # other way around. These are heuristic proxies, not a trained emotion classifier - the
-    # test only checks the ordering the docstring above claims, not absolute values.
-    assert quiet_emotion["fatigue"] > active_emotion["fatigue"]
-    assert quiet_emotion["depression_indicator"] > active_emotion["depression_indicator"]
-    assert active_emotion["stress"] > quiet_emotion["stress"]
-    for scores in (quiet_emotion, active_emotion):
-        assert set(scores) == {"calm", "stress", "anger", "fatigue", "depression_indicator"}
-        assert all(0.0 <= value <= 1.0 for value in scores.values())
-
-
 def test_themes_detect_trauma_and_frustration_from_raw_text() -> None:
     response = client.post(
         "/risk-assess",
@@ -886,25 +853,62 @@ def test_risk_assess_tolerates_malformed_client_fields() -> None:
     assert body["components"]["text"]["sentiment"] == "neutral"
 
 
-def test_risk_assess_attributes_the_voice_signal_to_whichever_provider_read_it() -> None:
-    """The note shown on the results page must say which provider actually
-    produced the voice signal - /analyze-voice's cascade (Qwen-Omni when
-    configured, else the local heuristic) - not always claim the heuristic."""
-    heuristic = client.post("/risk-assess", json={
-        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4},
-    }).json()
-    assert "Heuristic" in heuristic["components"]["voice"]["note"]
+class _FakeEmotionSession:
+    """Stands in for the ONNX session: logits favour "calm" for full 8 s windows
+    and "angry" for shorter ones, so the window weighting is observable."""
 
-    hosted = client.post("/risk-assess", json={
-        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4, "provider": "qwen-omni"},
-    }).json()
-    assert "Qwen-Omni" in hosted["components"]["voice"]["note"]
+    def __init__(self) -> None:
+        self.window_sizes: list[int] = []
 
-    # Whitelisted, not whatever string the client sends.
-    spoofed = client.post("/risk-assess", json={
-        "phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.4, "provider": "a validated clinical device"},
-    }).json()
-    assert "Heuristic" in spoofed["components"]["voice"]["note"]
+    def run(self, _outputs, feeds: dict) -> list:
+        values = feeds["input_values"]
+        self.window_sizes.append(values.shape[1])
+        assert abs(float(values.mean())) < 1e-3 and abs(float(values.std()) - 1.0) < 1e-2
+        logits = np.full((1, len(VOICE_EMOTION_LABELS)), -10.0, dtype=np.float32)
+        logits[0, VOICE_EMOTION_LABELS.index("calm" if values.shape[1] >= 8 * 16000 else "angry")] = 10.0
+        return [logits]
+
+
+def test_voice_emotion_model_scores_average_windows_by_length(monkeypatch) -> None:
+    session = _FakeEmotionSession()
+    monkeypatch.setattr(main, "_load_voice_emotion_model", lambda: session)
+    audio = np.random.default_rng(0).standard_normal(20 * 16000).astype(np.float32) * 0.1
+
+    scores = main._voice_emotion_model_scores(audio, 16000)
+
+    # 20 s -> 8 s + 8 s + 4 s windows; calm carries 16 of the 20 seconds.
+    assert session.window_sizes == [8 * 16000, 8 * 16000, 4 * 16000]
+    assert scores["calm"] == 0.8 and scores["angry"] == 0.2
+    assert tuple(scores) == VOICE_EMOTION_LABELS
+
+
+def test_voice_emotion_model_drops_a_trailing_sliver_but_scores_a_short_clip(monkeypatch) -> None:
+    session = _FakeEmotionSession()
+    monkeypatch.setattr(main, "_load_voice_emotion_model", lambda: session)
+    main._voice_emotion_model_scores(np.random.default_rng(1).standard_normal(int(8.5 * 16000)).astype(np.float32), 16000)
+    assert session.window_sizes == [8 * 16000]
+    session.window_sizes.clear()
+    main._voice_emotion_model_scores(np.random.default_rng(2).standard_normal(int(0.7 * 16000)).astype(np.float32), 16000)
+    assert session.window_sizes == [int(0.7 * 16000)]
+
+
+def test_voice_emotion_model_is_skipped_when_unavailable() -> None:
+    # conftest blanks VOICE_EMOTION_MODEL_PATH, so the model never loads.
+    assert main._voice_emotion_model_scores(np.zeros(16000, dtype=np.float32), 16000) is None
+
+
+def test_voice_risk_signal_is_the_negative_emotion_probability() -> None:
+    emotions = {"angry": 0.1, "calm": 0.3, "disgust": 0.05, "fearful": 0.2, "happy": 0.1, "sad": 0.15, "surprised": 0.1}
+    assert main._voice_risk_signal(emotions) == 0.5
+    assert main._voice_risk_signal({"calm": 1.0}) == 0.0
+
+
+def test_risk_assess_keeps_only_model_emotion_labels() -> None:
+    emotion = {"angry": 0.1, "calm": 0.6, "disgust": 0.0, "fearful": 0.1, "happy": 0.1, "sad": 0.1, "surprised": 0.0, "fatigue": 0.9}
+    body = client.post("/risk-assess", json={"phq9_answers": [0] * 9, "voice_features": {"risk_signal": 0.3, "emotion": emotion}}).json()
+    assert set(body["components"]["voice"]["emotion"]) == set(VOICE_EMOTION_LABELS)
+    assert body["components"]["voice"]["signal"] == 0.3
+    assert "Speech-emotion model" in body["components"]["voice"]["note"]
 
 
 def test_band_never_says_low_when_the_plan_says_see_a_professional() -> None:
@@ -1265,7 +1269,7 @@ def test_all_three_signals_combine_with_the_blended_voice_score() -> None:
     signals, and the voice component reports the same signal it was given."""
     phq9, gad7, k10 = [1] * 8 + [0], [1] * 7, [2] * 10
     text_analysis = {"sentiment": "neutral"}
-    voice_features = {"risk_signal": 0.72, "emotion": {"calm": 0.1, "stress": 0.6, "anger": 0.1, "fatigue": 0.5, "depression_indicator": 0.6}}
+    voice_features = {"risk_signal": 0.72, "emotion": {"angry": 0.1, "calm": 0.1, "disgust": 0.02, "fearful": 0.3, "happy": 0.05, "sad": 0.4, "surprised": 0.03}}
     body = client.post("/risk-assess", json={
         "phq9_answers": phq9, "gad7_answers": gad7, "k10_answers": k10,
         "typed_text": "work has been okay", "text_analysis": text_analysis, "voice_features": voice_features,

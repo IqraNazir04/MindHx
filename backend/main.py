@@ -5,7 +5,6 @@ to save their check-in history across visits."""
 
 import envfile  # noqa: F401  - must load .env before modules read settings
 
-import base64
 import io
 import json
 import logging
@@ -15,7 +14,7 @@ import re
 import secrets
 import uuid
 import tempfile
-import wave
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -68,6 +67,9 @@ logger = logging.getLogger("mindhx")
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     init_db()
+    # Warm the voice emotion model off the event loop, so startup isn't held
+    # up and the first voice note doesn't pay the load time.
+    threading.Thread(target=_load_voice_emotion_model, name="voice-emotion-model", daemon=True).start()
     yield
 
 
@@ -1135,9 +1137,8 @@ def _linguistic_features(text: str) -> dict:
 
 
 def _linguistic_indicators(features: dict) -> dict:
-    """Maps the raw features above onto five 0-1 scores - the same five
-    dimensions voice reports (calm/stress/anger/fatigue/depression_indicator;
-    text's anxiety_level has no voice equivalent and stays a sixth). A coarse
+    """Maps the raw features above onto five 0-1 scores (calm, anxiety,
+    stress, anger, depression_indicator). A coarse
     lexicon-and-ratio heuristic, not a validated psychometric instrument -
     treat as a conversation starter alongside PHQ-9/GAD-7/K10, not a
     replacement for them."""
@@ -1292,8 +1293,7 @@ def evaluate_components(phq_result: dict, gad_result: dict, k10_result: dict, te
             "emotion": voice_features.get("emotion") if voice_signal is not None else None,
             "note": (
                 "Acoustic voice risk features are not available for this check-in." if voice_signal is None
-                else "Hosted audio-understanding model (Qwen-Omni) read of vocal tone and delivery - not a validated clinical biomarker." if voice_features.get("provider") == "qwen-omni"
-                else "Heuristic acoustic features included (pause ratio, loudness variability, speaking rate) - not a validated clinical biomarker."
+                else "Speech-emotion model (wav2vec2) read of vocal tone, blended with the transcribed words when available - not a validated clinical biomarker."
             ),
         },
         "combined_signal": combined,
@@ -1538,8 +1538,8 @@ async def analyze_with_llm(text: str, language: str) -> Optional[dict]:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "mindhx"}
+def health() -> dict[str, Any]:
+    return {"status": "ok", "service": "mindhx", "voice_emotion_model": _voice_emotion_model is not None}
 
 
 def _serialize_user(user: User) -> dict:
@@ -2395,310 +2395,120 @@ def _decode_audio_mono(av_module, path: str, target_rate: int = 16000) -> tuple[
     return np.concatenate(chunks, axis=1).flatten().astype(np.float32), target_rate
 
 
-# Below this much clearly-voiced audio, there isn't enough signal to read tone
-# from at all - a mostly-silent recording should report "nothing to read",
-# never a false maximum-risk reading (see _prosodic_risk_signal).
+# Below this much clearly voiced audio the model's reading is noise, not tone:
+# silence or a dead microphone still yields confident-looking probabilities.
 MIN_VOICED_SECONDS = 0.3
+# Absolute per-frame RMS (on [-1, 1] PCM) above which a 25 ms frame counts as voiced.
+VOICED_FRAME_RMS = 0.005
+
+VOICE_EMOTION_MODEL_ID = "Dpngtm/wav2vec2-emotion-recognition"
+# The classifier's output classes, in its id2label order. /risk-assess keeps
+# only these keys from a client-supplied voice result.
+VOICE_EMOTION_LABELS = ("angry", "calm", "disgust", "fearful", "happy", "sad", "surprised")
+# The classes whose combined probability is the acoustic voice signal.
+VOICE_NEGATIVE_EMOTIONS = ("angry", "disgust", "fearful", "sad")
+# Built by backend/scripts/export_voice_emotion_model.py (the Docker builds
+# run it). Set VOICE_EMOTION_MODEL_PATH to an empty string to turn the model off.
+VOICE_EMOTION_MODEL_PATH = os.getenv("VOICE_EMOTION_MODEL_PATH", str(Path(__file__).resolve().parent / "voice_model" / "voice-emotion.onnx"))
+# The model card recommends clips under 10 s; longer recordings are scored
+# per window and the probabilities averaged, weighted by window length.
+VOICE_EMOTION_WINDOW_SEC = 8.0
+VOICE_EMOTION_MIN_WINDOW_SEC = 1.0
+
+_voice_emotion_model: Optional[Any] = None
+_voice_emotion_model_failed = False
+_voice_emotion_model_lock = threading.Lock()
 
 
-def _prosodic_features(audio: np.ndarray, sample_rate: int) -> dict:
-    """Frame-level loudness/pause/rate features computed directly from PCM samples."""
-    frame_length = max(1, int(0.025 * sample_rate))
-    hop_length = max(1, int(0.010 * sample_rate))
-    frames = [audio[start:start + frame_length] for start in range(0, max(1, len(audio) - frame_length), hop_length)]
-    if not frames:
-        frames = [audio]
-    rms = np.array([float(np.sqrt(np.mean(frame.astype(np.float64) ** 2) + 1e-12)) for frame in frames])
-    threshold = max(float(rms.mean()) * 0.35, 1e-4)
-    voiced_mask = rms > threshold
-    pause_ratio = float(1.0 - voiced_mask.mean())
-    voiced_rms = rms[voiced_mask]
-    energy_variability = float(voiced_rms.std() / (voiced_rms.mean() + 1e-9)) if voiced_rms.size >= 2 else 0.0
-    transitions = np.diff(voiced_mask.astype(int))
-    segment_count = int(np.sum(transitions == 1)) + (1 if voiced_mask.size and voiced_mask[0] else 0)
-    duration_sec = len(audio) / sample_rate
-    speaking_rate = segment_count / duration_sec if duration_sec > 0 else 0.0
-    pitch_std = _pitch_variability_semitones(audio, sample_rate, frame_length, hop_length, voiced_mask)
-    voiced_seconds = float(voiced_mask.sum()) * hop_length / sample_rate
-    return {
-        "duration_sec": round(duration_sec, 2),
-        "pause_ratio": round(pause_ratio, 3),
-        "energy_variability": round(energy_variability, 3),
-        "speaking_rate": round(speaking_rate, 3),
-        "pitch_variability_semitones": round(pitch_std, 2) if pitch_std is not None else None,
-        "voiced_seconds": round(voiced_seconds, 2),
-    }
+def _load_voice_emotion_model() -> Optional[Any]:
+    """The ONNX session, loaded once (lifespan starts this in the background so
+    the first voice note doesn't wait for it). Returns None when the model file
+    or onnxruntime is missing, without retrying on every request."""
+    global _voice_emotion_model, _voice_emotion_model_failed
+    if _voice_emotion_model is not None or _voice_emotion_model_failed or not VOICE_EMOTION_MODEL_PATH:
+        return _voice_emotion_model
+    with _voice_emotion_model_lock:
+        if _voice_emotion_model is not None or _voice_emotion_model_failed:
+            return _voice_emotion_model
+        model_path = Path(VOICE_EMOTION_MODEL_PATH)
+        try:
+            import onnxruntime
+
+            labels = tuple(json.loads(model_path.with_suffix(".labels.json").read_text()))
+            if labels != VOICE_EMOTION_LABELS:
+                raise ValueError(f"unexpected labels {labels}")
+            _voice_emotion_model = onnxruntime.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
+            logger.info("Voice emotion model loaded from %s", model_path)
+        except Exception as error:
+            _voice_emotion_model_failed = True
+            logger.error("Voice emotion model unavailable at %s (%r) - voice notes are read from their words only", model_path, error)
+    return _voice_emotion_model
 
 
-def _pitch_variability_semitones(audio: np.ndarray, sample_rate: int, frame_length: int, hop_length: int, voiced_mask: np.ndarray) -> Optional[float]:
-    """Spread of the fundamental frequency across voiced frames, in semitones.
+def _voiced_seconds(audio: np.ndarray, sample_rate: int) -> float:
+    """Seconds of audio in 25 ms frames loud enough to be speech."""
+    frame = max(1, int(0.025 * sample_rate))
+    usable = audio[: len(audio) - len(audio) % frame].astype(np.float64)
+    if usable.size == 0:
+        return 0.0
+    rms = np.sqrt(np.mean(usable.reshape(-1, frame) ** 2, axis=1))
+    return float(np.sum(rms > VOICED_FRAME_RMS) * frame / sample_rate)
 
-    Each voiced frame's pitch comes from its autocorrelation peak within the normal
-    speaking range (70-400 Hz); frames without a clear peak are ignored. Flat,
-    monotone speech gives a small spread. Returns None when there isn't enough
-    clearly voiced material to estimate it, so the signal doesn't guess."""
-    min_lag = max(1, int(sample_rate / 400))
-    max_lag = int(sample_rate / 70)
-    semitones: list[float] = []
-    samples = audio.astype(np.float64)
-    for index, voiced in enumerate(voiced_mask):
-        if not voiced:
-            continue
-        start = index * hop_length
-        frame = samples[start:start + frame_length]
-        if frame.size < max_lag + 1:
-            continue
-        frame = frame - frame.mean()
-        energy = float(np.dot(frame, frame))
-        if energy <= 1e-12:
-            continue
-        correlation = np.correlate(frame, frame, mode="full")[frame.size - 1:]
-        window = correlation[min_lag:max_lag + 1]
-        if window.size == 0:
-            continue
-        peak = int(np.argmax(window))
-        if window[peak] / energy < 0.5:
-            continue
-        frequency = sample_rate / (min_lag + peak)
-        semitones.append(12.0 * np.log2(frequency / 110.0))
-    if len(semitones) < 10:
+
+def _voice_emotion_model_scores(audio: np.ndarray, sample_rate: int) -> Optional[dict]:
+    """Class probabilities from the wav2vec2 emotion classifier for 16 kHz mono
+    audio, or None when the model isn't available. Trained on acted English
+    speech (RAVDESS, CREMA-D, TESS, SAVEE), so treat it as a rough reading,
+    especially for Urdu or natural, quiet speech."""
+    session = _load_voice_emotion_model()
+    if session is None:
         return None
-    return float(np.std(semitones))
+    window = int(VOICE_EMOTION_WINDOW_SEC * sample_rate)
+    minimum = int(VOICE_EMOTION_MIN_WINDOW_SEC * sample_rate)
+    windows = [audio[start:start + window] for start in range(0, len(audio), window)]
+    windows = [chunk for chunk in windows if chunk.size >= minimum] or windows[:1]
+    total = np.zeros(len(VOICE_EMOTION_LABELS))
+    for chunk in windows:
+        # do_normalize in the model's preprocessor config: zero mean, unit variance per clip.
+        values = ((chunk - chunk.mean()) / np.sqrt(chunk.var() + 1e-7)).astype(np.float32)[np.newaxis, :]
+        logits = session.run(None, {"input_values": values})[0][0].astype(np.float64)
+        probabilities = np.exp(logits - logits.max())
+        total += chunk.size * probabilities / probabilities.sum()
+    total /= sum(chunk.size for chunk in windows)
+    return {label: round(float(value), 3) for label, value in zip(VOICE_EMOTION_LABELS, total)}
 
 
-def _prosodic_risk_signal(features: dict) -> Optional[float]:
-    """Maps prosodic features to 0..1: more pausing, flatter loudness, and slower speech
-    (all associated with psychomotor slowing / low affect in the literature) push it up.
-    The thresholds below are reasonable heuristic assumptions, not fitted to labeled data -
-    treat this as a proxy signal, not a validated biomarker score.
-
-    Returns None below MIN_VOICED_SECONDS of actually-voiced audio: a near-silent
-    recording has pause_ratio near 1.0 and near-zero energy variability and speaking
-    rate, which used to map to the maximum possible risk score (1.0) - mistaking
-    "no speech was captured" for "flat, slowed speech", the opposite of what pausing
-    and flatness are meant to signal. No usable signal should mean no signal, not a
-    false ceiling."""
-    if features.get("voiced_seconds", 0.0) < MIN_VOICED_SECONDS:
-        return None
-    pause_component = min(1.0, max(0.0, (features["pause_ratio"] - 0.3) / 0.4))
-    variability_component = min(1.0, max(0.0, (0.5 - features["energy_variability"]) / 0.5))
-    rate_component = min(1.0, max(0.0, (2.0 - features["speaking_rate"]) / 2.0))
-    pitch_std = features.get("pitch_variability_semitones")
-    if pitch_std is None:
-        signal = 0.4 * pause_component + 0.35 * variability_component + 0.25 * rate_component
-    else:
-        pitch_component = min(1.0, max(0.0, (3.0 - pitch_std) / 3.0))
-        signal = 0.3 * pause_component + 0.2 * variability_component + 0.15 * rate_component + 0.35 * pitch_component
-    return round(min(1.0, max(0.0, signal)), 2)
+def _voice_risk_signal(emotions: dict) -> float:
+    """The acoustic voice signal: the model's combined probability of the
+    negative-affect classes (angry, disgust, fearful, sad). A proxy from an
+    acted-speech emotion classifier, not a validated clinical voice biomarker."""
+    return round(min(1.0, max(0.0, sum(emotions.get(label, 0.0) for label in VOICE_NEGATIVE_EMOTIONS))), 2)
 
 
-def _voice_emotion_scores(features: dict) -> Optional[dict]:
-    """Coarse rule-based reading of the same three prosodic features onto five
-    illustrative labels (calm, stress, anger, fatigue, depression_indicator).
-
-    This is NOT emotion recognition from a trained model, and it has no pitch
-    or spectral information to work with - only loudness variability, pause
-    ratio, and speaking rate. Treat these bars as a rough, transparent proxy
-    of vocal energy and pacing, not a clinical or forensic-grade classifier
-    of mood or affect. depression_indicator reuses _prosodic_risk_signal's
-    psychomotor-slowing heuristic (pausing + flat loudness + slow speech).
-
-    Returns None under the same MIN_VOICED_SECONDS gate as _prosodic_risk_signal,
-    for the same reason: silence read as maximum fatigue/minimum calm is a false
-    reading, not a cautious one."""
-    if features.get("voiced_seconds", 0.0) < MIN_VOICED_SECONDS:
-        return None
-
-    def clamp(value: float) -> float:
-        return min(1.0, max(0.0, value))
-
-    pause_ratio = features["pause_ratio"]
-    variability = features["energy_variability"]
-    rate = features["speaking_rate"]
-
-    variability_high = clamp((variability - 0.5) / 0.5)
-    variability_low = clamp((0.5 - variability) / 0.5)
-    rate_fast = clamp((rate - 2.0) / 2.0)
-    rate_slow = clamp((2.0 - rate) / 2.0)
-    pause_low = clamp((0.3 - pause_ratio) / 0.3)
-    pause_high = clamp((pause_ratio - 0.3) / 0.4)
-
-    # Stress and anger both read as "activated" delivery (louder swings, faster
-    # pace, fewer pauses); anger weights the loudness bursts more heavily,
-    # stress is a more even blend - a coarse distinction, not a validated one.
-    stress = clamp(0.45 * variability_high + 0.35 * rate_fast + 0.20 * pause_low)
-    anger = clamp(0.65 * variability_high + 0.35 * rate_fast)
-    fatigue = clamp(0.45 * variability_low + 0.35 * rate_slow + 0.20 * pause_high)
-    depression_indicator = _prosodic_risk_signal(features)
-    calm = clamp(1.0 - max(stress, anger, 0.7 * fatigue))
-
-    return {
-        "calm": round(calm, 2),
-        "stress": round(stress, 2),
-        "anger": round(anger, 2),
-        "fatigue": round(fatigue, 2),
-        "depression_indicator": round(depression_indicator, 2),
-    }
-
-
-def _analyze_audio_file(av_module, path: str) -> tuple[np.ndarray, int, dict]:
-    """CPU-bound decode + feature extraction - run off the event loop (see
-    analyze_voice) so one recording doesn't stall every other request. Returns the
-    decoded PCM and sample rate too (not just the feature dict), so analyze_voice
-    can also hand the same audio to a hosted audio-understanding model without
-    decoding the file a second time."""
+def _analyze_audio_file(av_module, path: str) -> dict:
+    """CPU-bound decode + model inference - run off the event loop (see
+    analyze_voice) so one recording doesn't stall every other request."""
     audio, sample_rate = _decode_audio_mono(av_module, path)
     if audio.size < sample_rate * 0.5:
         raise HTTPException(status_code=422, detail="Audio is too short to analyze (minimum ~0.5s)")
-    features = _prosodic_features(audio, sample_rate)
-    risk_signal = _prosodic_risk_signal(features)
-    result = {
-        "provider": "local-heuristic",
-        "risk_signal": risk_signal,
-        "emotion": _voice_emotion_scores(features),
-        **features,
-        "note": (
+    voiced_seconds = _voiced_seconds(audio, sample_rate)
+    emotions = _voice_emotion_model_scores(audio, sample_rate) if voiced_seconds >= MIN_VOICED_SECONDS else None
+    if emotions is None:
+        note = (
             "Not enough clearly voiced audio was captured to read vocal tone from this recording."
-            if risk_signal is None else
-            "Heuristic prosodic signal derived directly from audio (pause ratio, energy variability, speaking rate). Not a validated clinical voice biomarker."
-        ),
+            if voiced_seconds < MIN_VOICED_SECONDS else
+            "The voice emotion model is not available, so vocal tone was not read from this recording."
+        )
+    else:
+        note = "Emotion probabilities from a wav2vec2 speech-emotion model trained on acted English speech. Not a validated clinical voice biomarker."
+    return {
+        "provider": VOICE_EMOTION_MODEL_ID if emotions is not None else None,
+        "duration_sec": round(audio.size / sample_rate, 2),
+        "voiced_seconds": round(voiced_seconds, 2),
+        "risk_signal": _voice_risk_signal(emotions) if emotions is not None else None,
+        "emotion": emotions,
+        "note": note,
     }
-    return audio, sample_rate, result
-
-
-def _pcm_to_wav_bytes(audio: np.ndarray, sample_rate: int) -> bytes:
-    """Mono float32 PCM (as _decode_audio_mono returns) packaged as 16-bit WAV -
-    the format the hosted audio-understanding model below requires; it doesn't
-    accept the webm/opus browsers actually record voice notes in."""
-    buffer = io.BytesIO()
-    with wave.open(buffer, "wb") as writer:
-        writer.setnchannels(1)
-        writer.setsampwidth(2)
-        writer.setframerate(sample_rate)
-        writer.writeframes((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
-    return buffer.getvalue()
-
-
-# A fixed, small vocabulary the model is asked to answer in (never free text),
-# so the reply is always parseable, and a base risk reading per label - tired/
-# flat lean on the same psychomotor-slowing association _prosodic_risk_signal
-# uses, stressed/agitated read as activation/distress rather than low mood.
-# Heuristic mappings, same honesty as the rest of this file: not fitted to
-# labeled outcome data, because none exists for this app yet.
-QWEN_AUDIO_TONE_LABELS = {"calm": 0.05, "neutral": 0.25, "tired": 0.55, "flat": 0.6, "stressed": 0.6, "agitated": 0.65}
-QWEN_AUDIO_TONE_PROMPT = (
-    "Listen to this short voice recording. Describe ONLY the vocal delivery - tone, pacing, pitch, pauses, "
-    "energy - never the words said or their meaning or language. Reply with exactly one line, this exact "
-    "format and nothing else, no punctuation or explanation: "
-    "LABEL=<one of calm, neutral, tired, flat, stressed, agitated> INTENSITY=<integer 0-10>"
-)
-_QWEN_TONE_REPLY_PATTERN = re.compile(r"LABEL\s*=\s*(\w+)\s+INTENSITY\s*=\s*(\d+)", re.IGNORECASE)
-
-
-def _tone_label_to_emotion_bars(label: str, intensity: int) -> dict:
-    """Maps the model's single label+intensity onto the same five bars the local
-    heuristic produces (calm/stress/anger/fatigue/depression_indicator), so the UI
-    renders one shape regardless of which provider actually answered."""
-    strength = intensity / 10.0
-    bars = {"calm": 0.0, "stress": 0.0, "anger": 0.0, "fatigue": 0.0, "depression_indicator": 0.0}
-    if label == "calm":
-        bars["calm"] = round(0.6 + 0.4 * strength, 2)
-    elif label == "neutral":
-        bars["calm"] = 0.5
-    elif label in ("tired", "flat"):
-        bars["fatigue"] = round(0.4 + 0.5 * strength, 2)
-        bars["depression_indicator"] = round(0.3 + 0.5 * strength, 2)
-        bars["calm"] = 0.3
-    elif label == "stressed":
-        bars["stress"] = round(0.4 + 0.5 * strength, 2)
-    elif label == "agitated":
-        bars["stress"] = round(0.3 + 0.4 * strength, 2)
-        bars["anger"] = round(0.3 + 0.4 * strength, 2)
-    return bars
-
-
-def _moderate_emotion_with_content(emotion: dict, content_signal: float, crisis_language: bool) -> dict:
-    """Blends each acoustic-only emotion bar with the same content_signal that
-    already corrects risk_signal (same 60/40 weighting), so a misreading like
-    animated-but-happy speech scoring high on the Anger bar gets pulled back
-    toward what the words actually say - not just the single combined number
-    underneath it. calm is recomputed from the moderated bars rather than
-    blended on its own, since it's defined as their absence, not measured
-    independently (see _voice_emotion_scores).
-
-    A crisis disclosure in the words still isn't softened by a calm-sounding
-    voice here either: depression_indicator gets the same 0.9 floor
-    risk_signal does, for the same reason."""
-    moderated = dict(emotion)
-    for key in ("stress", "anger", "fatigue", "depression_indicator"):
-        if key in moderated:
-            moderated[key] = round(min(1.0, max(0.0, 0.6 * moderated[key] + 0.4 * content_signal)), 2)
-    if crisis_language and "depression_indicator" in moderated:
-        moderated["depression_indicator"] = max(moderated["depression_indicator"], 0.9)
-    if "calm" in moderated:
-        moderated["calm"] = round(min(1.0, max(0.0, 1.0 - max(moderated.get("stress", 0.0), moderated.get("anger", 0.0), 0.7 * moderated.get("fatigue", 0.0)))), 2)
-    return moderated
-
-
-async def _qwen_omni_tone_signal(audio: np.ndarray, sample_rate: int) -> Optional[dict]:
-    """A hosted audio-understanding model's (Qwen-Omni, on Alibaba Cloud Model Studio)
-    read of vocal delivery - tone, pacing, pauses, energy - as a genuine trained-model
-    complement to the local RMS/pause heuristic above, which this takes priority over
-    in analyze_voice when it succeeds. Reuses the same DASHSCOPE_API_KEY/
-    DASHSCOPE_BASE_URL configuration as the text-chat provider (_llm_provider), since
-    Qwen-Omni is served from the same OpenAI-compatible endpoint - but needs its own
-    model id (DASHSCOPE_AUDIO_MODEL), since the text chat default (qwen-plus) doesn't
-    take audio input.
-
-    Explicitly prompted to ignore the words entirely, so this stays a tone signal
-    distinct from content_signal's read of the transcript rather than a second,
-    redundant read of the same thing. Not a clinical emotion classifier - a general-
-    purpose model's prompted read of a short clip, with the same honesty as every
-    other heuristic signal in this file about what it is and isn't. Returns None on
-    any failure (not configured, request error, oversized audio, an unparseable
-    reply) so callers fall back to the local heuristic without special-casing."""
-    api_key = os.getenv("DASHSCOPE_API_KEY")
-    if not api_key:
-        return None
-    wav_bytes = _pcm_to_wav_bytes(audio, sample_rate)
-    if len(wav_bytes) > 7_000_000:  # stays well under the provider's 10MB base64-encoded limit
-        return None
-    base_url = os.getenv("DASHSCOPE_BASE_URL", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1")
-    model = os.getenv("DASHSCOPE_AUDIO_MODEL", "qwen3.8-omni-flash")
-    payload = {
-        "model": model,
-        "modalities": ["text"],
-        "messages": [{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": QWEN_AUDIO_TONE_PROMPT},
-                {"type": "input_audio", "input_audio": {"data": base64.b64encode(wav_bytes).decode("ascii"), "format": "wav"}},
-            ],
-        }],
-    }
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(
-                f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            response.raise_for_status()
-            content = response.json()["choices"][0]["message"]["content"]
-    except (httpx.HTTPError, KeyError, TypeError, IndexError) as error:
-        logger.error("Qwen-Omni voice-tone request failed: %r", error)
-        return None
-    match = _QWEN_TONE_REPLY_PATTERN.search(content or "")
-    if not match or match.group(1).lower() not in QWEN_AUDIO_TONE_LABELS:
-        logger.warning("Qwen-Omni voice-tone reply did not match the expected format: %r", (content or "")[:200])
-        return None
-    label = match.group(1).lower()
-    intensity = max(0, min(10, int(match.group(2))))
-    base = QWEN_AUDIO_TONE_LABELS[label]
-    # Intensity nudges the base reading rather than overriding it outright - a
-    # "calm" read at intensity 10 should still land as calm, not swing to risky.
-    signal = round(max(0.0, min(1.0, base + (intensity - 5) * 0.03)), 2)
-    return {"signal": signal, "label": label, "intensity": intensity, "emotion": _tone_label_to_emotion_bars(label, intensity)}
 
 
 @app.post("/analyze-voice", dependencies=[Depends(rate_limit("analyze-voice", 20, 3600))])
@@ -2714,28 +2524,17 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     the words is never softened by a calm-sounding voice - the same floor rule used
     for crisis detection elsewhere.
 
-    The acoustic tone signal itself comes from whichever provider is actually
-    available, most sophisticated first - the same cascade shape analyze_text already
-    uses for text:
-      1. Qwen-Omni (_qwen_omni_tone_signal), a hosted audio-understanding model, when
-         DASHSCOPE_API_KEY is configured - a genuine trained model's read of tone,
-         pacing, pauses and energy, prompted to ignore the words entirely.
-      2. Otherwise the local RMS/pause-ratio heuristic (_prosodic_risk_signal) -
-         always available, no API key needed, the one this whole feature started as.
-    VOICE_BIOMARKER_PROVIDER picks between this cascade ('local', the default - which,
-    despite the name, still prefers Qwen-Omni when configured) and a clinical voice-
-    biomarker vendor, which isn't integrated.
+    The acoustic tone signal and the emotion bars come from the
+    Dpngtm/wav2vec2-emotion-recognition speech-emotion model, run locally with
+    onnxruntime (_voice_emotion_model_scores); the bars are its seven class
+    probabilities exactly as the model returns them.
 
     A caller that already has a transcript (the frontend calls /transcribe just before
     this) can pass it in via the `transcript` field to skip a second Whisper call;
     otherwise this transcribes the audio itself when OPENAI_API_KEY is configured. With
-    no transcript available either way, this falls back to acoustic-only analysis (with
-    its own MIN_VOICED_SECONDS gate against misreading silence), so it still degrades
-    gracefully without Whisper, and without Qwen-Omni, and without both."""
-    provider = os.getenv("VOICE_BIOMARKER_PROVIDER", "local")
-    if provider != "local":
-        raise HTTPException(status_code=503, detail=f"Voice biomarker provider '{provider}' is not implemented")
-
+    no transcript available either way, this falls back to tone-only analysis (with
+    its own MIN_VOICED_SECONDS gate against misreading silence), and without the model
+    it falls back to the words alone."""
     try:
         import av
     except ImportError as error:
@@ -2759,7 +2558,7 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
         temp_path = temp_file.name
 
     try:
-        audio, sample_rate, result = await run_in_threadpool(_analyze_audio_file, av, temp_path)
+        result = await run_in_threadpool(_analyze_audio_file, av, temp_path)
     except HTTPException:
         raise
     except Exception as error:
@@ -2767,25 +2566,12 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     finally:
         Path(temp_path).unlink(missing_ok=True)
 
-    # A hosted audio-understanding model's own read of tone, when configured,
-    # takes priority over the local RMS/pause heuristic above - the same
-    # "most capable provider available" cascade analyze_text already uses for
-    # text. Still unconditionally attempted (not just as a fallback when the
-    # heuristic looks uncertain), matching that same pattern.
-    tone_model = await _qwen_omni_tone_signal(audio, sample_rate)
-    if tone_model is not None:
-        result["provider"] = "qwen-omni"
-        result["risk_signal"] = tone_model["signal"]
-        result["emotion"] = tone_model["emotion"]
-        result["tone_label"] = tone_model["label"]
-        result["note"] = f"Hosted audio-understanding model (Qwen-Omni) read of vocal delivery: {tone_model['label']}. Prompted to describe tone only, not the words said - not a validated clinical signal."
-
-    # Whisper is a far more reliable voice-activity detector than either
-    # acoustic provider above: if it transcribed real words, that overrides a
+    # Whisper is a far more reliable voice-activity detector than the
+    # loudness gate above: if it transcribed real words, that overrides a
     # false "no speech" reading (e.g. quiet speech under the RMS threshold);
-    # if it heard nothing at all, that overrides a reading - heuristic or
-    # model - that mistook silence or background noise for voiced audio. This
-    # applies last and unconditionally, regardless of which provider answered.
+    # if it heard nothing at all, that overrides a model reading that mistook
+    # silence or background noise for voiced audio. This applies last and
+    # unconditionally.
     if whisper_checked and not transcript_text:
         result["risk_signal"] = None
         result["emotion"] = None
@@ -2808,7 +2594,7 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
     # voice - same floor rule used for crisis detection elsewhere.
     if acoustic_signal is not None and content_signal is not None:
         combined: Optional[float] = round(min(1.0, 0.6 * acoustic_signal + 0.4 * content_signal), 2)
-        note = "Combines an acoustic tone reading (pause ratio, energy variability, speaking rate, pitch) with a content reading of the transcribed words - not a validated clinical signal."
+        note = "Combines the speech-emotion model's tone reading with a content reading of the transcribed words - not a validated clinical signal."
     elif acoustic_signal is not None:
         combined = acoustic_signal
         note = result["note"]
@@ -2820,16 +2606,6 @@ async def analyze_voice(file: UploadFile = File(...), transcript: str = Form("")
         note = "No speech was detected in this recording." if whisper_checked else result["note"]
     if crisis_language:
         combined = max(combined, 0.9) if combined is not None else 0.9
-
-    # The blend above already lets the words correct a misleading acoustic
-    # risk_signal (e.g. animated-but-happy speech wrongly read as agitated by
-    # the local heuristic) - but the five individual bars (calm/stress/anger/
-    # fatigue/depression_indicator) shown in the UI came straight from the
-    # acoustic provider alone, untouched by that correction. Apply the same
-    # 60/40 blend per bar, not just to the single combined number, so what's
-    # actually displayed agrees with what the words say too.
-    if result["emotion"] is not None and content_signal is not None:
-        result["emotion"] = _moderate_emotion_with_content(result["emotion"], content_signal, crisis_language)
 
     result["acoustic_signal"] = acoustic_signal
     result["content_signal"] = content_signal
@@ -3314,15 +3090,9 @@ def _sanitize_voice_features(supplied: dict) -> dict:
     emotion = supplied.get("emotion")
     clean_emotion = None
     if isinstance(emotion, dict):
-        clean_emotion = {key: _unit_float(emotion.get(key)) for key in ("calm", "stress", "anger", "fatigue", "depression_indicator")}
+        clean_emotion = {key: _unit_float(emotion.get(key)) for key in VOICE_EMOTION_LABELS}
         clean_emotion = {key: value for key, value in clean_emotion.items() if value is not None} or None
-    # Which provider actually produced risk_signal (see analyze_voice's cascade) -
-    # kept so evaluate_components can describe the signal accurately instead of
-    # always claiming the local heuristic, whitelisted against known values so a
-    # client can't inject an arbitrary provider label into its own results.
-    provider = supplied.get("provider")
-    clean_provider = provider if provider in ("qwen-omni", "local-heuristic") else None
-    return {"risk_signal": risk_signal, "emotion": clean_emotion, "provider": clean_provider}
+    return {"risk_signal": risk_signal, "emotion": clean_emotion}
 
 
 @app.post("/risk-assess")

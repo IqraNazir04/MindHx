@@ -32,6 +32,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+FROM python:3.11-slim AS voice-model
+# Exports the wav2vec2 voice-emotion model to int8 ONNX. torch and
+# transformers live only in this stage - the backend runs the result with
+# onnxruntime alone.
+WORKDIR /export
+COPY backend/requirements-export.txt .
+# torch is a ~200 MB download; a longer timeout and retries ride out slow mirrors.
+ENV PIP_DEFAULT_TIMEOUT=120 PIP_RETRIES=10
+RUN pip install --no-cache-dir torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements-export.txt
+COPY backend/scripts/export_voice_emotion_model.py .
+RUN python export_voice_emotion_model.py /export/voice_model/voice-emotion.onnx
+
 FROM python:3.11-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -51,6 +64,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
 # Backend: installed packages plus the app's own source files.
 COPY --from=api-deps /install /usr/local
 COPY backend/main.py backend/auth.py backend/database.py backend/envfile.py backend/mailer.py backend/manage.py backend/models.py backend/ratelimit.py ./backend/
+COPY --from=voice-model /export/voice_model ./backend/voice_model
 
 # Frontend: standalone server output.
 COPY --from=web-builder /web/.next/standalone ./

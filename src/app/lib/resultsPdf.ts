@@ -11,6 +11,7 @@
 // not just the aggregate score.
 import { jsPDF } from "jspdf";
 import { routingLabel } from "./resultsGuidance";
+import { isVoiceEmotion, VOICE_EMOTION_ROWS, type VoiceEmotion } from "../components/VoiceEmotionBars";
 
 export type ResultForPdf = {
   risk_score: number;
@@ -22,7 +23,7 @@ export type ResultForPdf = {
     gad7: { score: number | null; band: string };
     k10: { score: number | null; band: string };
     text: { sentiment: string; signal: number; anxiety_level?: number | null; stress_level?: number | null; depression_indicator?: number | null; anger_level?: number | null; calm_level?: number | null };
-    voice: { available: boolean; signal: number | null; note: string; emotion?: { calm: number; stress: number; anger: number; fatigue: number; depression_indicator: number } | null };
+    voice: { available: boolean; signal: number | null; note: string; emotion?: VoiceEmotion | null };
     attribution?: {
       note: string;
       contributions: { label: string; modality: string; share_pct: number }[];
@@ -334,15 +335,11 @@ function buildResultsPdf(result: ResultForPdf, preparedFor: PreparedFor, detail?
       ]);
     }
 
-    if (components.voice.emotion) {
+    if (isVoiceEmotion(components.voice.emotion)) {
       const emotion = components.voice.emotion;
-      barGroup("Voice tone breakdown (graph)", [
-        { label: "Calm", fraction: emotion.calm, valueLabel: `${Math.round(emotion.calm * 100)}%` },
-        { label: "Stress", fraction: emotion.stress, valueLabel: `${Math.round(emotion.stress * 100)}%` },
-        { label: "Anger", fraction: emotion.anger, valueLabel: `${Math.round(emotion.anger * 100)}%` },
-        { label: "Fatigue", fraction: emotion.fatigue, valueLabel: `${Math.round(emotion.fatigue * 100)}%` },
-        { label: "Depression indicator", fraction: emotion.depression_indicator, valueLabel: `${Math.round(emotion.depression_indicator * 100)}%` },
-      ]);
+      barGroup("Voice emotion breakdown (graph)", VOICE_EMOTION_ROWS.map(({ key, label }) => (
+        { label, fraction: emotion[key], valueLabel: `${Math.round(emotion[key] * 100)}%` }
+      )));
     }
 
     if (components.attribution && components.attribution.contributions.length > 0) {

@@ -1,0 +1,10 @@
+# Build-time only: exports the voice-emotion model to ONNX
+# (scripts/export_voice_emotion_model.py). Never installed into the running
+# backend. Install torch from the CPU wheel index first, or pip pulls the
+# multi-GB CUDA build:
+#   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
+transformers==4.57.6
+onnx==1.19.1
+onnxruntime==1.19.2
+numpy==1.26.4

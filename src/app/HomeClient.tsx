@@ -13,7 +13,7 @@ import FeatureCarousel from "./components/FeatureCarousel";
 import InnovationGrid from "./components/InnovationGrid";
 import TreeScene from "./components/TreeScene";
 import { ClinicalSignalGraphic, VoiceSignalGraphic, WordsSignalGraphic } from "./components/SignalGraphics";
-import VoiceEmotionBars, { type VoiceEmotion } from "./components/VoiceEmotionBars";
+import VoiceEmotionBars, { isVoiceEmotion, type VoiceEmotion } from "./components/VoiceEmotionBars";
 import TextMoodBars, { type TextMoodScores } from "./components/TextMoodBars";
 import { fetchCheckInEligibility, fetchCurrentUser, isLoggedIn, type CheckInEligibility } from "./lib/auth";
 import { resetSaveProgress, saveResultToHistory } from "./lib/checkinHistory";
@@ -92,7 +92,7 @@ export default function HomeClient() {
   const [speaking, setSpeaking] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [voiceFeatures, setVoiceFeatures] = useState<{ risk_signal?: number | null; pause_ratio?: number; energy_variability?: number; speaking_rate?: number; emotion?: VoiceEmotion | null; has_speech?: boolean; provider?: string }>({});
+  const [voiceFeatures, setVoiceFeatures] = useState<{ risk_signal?: number | null; emotion?: VoiceEmotion | null; has_speech?: boolean }>({});
   const [typedText, setTypedText] = useState("");
   const [textSubmitting, setTextSubmitting] = useState(false);
   const [textSubmitError, setTextSubmitError] = useState("");
@@ -348,11 +348,8 @@ export default function HomeClient() {
           voiceFormData.append("language", languageCode);
           const voiceResponse = await fetch(`${API_BASE}/analyze-voice`, { method: "POST", body: voiceFormData });
           if (!voiceResponse.ok) throw new Error("Voice analysis unavailable");
-          const voiceResult = await voiceResponse.json() as { risk_signal: number | null; pause_ratio: number; energy_variability: number; speaking_rate: number; emotion: VoiceEmotion | null; has_speech: boolean; provider?: string };
-          // provider ("qwen-omni" vs "local-heuristic") travels with risk_signal all
-          // the way to /risk-assess, so the results page can say which actually read
-          // this recording's tone instead of always claiming the local heuristic.
-          setVoiceFeatures({ risk_signal: voiceResult.risk_signal, pause_ratio: voiceResult.pause_ratio, energy_variability: voiceResult.energy_variability, speaking_rate: voiceResult.speaking_rate, emotion: voiceResult.emotion, has_speech: voiceResult.has_speech, provider: voiceResult.provider });
+          const voiceResult = await voiceResponse.json() as { risk_signal: number | null; emotion: VoiceEmotion | null; has_speech: boolean };
+          setVoiceFeatures({ risk_signal: voiceResult.risk_signal, emotion: voiceResult.emotion, has_speech: voiceResult.has_speech });
         } catch {
           setVoiceFeatures({});
         }
@@ -638,7 +635,7 @@ export default function HomeClient() {
               <Link href="/questionnaire" className="check-in-button">{completedScales === 0 ? text.startTests : completedScales === 3 ? text.reviewTests : text.continueTests} <span>→</span></Link>
             </div>
           </article>
-          <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button>{recording && <span className="recording-timer" role="timer" aria-label={language === "اردو" ? "ریکارڈنگ کا وقت" : "Recording time"}><span className="recording-timer-dot" aria-hidden="true" />{formatRecordingTime(recordingSeconds)} / {formatRecordingTime(MAX_RECORDING_MS / 1000)}</span>}<span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{voiceFeatures.emotion && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}{voiceFeatures.has_speech === false && <p className="microcopy">{text.voiceNoSignal}</p>}</article>
+          <article className="signal-card signal-card-voice"><VoiceSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 02</p><h2>{text.sound}</h2></div><span className="ready-label ready-label-muted">{text.voiceOptional}</span></div><p className="card-description">{text.soundDescription}</p><button className={`record-button ${recording ? "recording" : ""}`} onClick={handleVoiceToggle} disabled={transcribing}><span className="record-icon" />{transcribing ? text.processing : recording ? text.stop : text.record}</button>{recording && <span className="recording-timer" role="timer" aria-label={language === "اردو" ? "ریکارڈنگ کا وقت" : "Recording time"}><span className="recording-timer-dot" aria-hidden="true" />{formatRecordingTime(recordingSeconds)} / {formatRecordingTime(MAX_RECORDING_MS / 1000)}</span>}<span className="microcopy">{voiceError || (transcript ? text.transcriptReady : recording ? text.listening : text.recordingHintFull)}</span><div className={`waveform ${recording ? "waveform-live" : ""}`} aria-hidden="true">{Array.from({ length: 34 }, (_, index) => <i key={index} style={{ height: `${12 + ((index * 17) % 29)}px`, animationDelay: `${(index % 9) * 0.09}s` }} />)}</div>{transcript && <p className="voice-transcript">{transcript}</p>}{isVoiceEmotion(voiceFeatures.emotion) && <VoiceEmotionBars emotion={voiceFeatures.emotion} title={text.voiceTone} />}{voiceFeatures.has_speech === false && <p className="microcopy">{text.voiceNoSignal}</p>}</article>
           <article className="signal-card signal-card-words"><WordsSignalGraphic /><div className="card-heading"><div><p className="card-kicker">SIGNAL 03</p><h2>{text.words}</h2></div><span className="ready-label">{text.ready}</span></div><p className="card-description">{text.wordsDescription}</p><textarea value={typedText} onChange={(event) => { setTypedText(event.target.value); setTextSubmitResult(null); }} maxLength={MAX_TYPED_TEXT} placeholder={text.placeholder} aria-label={text.wordsDescription} /><div className="text-footer"><span>{text.optional}</span><span>{typedText.length} / {MAX_TYPED_TEXT}</span></div><div className="text-actions"><button className="check-in-button text-submit-button" onClick={handleSubmitText} disabled={textSubmitting || !typedText.trim()}>{textSubmitting ? text.submittingText : text.submitText}</button><button className="speech-button" onClick={handleUrduSpeech} disabled={speaking || language !== "اردو" || !(`${transcript}\n${typedText}`.trim())}>{speaking ? text.speaking : text.speakUrdu}</button></div><span className="microcopy">{text.textSubmitHint}</span>{textSubmitResult && <p className="text-submit-result"><b>{text.textSentiment}:</b> {textSubmitResult.sentiment}</p>}{textSubmitResult && <TextMoodBars scores={textSubmitResult} title={text.wordChoice} />}{textSubmitError && <span className="microcopy">{textSubmitError}</span>}{voiceError && <span className="microcopy">{voiceError}</span>}</article>
             </div>
           </div>
