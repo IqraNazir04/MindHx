@@ -551,6 +551,8 @@ textarea::placeholder { color:#9aa6b4; }
 .emotion-fill-red { background:var(--red); }
 .emotion-fill-blue { background:var(--blue); }
 .emotion-fill-navy { background:var(--navy); }
+.emotion-fill-teal-deep { background:var(--teal-deep); }
+.emotion-fill-blue-deep { background:var(--blue-deep); }
 .emotion-share { text-align:right; color:var(--muted); font:11px 'DM Mono',monospace; }
 .emotion-note { max-width:520px; margin:6px 0 0; color:var(--muted); font-size:10.5px; line-height:1.55; }
 @media (max-width:520px) { .emotion-row { grid-template-columns:96px 1fr 36px; } }

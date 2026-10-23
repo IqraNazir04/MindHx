@@ -126,12 +126,31 @@ from fastapi.testclient import TestClient
 SAMPLE_RATE = 16000
 
 
-def _signals() -> dict:
-    t = np.arange(int(SAMPLE_RATE * 6)) / SAMPLE_RATE
-    monotone = 0.3 * np.sin(2 * np.pi * 130 * t) * ((t % 2.0) < 1.1)
-    f0 = 150 + 90 * np.sin(2 * np.pi * 0.7 * t)
-    expressive = (0.2 + 0.2 * np.abs(np.sin(2 * np.pi * 1.3 * t))) * np.sin(2 * np.pi * np.cumsum(f0) / SAMPLE_RATE) * ((t % 3.0) < 2.8)
-    return {"monotone": monotone, "expressive": expressive}
+class _StubEmotionModel:
+    """Stands in for the ONNX session with a fixed reading (mostly sad), so these
+    tests check how /analyze-voice combines tone with words and silence gating,
+    independent of the real model file."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def run(self, _outputs, _feeds: dict) -> list:
+        self.calls += 1
+        logits = np.full((1, len(main.VOICE_EMOTION_LABELS)), -4.0, dtype=np.float32)
+        logits[0, main.VOICE_EMOTION_LABELS.index("sad")] = 4.0
+        return [logits]
+
+
+@pytest.fixture
+def stub_model(monkeypatch) -> _StubEmotionModel:
+    model = _StubEmotionModel()
+    monkeypatch.setattr(main, "_load_voice_emotion_model", lambda: model)
+    return model
+
+
+def _tone(seconds: float = 3.0) -> np.ndarray:
+    t = np.arange(int(SAMPLE_RATE * seconds)) / SAMPLE_RATE
+    return (0.3 * np.sin(2 * np.pi * 180 * t) * ((t % 1.0) < 0.7)).astype(np.float32)
 
 
 def _wav_bytes(samples: np.ndarray) -> bytes:
@@ -144,75 +163,60 @@ def _wav_bytes(samples: np.ndarray) -> bytes:
     return buffer.getvalue()
 
 
-def test_flat_monotone_speech_scores_higher_risk_than_expressive_speech() -> None:
-    signals = _signals()
-    flat = main._prosodic_risk_signal(main._prosodic_features(signals["monotone"].astype(np.float32), SAMPLE_RATE))
-    expressive = main._prosodic_risk_signal(main._prosodic_features(signals["expressive"].astype(np.float32), SAMPLE_RATE))
-    assert flat - expressive >= 0.3, (flat, expressive)
+def test_voiced_seconds_separates_speech_from_silence() -> None:
+    assert main._voiced_seconds(np.zeros(SAMPLE_RATE * 3, dtype=np.float32), SAMPLE_RATE) == 0.0
+    assert main._voiced_seconds(_tone(3.0), SAMPLE_RATE) > 1.5
 
 
-def test_pitch_spread_separates_flat_from_expressive_voice() -> None:
-    signals = _signals()
-    flat = main._prosodic_features(signals["monotone"].astype(np.float32), SAMPLE_RATE)["pitch_variability_semitones"]
-    expressive = main._prosodic_features(signals["expressive"].astype(np.float32), SAMPLE_RATE)["pitch_variability_semitones"]
-    assert flat is not None and expressive is not None
-    assert expressive > flat + 3
-
-
-def test_silent_recording_reports_no_signal_not_maximum_risk() -> None:
-    """Regression test: a recording with no real speech used to score the
-    maximum possible risk (1.0), because near-total silence maps to
-    pause_ratio near 1.0, near-zero energy variability, and near-zero
-    speaking rate - the same numbers the heuristic also uses for "flat,
-    slowed, paused speech". The fix is a minimum-voiced-seconds gate: no
-    usable signal should mean no signal, not a false ceiling."""
-    silence = np.zeros(SAMPLE_RATE * 3, dtype=np.float32)
-    features = main._prosodic_features(silence, SAMPLE_RATE)
-    assert features["voiced_seconds"] < main.MIN_VOICED_SECONDS
-    assert main._prosodic_risk_signal(features) is None
-    assert main._voice_emotion_scores(features) is None
-
-
-def test_silence_and_noise_do_not_break_voice_analysis() -> None:
-    rng = np.random.default_rng(1)
-    for samples in (np.zeros(SAMPLE_RATE * 3, dtype=np.float32), rng.normal(0, 0.1, SAMPLE_RATE * 3).astype(np.float32)):
-        features = main._prosodic_features(samples, SAMPLE_RATE)
-        risk = main._prosodic_risk_signal(features)
-        assert risk is None or 0.0 <= risk <= 1.0
-
-
-def test_voice_endpoint_returns_features_for_a_wav_recording() -> None:
+def test_voice_endpoint_returns_model_emotions_for_a_wav_recording(stub_model) -> None:
     client = TestClient(main.app)
-    response = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_signals()["monotone"]), "audio/wav")})
+    response = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_tone()), "audio/wav")})
     assert response.status_code == 200, response.text
     body = response.json()
-    assert 0.0 <= body["risk_signal"] <= 1.0
-    assert "pitch_variability_semitones" in body
+    assert tuple(body["emotion"]) == main.VOICE_EMOTION_LABELS
+    assert body["emotion"]["sad"] > 0.9
+    assert body["acoustic_signal"] == body["risk_signal"] and body["risk_signal"] > 0.9
+    assert body["provider"] == main.VOICE_EMOTION_MODEL_ID
     assert body["has_speech"] is True
 
 
-def test_voice_endpoint_reports_no_speech_for_a_silent_recording() -> None:
+def test_voice_endpoint_reports_no_speech_for_a_silent_recording(stub_model) -> None:
+    """Silence never reaches the model: it still returns confident-looking
+    probabilities for an empty room, which would be a false reading."""
     client = TestClient(main.app)
-    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
-    response = client.post("/analyze-voice", files={"file": ("silence.wav", _wav_bytes(silence), "audio/wav")})
+    response = client.post("/analyze-voice", files={"file": ("silence.wav", _wav_bytes(np.zeros(SAMPLE_RATE * 2, dtype=np.float32)), "audio/wav")})
     assert response.status_code == 200, response.text
     body = response.json()
     assert body["risk_signal"] is None
     assert body["emotion"] is None
     assert body["has_speech"] is False
+    assert stub_model.calls == 0
 
 
-def test_voice_endpoint_trusts_a_supplied_transcript_over_a_false_acoustic_silence_reading() -> None:
+def test_voice_endpoint_reads_words_only_when_the_model_is_unavailable() -> None:
+    # conftest blanks VOICE_EMOTION_MODEL_PATH, so the model never loads.
+    client = TestClient(main.app)
+    response = client.post(
+        "/analyze-voice",
+        files={"file": ("voice.wav", _wav_bytes(_tone()), "audio/wav")},
+        data={"transcript": "I feel hopeless and empty, nothing matters anymore"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["acoustic_signal"] is None and body["emotion"] is None
+    assert body["risk_signal"] == body["content_signal"] and body["content_signal"] > 0.5
+
+
+def test_voice_endpoint_trusts_a_supplied_transcript_over_a_false_acoustic_silence_reading(stub_model) -> None:
     """A caller that already knows real words were spoken (here, passed
     directly instead of making a second Whisper call) overrides a false
     acoustic "no speech" reading: has_speech becomes true, and - since tone
     can't be read from too-quiet audio - the content signal from the words
     carries the risk_signal on its own rather than leaving it null."""
     client = TestClient(main.app)
-    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
     response = client.post(
         "/analyze-voice",
-        files={"file": ("quiet.wav", _wav_bytes(silence), "audio/wav")},
+        files={"file": ("quiet.wav", _wav_bytes(np.zeros(SAMPLE_RATE * 2, dtype=np.float32)), "audio/wav")},
         data={"transcript": "I feel hopeless and empty, nothing matters anymore"},
     )
     assert response.status_code == 200, response.text
@@ -224,65 +228,23 @@ def test_voice_endpoint_trusts_a_supplied_transcript_over_a_false_acoustic_silen
     assert body["voice_activity_checked_with_whisper"] is True
 
 
-def test_voice_endpoint_blends_acoustic_tone_with_transcribed_words() -> None:
-    """Regression test for the reported bug's other half: a voice that sounds
-    flat/monotone under the acoustic heuristic, but whose transcribed words
-    are clearly positive, should score lower than the acoustic tone alone -
-    the words are allowed to pull a misleading tone reading back down, not
-    just add on top of it."""
+def test_voice_endpoint_blends_acoustic_tone_with_transcribed_words(stub_model) -> None:
+    """A voice the model reads as sad, but whose transcribed words are clearly
+    positive, scores lower than the tone alone - the words are allowed to pull
+    a misleading tone reading back down, not just add on top of it. The bars
+    themselves stay the model's own probabilities."""
     client = TestClient(main.app)
-    monotone = _signals()["monotone"]
-    acoustic_only = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(monotone), "audio/wav")}).json()
+    acoustic_only = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_tone()), "audio/wav")}).json()
     blended = client.post(
         "/analyze-voice",
-        files={"file": ("voice.wav", _wav_bytes(monotone), "audio/wav")},
+        files={"file": ("voice.wav", _wav_bytes(_tone()), "audio/wav")},
         data={"transcript": "Today was a great day, I felt calm and grateful and hopeful about everything"},
     ).json()
     assert blended["acoustic_signal"] == acoustic_only["risk_signal"]
     assert blended["content_signal"] is not None and blended["content_signal"] < 0.3
     assert blended["risk_signal"] < acoustic_only["risk_signal"]
     assert blended["sentiment"] == "positive"
-
-
-def test_voice_endpoint_moderates_emotion_bars_with_the_transcribed_words() -> None:
-    """Regression test for the exact reported bug: animated, fast, loud-swinging
-    delivery reads as high Anger/Stress under the acoustic-only heuristic
-    (_voice_emotion_scores has no way to tell "excited and happy" from "angry"),
-    even when the words themselves are calm and positive. The individual bars
-    shown in the UI must be corrected by the words, not just the single
-    combined risk_signal underneath them."""
-    client = TestClient(main.app)
-    t = np.arange(int(SAMPLE_RATE * 4)) / SAMPLE_RATE
-    # Erratic, rapid loud/quiet swings - the acoustic profile that trips
-    # anger/stress under _voice_emotion_scores (high energy variability, fast
-    # segment rate), independent of what's actually said.
-    amp = 0.05 + 0.9 * np.abs(np.sin(2 * np.pi * 8 * t) * np.sin(2 * np.pi * 1.3 * t))
-    animated = (amp * np.sin(2 * np.pi * 220 * t) * ((t % 0.15) < 0.09)).astype(np.float32)
-
-    acoustic_only = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(animated), "audio/wav")}).json()
-    assert acoustic_only["emotion"]["anger"] > 0.2  # the fixture must actually trigger the bug being guarded against
-
-    moderated = client.post(
-        "/analyze-voice",
-        files={"file": ("voice.wav", _wav_bytes(animated), "audio/wav")},
-        data={"transcript": "I am feeling good today, calm and relaxed, nothing is bothering me"},
-    ).json()
-    assert moderated["sentiment"] in ("positive", "neutral")
-    assert moderated["emotion"]["anger"] < acoustic_only["emotion"]["anger"]
-    assert moderated["emotion"]["stress"] < acoustic_only["emotion"]["stress"]
-    assert moderated["emotion"]["calm"] > acoustic_only["emotion"]["calm"]
-
-
-def test_moderate_emotion_with_content_escalates_for_crisis_words_not_just_dampens() -> None:
-    """The moderation isn't one-directional "always calm things down" - words
-    that disagree the other way (real distress under a calm-sounding voice)
-    must pull the bars up, and a crisis disclosure hits the same 0.9 floor
-    risk_signal does, regardless of how calm the voice sounded."""
-    emotion = {"calm": 0.8, "stress": 0.1, "anger": 0.05, "fatigue": 0.1, "depression_indicator": 0.1}
-    escalated = main._moderate_emotion_with_content(emotion, content_signal=1.0, crisis_language=True)
-    assert escalated["depression_indicator"] >= 0.9
-    assert escalated["stress"] > emotion["stress"]
-    assert escalated["calm"] < emotion["calm"]
+    assert blended["emotion"] == acoustic_only["emotion"]
 
 
 def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None:
@@ -290,114 +252,11 @@ def test_voice_endpoint_never_softens_a_crisis_disclosure_in_the_words() -> None
     statement in the transcribed words - same floor rule used for crisis
     detection everywhere else in the app."""
     client = TestClient(main.app)
-    silence = np.zeros(SAMPLE_RATE * 2, dtype=np.float32)
     response = client.post(
         "/analyze-voice",
-        files={"file": ("quiet.wav", _wav_bytes(silence), "audio/wav")},
+        files={"file": ("quiet.wav", _wav_bytes(np.zeros(SAMPLE_RATE * 2, dtype=np.float32)), "audio/wav")},
         data={"transcript": "I want to kill myself"},
     )
     body = response.json()
     assert body["crisis_language"] is True
     assert body["risk_signal"] >= 0.9
-
-
-def test_tone_label_to_emotion_bars_covers_every_label() -> None:
-    for label in main.QWEN_AUDIO_TONE_LABELS:
-        bars = main._tone_label_to_emotion_bars(label, intensity=7)
-        assert set(bars) == {"calm", "stress", "anger", "fatigue", "depression_indicator"}
-        assert all(0.0 <= value <= 1.0 for value in bars.values())
-    assert main._tone_label_to_emotion_bars("calm", 10)["calm"] > main._tone_label_to_emotion_bars("calm", 0)["calm"]
-
-
-def test_qwen_tone_reply_pattern_parses_the_expected_format() -> None:
-    match = main._QWEN_TONE_REPLY_PATTERN.search("LABEL=stressed INTENSITY=8")
-    assert match and match.group(1) == "stressed" and match.group(2) == "8"
-    # Tolerates the model adding stray whitespace or casing without failing closed.
-    match = main._QWEN_TONE_REPLY_PATTERN.search("  label = Calm   intensity=3  ")
-    assert match and match.group(1).lower() == "calm" and match.group(2) == "3"
-    assert main._QWEN_TONE_REPLY_PATTERN.search("I heard someone speaking calmly.") is None
-
-
-def test_pcm_to_wav_bytes_is_a_valid_wav_the_wave_module_can_read_back() -> None:
-    samples = _signals()["monotone"].astype(np.float32)
-    wav_bytes = main._pcm_to_wav_bytes(samples, SAMPLE_RATE)
-    with wave.open(io.BytesIO(wav_bytes), "rb") as reader:
-        assert reader.getnchannels() == 1
-        assert reader.getsampwidth() == 2
-        assert reader.getframerate() == SAMPLE_RATE
-        assert reader.getnframes() == len(samples)
-
-
-def test_qwen_omni_tone_signal_is_none_without_a_configured_key(monkeypatch) -> None:
-    monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
-    result = asyncio.run(main._qwen_omni_tone_signal(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
-    assert result is None
-
-
-def test_qwen_omni_tone_signal_fails_closed_on_an_unparseable_reply(monkeypatch) -> None:
-    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict:
-            return {"choices": [{"message": {"content": "I'm not able to describe that."}}]}
-
-    class FakeAsyncClient:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        async def __aenter__(self) -> "FakeAsyncClient":
-            return self
-
-        async def __aexit__(self, *args) -> bool:
-            return False
-
-        async def post(self, *args, **kwargs) -> FakeResponse:
-            return FakeResponse()
-
-    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
-    result = asyncio.run(main._qwen_omni_tone_signal(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
-    assert result is None
-
-
-def test_analyze_voice_prefers_qwen_omni_tone_over_the_local_heuristic_when_configured(monkeypatch) -> None:
-    """The cascade's whole point: a configured, successfully-parsed hosted
-    read must win over the always-available local RMS/pause heuristic, the
-    same way Claude/Qwen already take priority over the text heuristic."""
-    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
-
-    class FakeResponse:
-        def raise_for_status(self) -> None:
-            return None
-
-        def json(self) -> dict:
-            return {"choices": [{"message": {"content": "LABEL=calm INTENSITY=2"}}]}
-
-    class FakeAsyncClient:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        async def __aenter__(self) -> "FakeAsyncClient":
-            return self
-
-        async def __aexit__(self, *args) -> bool:
-            return False
-
-        async def post(self, *args, **kwargs) -> FakeResponse:
-            return FakeResponse()
-
-    monkeypatch.setattr(httpx, "AsyncClient", FakeAsyncClient)
-
-    client = TestClient(main.app)
-    # The monotone signal reads as high-risk under the local heuristic (see
-    # test_flat_monotone_speech_scores_higher_risk_than_expressive_speech);
-    # a "calm" reply from the hosted model must override that, not blend with it.
-    local_only = main._prosodic_risk_signal(main._prosodic_features(_signals()["monotone"].astype(np.float32), SAMPLE_RATE))
-    response = client.post("/analyze-voice", files={"file": ("voice.wav", _wav_bytes(_signals()["monotone"]), "audio/wav")})
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["provider"] == "qwen-omni"
-    assert body["tone_label"] == "calm"
-    assert body["acoustic_signal"] < local_only

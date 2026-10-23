@@ -66,11 +66,11 @@ const ABOUT_SECTIONS: AboutSection[] = [
     image: "forestCreek",
     en: {
       title: "How the three signals work together",
-      body: "MindHx scores three signals separately - your voice's pace and tone, your own words, and PHQ-9, GAD-7, and K10, the same questionnaires clinicians already use - then combines them into one number. The results page shows exactly how much each signal contributed; nothing is smoothed over or hidden inside a black box.",
+      body: "MindHx scores three signals separately - how your voice sounds, read by a speech-emotion model, your own words, and PHQ-9, GAD-7, and K10, the same questionnaires clinicians already use - then combines them into one number. The results page shows exactly how much each signal contributed; nothing is smoothed over or hidden inside a black box.",
     },
     ur: {
       title: "تینوں اشارے مل کر کیسے کام کرتے ہیں",
-      body: "MindHx تین اشاروں کو الگ الگ جانچتا ہے - آپ کی آواز کی رفتار اور لہجہ، آپ کے اپنے الفاظ، اور PHQ-9، GAD-7، اور K10 جو معالجین پہلے سے استعمال کرتے ہیں - پھر انہیں ایک نمبر میں یکجا کرتا ہے۔ نتائج کا صفحہ بالکل دکھاتا ہے کہ ہر اشارے کا کتنا حصہ تھا؛ کچھ بھی چھپایا نہیں جاتا۔",
+      body: "MindHx تین اشاروں کو الگ الگ جانچتا ہے - آپ کی آواز کا انداز، جسے ایک اسپیچ ایموشن ماڈل پڑھتا ہے، آپ کے اپنے الفاظ، اور PHQ-9، GAD-7، اور K10 جو معالجین پہلے سے استعمال کرتے ہیں - پھر انہیں ایک نمبر میں یکجا کرتا ہے۔ نتائج کا صفحہ بالکل دکھاتا ہے کہ ہر اشارے کا کتنا حصہ تھا؛ کچھ بھی چھپایا نہیں جاتا۔",
     },
   },
   {
@@ -78,11 +78,11 @@ const ABOUT_SECTIONS: AboutSection[] = [
     image: "goldenSea",
     en: {
       title: "What we keep, and what we don't",
-      body: "Your voice is analysed for tone and then discarded - MindHx never stores the audio, and no one listens to it. Account holders' scores, questionnaire answers, and a downloadable PDF report are saved to their dashboard, visible only to them, and deletable at any time.",
+      body: "Your voice is analysed for emotional tone by a speech-emotion model running on MindHx's own server, then discarded - the audio is never stored, and no one listens to it. Account holders' scores, questionnaire answers, and a downloadable PDF report are saved to their dashboard, visible only to them, and deletable at any time.",
     },
     ur: {
       title: "ہم کیا محفوظ کرتے ہیں اور کیا نہیں",
-      body: "آپ کی آواز کا لہجہ جانچ کر فوراً ضائع کر دیا جاتا ہے - MindHx کبھی آڈیو محفوظ نہیں کرتا، اور کوئی اسے سنتا نہیں۔ اکاؤنٹ رکھنے والوں کے اسکور، سوالنامے کے جوابات، اور ڈاؤن لوڈ کے قابل PDF رپورٹ ڈیش بورڈ میں محفوظ ہوتی ہے، صرف انہیں نظر آتی ہے، اور کسی بھی وقت حذف کی جا سکتی ہے۔",
+      body: "آپ کی آواز کا جذباتی انداز MindHx کے اپنے سرور پر چلنے والے ایک اسپیچ ایموشن ماڈل کے ذریعے جانچا جاتا ہے، پھر فوراً ضائع کر دیا جاتا ہے - آڈیو کبھی محفوظ نہیں کیا جاتا، اور کوئی اسے سنتا نہیں۔ اکاؤنٹ رکھنے والوں کے اسکور، سوالنامے کے جوابات، اور ڈاؤن لوڈ کے قابل PDF رپورٹ ڈیش بورڈ میں محفوظ ہوتی ہے، صرف انہیں نظر آتی ہے، اور کسی بھی وقت حذف کی جا سکتی ہے۔",
     },
   },
   {
@@ -102,11 +102,11 @@ const ABOUT_SECTIONS: AboutSection[] = [
     image: "foggyValley",
     en: {
       title: "Built with context, and honest about its limits",
-      body: "Every page, including this one, exists fully in English and Urdu with proper right-to-left layout - not just swapped words. And the limits are stated plainly: the risk score is a weighted heuristic, not a validated clinical probability, and the voice signal is a deliberate placeholder for a real biomarker later.",
+      body: "Every page, including this one, exists fully in English and Urdu with proper right-to-left layout - not just swapped words. And the limits are stated plainly: the risk score is a weighted heuristic, not a validated clinical probability, and the voice signal comes from a general-purpose speech-emotion model, not a clinically validated biomarker.",
     },
     ur: {
       title: "سیاق کے ساتھ بنایا گیا، اور اپنی حدود کے بارے میں ایماندار",
-      body: "ہر صفحہ، بشمول یہ صفحہ، مکمل طور پر انگریزی اور اردو میں موجود ہے، صحیح دائیں سے بائیں خاکے کے ساتھ - صرف الفاظ بدلے نہیں جاتے۔ اور حدود صاف بتائی گئی ہیں: خطرے کا اسکور ایک وزنی تخمینہ ہے، کوئی مصدقہ طبی امکان نہیں، اور صوتی اشارہ جان بوجھ کر بعد میں ایک حقیقی بایومارکر کے لیے ایک عارضی متبادل ہے۔",
+      body: "ہر صفحہ، بشمول یہ صفحہ، مکمل طور پر انگریزی اور اردو میں موجود ہے، صحیح دائیں سے بائیں خاکے کے ساتھ - صرف الفاظ بدلے نہیں جاتے۔ اور حدود صاف بتائی گئی ہیں: خطرے کا اسکور ایک وزنی تخمینہ ہے، کوئی مصدقہ طبی امکان نہیں، اور صوتی اشارہ ایک عمومی اسپیچ ایموشن ماڈل سے آتا ہے، نہ کہ کوئی طبی طور پر مصدقہ بایومارکر۔",
     },
   },
   {
