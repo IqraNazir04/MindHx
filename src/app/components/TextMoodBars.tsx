@@ -2,9 +2,11 @@
 // /analyze-text (and echoed back in /risk-assess's components.text) as
 // labeled bars - a second, independent read of the same free text beyond
 // its single positive/neutral/negative sentiment label. Backend:
-// backend/main.py's _linguistic_indicators - a lexicon-and-ratio heuristic
-// informed by published psycholinguistic markers (first-person-singular
-// density, absolutist language), not a trained classifier or a diagnosis.
+// backend/main.py's analyze_text - scored by whichever of Claude, Qwen, or
+// OpenAI is configured and answers, else backend/main.py's
+// _linguistic_indicators, a lexicon-and-ratio heuristic informed by
+// published psycholinguistic markers (first-person-singular density,
+// absolutist language). Not a trained classifier or a diagnosis either way.
 // Keep the disclaimer visible wherever this renders.
 
 export type TextMoodScores = {
@@ -39,7 +41,7 @@ export default function TextMoodBars({ scores, title }: { scores: TextMoodScores
           <span className="emotion-share">{Math.round(scores[key] * 100)}%</span>
         </div>
       ))}
-      <p className="emotion-note">A heuristic reading of word choice (worry/pressure/absolutist language, self-focus) - not a trained classifier or a diagnosis.</p>
+      <p className="emotion-note">A reading of word choice (worry/pressure/absolutist language, self-focus) - scored by Claude, Qwen, OpenAI, and a local heuristic - not a trained classifier or a diagnosis.</p>
     </div>
   );
 }
