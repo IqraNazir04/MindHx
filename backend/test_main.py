@@ -1390,8 +1390,17 @@ def test_uploaded_source_content_has_markdown_syntax_stripped_for_display() -> N
     assert uploaded, body
     assert "##" not in uploaded[0]["content"] and "**" not in uploaded[0]["content"]
     assert "Generalised anxiety disorder" in uploaded[0]["content"] and "GAD-7 screening:" in uploaded[0]["content"]
-
     client.delete(f"/admin/documents/{created['id']}", headers=admin_headers)
+
+
+def test_strip_markdown_handles_a_bold_marker_cut_in_half_by_chunking() -> None:
+    """Chunking splits a document into ~900-char pieces with no regard for
+    markdown spans, so a **bold** marker can land with its opening half in
+    one chunk and its closing half in the next - the paired regex can't
+    match either half alone, so a leftover ** must still be stripped."""
+    from main import _strip_markdown_for_display
+    assert _strip_markdown_for_display("9. **Set a boundary") == "9. Set a boundary"
+    assert _strip_markdown_for_display("with others, and respect theirs.**\n\n10. Next tip") == "with others, and respect theirs.\n\n10. Next tip"
 
 
 def test_admin_uploaded_source_is_translated_to_urdu_for_an_urdu_session(monkeypatch) -> None:

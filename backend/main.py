@@ -525,7 +525,13 @@ def _strip_markdown_for_display(text: str) -> str:
     through a markdown renderer - left as-is, the raw "##"/"**" syntax leaks
     into the UI as literal characters instead of being formatted. Strips the
     markers library content tends to use, keeping the words themselves."""
-    return _MARKDOWN_BOLD_PATTERN.sub(r"\1", _MARKDOWN_HEADING_PATTERN.sub("", text))
+    text = _MARKDOWN_BOLD_PATTERN.sub(r"\1", _MARKDOWN_HEADING_PATTERN.sub("", text))
+    # Chunking splits a document into ~900-char pieces (see UPLOAD_CHUNK_CHARS)
+    # without regard for markdown spans, so a **bold** marker can get cut in
+    # half - one side of the pair lands in the next chunk, leaving this one
+    # with an opening or closing ** the regex above can't match (it needs
+    # both). Strip whatever's left over rather than show literal asterisks.
+    return text.replace("**", "")
 
 
 RAG_INTENT_KEYWORDS = {
