@@ -960,9 +960,12 @@ textarea::placeholder { color:#9aa6b4; }
    so it stays inside the caption's z-index:1 stacking context and paints
    above the iframe regardless of DOM order - a fade on the banner itself
    would sit at the same implicit level as the iframe and risk painting
-   underneath it. */
+   underneath it. It fades both ends of the scene into the page's own cream:
+   the bottom for the caption text's legibility, and the top so the scene's
+   sky/sun blends into the section above it instead of being cut by a hard
+   edge exactly at the banner's boundary. */
 .hero-signal-caption { position:relative; z-index:1; min-height:540px; padding:0 48px 40px; display:flex; flex-direction:column; justify-content:flex-end; gap:10px; cursor:pointer; box-sizing:border-box; }
-.hero-signal-caption:before { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(0deg,rgba(251,243,230,.94) 0%,rgba(251,243,230,.6) 38%,rgba(251,243,230,0) 78%); pointer-events:none; }
+.hero-signal-caption:before { content:''; position:absolute; inset:0; z-index:-1; background:linear-gradient(0deg,rgba(251,243,230,.94) 0%,rgba(251,243,230,.6) 38%,rgba(251,243,230,0) 78%,rgba(251,243,230,0) 84%,rgba(251,243,230,.9) 100%); pointer-events:none; }
 .hero-signal-caption-eyebrow { font:600 10px 'DM Mono',monospace; letter-spacing:1.6px; text-transform:uppercase; color:var(--teal-deep); opacity:0; transition:opacity 1.1s ease; }
 .hero-signal-caption.is-visible .hero-signal-caption-eyebrow { opacity:.85; }
 /* Two phrases that reveal one at a time, slowly, on scroll into view - the
